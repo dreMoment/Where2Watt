@@ -58,6 +58,8 @@ class SegmentSchema(BaseModel):
     latitude: float | None = None
     polyline: str | None = None
     strava_url: str | None = None
+    distance_km: float | None = None
+    gradient_pct: float | None = None
     
     model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True, extra="allow")
 
@@ -94,7 +96,7 @@ async def get_strava_access_token():
             print(f"Failed to get Strava token: {response.text}")
     return None
 
-async def fetch_segment_polyline(strava_url: str):
+async def fetch_segment_details(strava_url: str):
     if not strava_url:
         return None
     match = re.search(r"segments/(\d+)", strava_url)
@@ -113,7 +115,12 @@ async def fetch_segment_polyline(strava_url: str):
         )
         if response.status_code == 200:
             data = response.json()
-            return data.get("map", {}).get("polyline")
+            return {
+                "polyline": data.get("map", {}).get("polyline"),
+                "name": data.get("name"),
+                "distance_km": round(data.get("distance", 0) / 1000 if data.get("distance") else 0, 2),
+                "gradient_pct": round(data.get("average_grade", 0), 1)
+            }
         else:
             print(f"Failed to fetch segment from Strava: {response.text}")
     return None
@@ -123,11 +130,18 @@ async def create_segment(segment: SegmentSchema):
     db = db_client.findmyintervals
     segment_dict = segment.model_dump()
     
-    # Try to fetch polyline if missing and we have a strava_url
-    if not segment_dict.get("polyline") and segment_dict.get("strava_url"):
-        polyline = await fetch_segment_polyline(segment_dict["strava_url"])
-        if polyline:
-            segment_dict["polyline"] = polyline
+    # Try to fetch polyline and details if missing and we have a strava_url
+    if segment_dict.get("strava_url"):
+        details = await fetch_segment_details(segment_dict["strava_url"])
+        if details:
+            if not segment_dict.get("polyline"):
+                segment_dict["polyline"] = details["polyline"]
+            if not segment_dict.get("name"):
+                segment_dict["name"] = details["name"]
+            if not segment_dict.get("distance_km"):
+                segment_dict["distance_km"] = details["distance_km"]
+            if not segment_dict.get("gradient_pct"):
+                segment_dict["gradient_pct"] = details["gradient_pct"]
 
     result = await db.segments.insert_one(segment_dict)
     

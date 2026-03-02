@@ -14,8 +14,6 @@ interface SubmissionData {
     terrain: TerrainType;
     surface: string;
     safety_notes: string;
-    longitude?: number;
-    latitude?: number;
 }
 
 export default function SubmissionForm({ onClose }: Props) {
@@ -24,8 +22,6 @@ export default function SubmissionForm({ onClose }: Props) {
         terrain: "Flat",
         surface: "",
         safety_notes: "",
-        longitude: undefined,
-        latitude: undefined,
     });
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
@@ -100,7 +96,7 @@ export default function SubmissionForm({ onClose }: Props) {
                         type="url"
                         required
                         placeholder="https://www.strava.com/segments/12345"
-                        className="w-full px-4 py-2.5 rounded-lg border border-neutral-300 focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900 outline-none transition-all"
+                        className="w-full px-4 py-2.5 rounded-lg border border-neutral-300 focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900 outline-none transition-all text-neutral-900"
                         value={formData.strava_url}
                         onChange={(e) =>
                             setFormData({ ...formData, strava_url: e.target.value })
@@ -114,7 +110,7 @@ export default function SubmissionForm({ onClose }: Props) {
                             Terrain
                         </label>
                         <select
-                            className="w-full px-4 py-2.5 rounded-lg border border-neutral-300 focus:ring-2 focus:ring-neutral-900 outline-none bg-white"
+                            className="w-full px-4 py-2.5 rounded-lg border border-neutral-300 focus:ring-2 focus:ring-neutral-900 outline-none bg-white text-neutral-900"
                             value={formData.terrain}
                             onChange={(e) =>
                                 setFormData({ ...formData, terrain: e.target.value as TerrainType })
@@ -132,45 +128,10 @@ export default function SubmissionForm({ onClose }: Props) {
                             type="text"
                             required
                             placeholder="e.g. Smooth Tarmac"
-                            className="w-full px-4 py-2.5 rounded-lg border border-neutral-300 focus:ring-2 focus:ring-neutral-900 outline-none"
+                            className="w-full px-4 py-2.5 rounded-lg border border-neutral-300 focus:ring-2 focus:ring-neutral-900 outline-none text-neutral-900"
                             value={formData.surface}
                             onChange={(e) =>
                                 setFormData({ ...formData, surface: e.target.value })
-                            }
-                        />
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-                            Latitude
-                        </label>
-                        <input
-                            type="number"
-                            step="any"
-                            required
-                            placeholder="e.g. 51.2407"
-                            className="w-full px-4 py-2.5 rounded-lg border border-neutral-300 focus:ring-2 focus:ring-neutral-900 outline-none"
-                            value={formData.latitude ?? ""}
-                            onChange={(e) =>
-                                setFormData({ ...formData, latitude: parseFloat(e.target.value) })
-                            }
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-                            Longitude
-                        </label>
-                        <input
-                            type="number"
-                            step="any"
-                            required
-                            placeholder="e.g. -0.3235"
-                            className="w-full px-4 py-2.5 rounded-lg border border-neutral-300 focus:ring-2 focus:ring-neutral-900 outline-none"
-                            value={formData.longitude ?? ""}
-                            onChange={(e) =>
-                                setFormData({ ...formData, longitude: parseFloat(e.target.value) })
                             }
                         />
                     </div>
@@ -181,10 +142,9 @@ export default function SubmissionForm({ onClose }: Props) {
                         Safety Notes
                     </label>
                     <textarea
-                        required
                         rows={3}
                         placeholder="Watch out for the blind corner at the top..."
-                        className="w-full px-4 py-2.5 rounded-lg border border-neutral-300 focus:ring-2 focus:ring-neutral-900 outline-none resize-none"
+                        className="w-full px-4 py-2.5 rounded-lg border border-neutral-300 focus:ring-2 focus:ring-neutral-900 outline-none resize-none text-neutral-900"
                         value={formData.safety_notes}
                         onChange={(e) =>
                             setFormData({ ...formData, safety_notes: e.target.value })

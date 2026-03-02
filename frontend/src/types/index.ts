@@ -11,7 +11,5 @@ export type Segment = {
   };
   strava_url: string;
   approved: boolean;
-  longitude?: number;
-  latitude?: number;
   polyline?: string;
 };

@@ -14,8 +14,8 @@ export default function SegmentCard({ segment }: Props) {
                 </h3>
                 <span
                     className={`px-2 py-1 text-xs font-semibold rounded-full ${segment.terrain === "Hilly"
-                            ? "bg-rose-100 text-rose-700"
-                            : "bg-emerald-100 text-emerald-700"
+                        ? "bg-rose-100 text-rose-700"
+                        : "bg-emerald-100 text-emerald-700"
                         }`}
                 >
                     {segment.terrain}
@@ -25,11 +25,11 @@ export default function SegmentCard({ segment }: Props) {
             <div className="grid grid-cols-2 gap-2 text-sm text-neutral-600">
                 <div className="flex items-center gap-1.5">
                     <Ruler className="w-4 h-4 text-neutral-400" />
-                    <span>{segment.distance_km} km</span>
+                    <span>{segment.distance_km ?? 0} km</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                     <Mountain className="w-4 h-4 text-neutral-400" />
-                    <span>{segment.gradient_pct}% avg</span>
+                    <span>{segment.gradient_pct ?? 0}% avg</span>
                 </div>
             </div>
 
@@ -39,15 +39,15 @@ export default function SegmentCard({ segment }: Props) {
                 </p>
                 <div className="flex justify-between text-sm">
                     <div className="flex flex-col items-center">
-                        <span className="text-emerald-600 font-medium">{segment.completion_times.beginner}</span>
+                        <span className="text-emerald-600 font-medium">{segment.completion_times?.beginner ?? "N/A"}</span>
                         <span className="text-[10px] text-neutral-400">Beg</span>
                     </div>
                     <div className="flex flex-col items-center">
-                        <span className="text-amber-500 font-medium">{segment.completion_times.intermediate}</span>
+                        <span className="text-amber-500 font-medium">{segment.completion_times?.intermediate ?? "N/A"}</span>
                         <span className="text-[10px] text-neutral-400">Int</span>
                     </div>
                     <div className="flex flex-col items-center">
-                        <span className="text-rose-600 font-medium">{segment.completion_times.advanced}</span>
+                        <span className="text-rose-600 font-medium">{segment.completion_times?.advanced ?? "N/A"}</span>
                         <span className="text-[10px] text-neutral-400">Adv</span>
                     </div>
                 </div>
