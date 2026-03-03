@@ -27,12 +27,7 @@ describe('SegmentCard', () => {
     });
 
     it('calculates estimated time when power and weight are provided', () => {
-        render(<SegmentCard segment={mockSegment} />);
-
-        // Change power to 300, weight to 70
-        fireEvent.change(screen.getByLabelText(/Power \(W\)/i), { target: { value: '300' } });
-        fireEvent.change(screen.getByLabelText(/Weight \(kg\)/i), { target: { value: '70' } });
-
+        render(<SegmentCard segment={mockSegment} riderPower="300" riderWeight="70" />);
         expect(screen.queryByText("--:--")).not.toBeInTheDocument();
     });
 });

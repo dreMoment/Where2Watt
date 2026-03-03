@@ -32,9 +32,9 @@ describe('InteractiveMap', () => {
     ];
 
     it('renders map with segments', () => {
-        const { getByTestId } = render(<InteractiveMap segments={mockSegments} activeFilter="All" />);
+        const { getByTestId, getAllByTestId } = render(<InteractiveMap segments={mockSegments} activeFilter="All" />);
         expect(getByTestId('mock-map')).toBeInTheDocument();
-        expect(getByTestId('mock-source')).toBeInTheDocument();
+        expect(getAllByTestId('mock-source').length).toBeGreaterThan(0);
         expect(getByTestId('mock-layer')).toBeInTheDocument();
     });
 });

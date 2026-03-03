@@ -25,6 +25,26 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [powerStr, setPowerStr] = useState("250");
+  const [weightStr, setWeightStr] = useState("75");
+
+  useEffect(() => {
+    const p = localStorage.getItem("plannedPower");
+    const w = localStorage.getItem("riderWeight");
+    if (p) setPowerStr(p);
+    if (w) setWeightStr(w);
+  }, []);
+
+  const handlePowerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPowerStr(e.target.value);
+    localStorage.setItem("plannedPower", e.target.value);
+  };
+
+  const handleWeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setWeightStr(e.target.value);
+    localStorage.setItem("riderWeight", e.target.value);
+  };
+
   useEffect(() => {
     fetchSegments()
       .then((data) => {
@@ -100,6 +120,39 @@ export default function Home() {
             </div>
           </div>
 
+          {/* Rider Profile Configuration */}
+          <div className="bg-white/50 border border-neutral-200/60 p-5 rounded-3xl shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]">
+            <div className="flex items-center gap-2 text-[13px] uppercase tracking-widest font-bold text-neutral-400 mb-4">
+              Rider Profile
+            </div>
+            <div className="flex gap-4">
+              <div className="flex-1 relative">
+                <label htmlFor="global-power" className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5 pl-1">Power (W)</label>
+                <input
+                  id="global-power"
+                  type="number"
+                  min="0"
+                  value={powerStr}
+                  onChange={handlePowerChange}
+                  className="w-full text-sm font-semibold text-neutral-800 p-2.5 bg-white border border-neutral-200 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 transition-all shadow-sm"
+                  placeholder="e.g. 250"
+                />
+              </div>
+              <div className="flex-1 relative">
+                <label htmlFor="global-weight" className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5 pl-1">Weight (kg)</label>
+                <input
+                  id="global-weight"
+                  type="number"
+                  min="0"
+                  value={weightStr}
+                  onChange={handleWeightChange}
+                  className="w-full text-sm font-semibold text-neutral-800 p-2.5 bg-white border border-neutral-200 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 transition-all shadow-sm"
+                  placeholder="e.g. 75"
+                />
+              </div>
+            </div>
+          </div>
+
           <hr className="border-neutral-100/80" />
 
           {/* About / CTA */}
@@ -143,7 +196,7 @@ export default function Home() {
         )}
 
         <div className="w-full h-full rounded-3xl overflow-hidden shadow-2xl border border-neutral-200/60 bg-white">
-          <Map segments={segments} activeFilter={activeFilter} />
+          <Map segments={segments} activeFilter={activeFilter} riderPower={powerStr} riderWeight={weightStr} />
         </div>
 
         {/* Floating Modal Overlay for Form */}

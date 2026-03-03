@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import Map, { Popup, Source, Layer } from "react-map-gl/maplibre";
+import Map, { Popup, Source, Layer, NavigationControl } from "react-map-gl/maplibre";
 import SegmentCard from "./SegmentCard";
 import { decodePolyline } from "@/utils/polyline";
 import type { Segment } from "@/types";
@@ -9,9 +9,11 @@ import type { Segment } from "@/types";
 interface MapProps {
   segments: Segment[];
   activeFilter: "All" | "Hilly" | "Flat";
+  riderPower?: string;
+  riderWeight?: string;
 }
 
-export default function InteractiveMap({ segments, activeFilter }: MapProps) {
+export default function InteractiveMap({ segments, activeFilter, riderPower, riderWeight }: MapProps) {
   const [selectedSegment, setSelectedSegment] = useState<Segment | null>(null);
   const [cursor, setCursor] = useState("grab");
 
@@ -34,8 +36,11 @@ export default function InteractiveMap({ segments, activeFilter }: MapProps) {
         initialViewState={{
           longitude: 8.5417,
           latitude: 47.3769,
-          zoom: 11
+          zoom: 11,
+          bearing: 0
         }}
+        maxPitch={85}
+        terrain={{ source: "terrain-source", exaggeration: 1.5 }}
         mapStyle={mapStyle}
         style={{ width: "100%", height: "100%" }}
         interactiveLayerIds={interactiveLayerIds}
@@ -54,6 +59,17 @@ export default function InteractiveMap({ segments, activeFilter }: MapProps) {
         onMouseLeave={() => setCursor("grab")}
         cursor={cursor}
       >
+        <Source
+          id="terrain-source"
+          type="raster-dem"
+          tiles={["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"]}
+          encoding="terrarium"
+          tileSize={256}
+          maxzoom={14}
+        />
+
+        <NavigationControl position="bottom-right" visualizePitch={true} />
+
         {filteredSegments.map((segment, idx) => {
           if (!segment.polyline) return null;
 
@@ -109,7 +125,7 @@ export default function InteractiveMap({ segments, activeFilter }: MapProps) {
               maxWidth="350px"
             >
               <div className="p-1">
-                <SegmentCard segment={selectedSegment} />
+                <SegmentCard segment={selectedSegment} riderPower={riderPower} riderWeight={riderWeight} />
               </div>
             </Popup>
           );

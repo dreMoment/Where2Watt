@@ -5,6 +5,8 @@ import { calculateVelocity } from "@/utils/physics";
 
 interface Props {
     segment: Segment;
+    riderPower?: string;
+    riderWeight?: string;
 }
 
 function formatTime(seconds: number): string {
@@ -18,29 +20,9 @@ function formatTime(seconds: number): string {
     return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-export default function SegmentCard({ segment }: Props) {
-    const [powerStr, setPowerStr] = useState("250");
-    const [weightStr, setWeightStr] = useState("75");
-
-    useEffect(() => {
-        const p = localStorage.getItem("plannedPower");
-        const w = localStorage.getItem("riderWeight");
-        if (p) setPowerStr(p);
-        if (w) setWeightStr(w);
-    }, []);
-
-    const handlePowerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setPowerStr(e.target.value);
-        localStorage.setItem("plannedPower", e.target.value);
-    };
-
-    const handleWeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setWeightStr(e.target.value);
-        localStorage.setItem("riderWeight", e.target.value);
-    };
-
-    const power = parseFloat(powerStr);
-    const weight = parseFloat(weightStr);
+export default function SegmentCard({ segment, riderPower = "250", riderWeight = "75" }: Props) {
+    const power = parseFloat(riderPower);
+    const weight = parseFloat(riderWeight);
 
     const estimatedTime = useMemo(() => {
         if (!power || !weight || !segment.distance_km) return null;
@@ -81,44 +63,17 @@ export default function SegmentCard({ segment }: Props) {
                 </div>
             </div>
 
-            <div className="bg-gradient-to-br from-neutral-50 to-neutral-100/50 p-3.5 rounded-xl border border-neutral-200/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)]">
-                <div className="flex items-center gap-1.5 mb-3">
+            <div className="bg-gradient-to-br from-neutral-50 to-neutral-100/50 p-3.5 rounded-xl border border-neutral-200/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] mt-3">
+                <div className="flex items-center gap-1.5 mb-2">
                     <div className="bg-white p-1 rounded-md shadow-sm">
                         <Timer className="w-3.5 h-3.5 text-neutral-600" />
                     </div>
                     <p className="text-xs font-bold text-neutral-600 uppercase tracking-wide">
-                        Effort Estimator
+                        Effort Estimator (based on profile)
                     </p>
                 </div>
 
-                <div className="flex gap-3 mb-3">
-                    <div className="flex-1 relative">
-                        <label htmlFor={`power-${segment.id}`} className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Power (W)</label>
-                        <input
-                            id={`power-${segment.id}`}
-                            type="number"
-                            min="0"
-                            value={powerStr}
-                            onChange={handlePowerChange}
-                            className="w-full text-sm font-medium p-2 bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-[#fc4c02] focus:ring-2 focus:ring-[#fc4c02]/20 transition-all shadow-sm"
-                            placeholder="e.g. 250"
-                        />
-                    </div>
-                    <div className="flex-1 relative">
-                        <label htmlFor={`weight-${segment.id}`} className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">Weight (kg)</label>
-                        <input
-                            id={`weight-${segment.id}`}
-                            type="number"
-                            min="0"
-                            value={weightStr}
-                            onChange={handleWeightChange}
-                            className="w-full text-sm font-medium p-2 bg-white border border-neutral-200 rounded-lg focus:outline-none focus:border-[#fc4c02] focus:ring-2 focus:ring-[#fc4c02]/20 transition-all shadow-sm"
-                            placeholder="e.g. 75"
-                        />
-                    </div>
-                </div>
-
-                <div className="flex justify-between items-center text-sm pt-3 border-t border-neutral-200/60">
+                <div className="flex justify-between items-center text-sm">
                     <span className="text-neutral-500 font-semibold text-xs uppercase tracking-wide">Estimated Time</span>
                     <span className="text-[#fc4c02] font-black text-lg tracking-tight">
                         {estimatedTime ? formatTime(estimatedTime) : "--:--"}
