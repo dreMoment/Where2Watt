@@ -2,8 +2,9 @@ services:
   db:
     image: mongo:latest
     container_name: findmyintervals-db
-    ports:
-      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD}
     volumes:
       - mongo-data:/data/db
 
@@ -14,25 +15,30 @@ services:
     container_name: findmyintervals-backend
     env_file:
       - .env
-    ports:
-      - "8080:8080"
     environment:
-      - MONGODB_URI=mongodb://db:27017/?appname=findmyintervals
+      - MONGODB_URI=mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@db:27017/?appname=findmyintervals&authSource=admin
       - STRAVA_CLIENT_ID=${STRAVA_CLIENT_ID}
       - STRAVA_CLIENT_SECRET=${STRAVA_CLIENT_SECRET}
       - STRAVA_REFRESH_TOKEN=${STRAVA_REFRESH_TOKEN}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - CORS_ORIGIN=${CORS_ORIGIN}
     depends_on:
       - db
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: findmyintervals-frontend
+  caddy:
+    image: caddy:2-alpine
+    container_name: findmyintervals-caddy
     ports:
-      - "3000:3000"
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy-data:/data
+      - caddy-config:/config
     depends_on:
       - backend
 
 volumes:
   mongo-data:
+  caddy-data:
+  caddy-config:

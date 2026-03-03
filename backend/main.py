@@ -1,6 +1,6 @@
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Header, Depends
+from fastapi import FastAPI, HTTPException, Header, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, ConfigDict
@@ -9,6 +9,9 @@ from bson import ObjectId
 import httpx
 from datetime import datetime, timezone
 import re
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 # MongoDB Connection Parameters
 MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://db:27017")
@@ -19,7 +22,16 @@ STRAVA_CLIENT_SECRET = os.getenv("STRAVA_CLIENT_SECRET")
 STRAVA_REFRESH_TOKEN = os.getenv("STRAVA_REFRESH_TOKEN")
 
 # Admin Config
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+if not ADMIN_PASSWORD:
+    raise RuntimeError("ADMIN_PASSWORD environment variable must be set")
+
+# CORS Config
+CORS_ORIGIN = os.getenv("CORS_ORIGIN", "http://localhost:3000")
+CORS_ORIGINS = [origin.strip() for origin in CORS_ORIGIN.split(",")]
+
+# Rate Limiter
+limiter = Limiter(key_func=get_remote_address)
 
 # Global DB Client
 db_client = None
@@ -36,11 +48,13 @@ async def lifespan(app: FastAPI):
     db_client.close()
 
 app = FastAPI(lifespan=lifespan, title="FindMyIntervals API")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Add CORS middleware to allow requests from the frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -62,7 +76,7 @@ class SegmentSchema(BaseModel):
     approved: bool | None = False
     created_at: str | None = None
     
-    model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True, extra="allow")
+    model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True, extra="ignore")
 
 class QuickAddSchema(BaseModel):
     strava_url: str
@@ -76,8 +90,8 @@ async def health_check():
         # Check DB connection
         await db_client.admin.command('ping')
         return {"status": "ok", "db_connected": True}
-    except Exception as e:
-        return {"status": "error", "db_connected": False, "error": str(e)}
+    except Exception:
+        return {"status": "error", "db_connected": False}
 
 def verify_admin(x_admin_password: Annotated[str, Header()] = None):
     if not x_admin_password or x_admin_password != ADMIN_PASSWORD:
@@ -85,7 +99,8 @@ def verify_admin(x_admin_password: Annotated[str, Header()] = None):
     return True
 
 @app.post("/api/admin/verify")
-async def verify_admin_password(is_admin: bool = Depends(verify_admin)):
+@limiter.limit("5/minute")
+async def verify_admin_password(request: Request, is_admin: bool = Depends(verify_admin)):
     return {"status": "ok"}
 
 async def get_strava_access_token():
@@ -135,7 +150,8 @@ async def fetch_segment_details(segment_id: str):
     return None
 
 @app.post("/api/segments", response_model=SegmentResponseSchema, status_code=201)
-async def create_segment(segment: SegmentSchema):
+@limiter.limit("10/minute")
+async def create_segment(request: Request, segment: SegmentSchema):
     db = db_client.findmyintervals
     segment_dict = segment.model_dump()
     segment_dict["created_at"] = datetime.utcnow().replace(tzinfo=timezone.utc).isoformat()
