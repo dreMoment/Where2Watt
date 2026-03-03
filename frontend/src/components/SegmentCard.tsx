@@ -9,6 +9,7 @@ interface Props {
     riderPower?: string;
     riderWeight?: string;
     bikeWeight?: string;
+    clickedCoordinate?: [number, number] | null;
 }
 
 function formatTime(seconds: number): string {
@@ -22,7 +23,7 @@ function formatTime(seconds: number): string {
     return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-export default function SegmentCard({ segment, riderPower = "250", riderWeight = "75", bikeWeight = "9" }: Props) {
+export default function SegmentCard({ segment, riderPower = "250", riderWeight = "75", bikeWeight = "9", clickedCoordinate = null }: Props) {
     const power = parseFloat(riderPower);
     const weight = parseFloat(riderWeight);
     const bWeight = parseFloat(bikeWeight);
@@ -45,6 +46,8 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
         if (coords.length === 0) return null;
         return coords[0]; // [longitude, latitude]
     }, [segment.polyline]);
+
+    const effectiveCoordinates = clickedCoordinate || startCoordinates;
 
     return (
         <div className="flex flex-col gap-4 min-w-[280px] font-sans">
@@ -85,14 +88,16 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
                 </div>
             </div>
 
-            {startCoordinates && (
+            {effectiveCoordinates && (
                 <div className="mt-1 flex flex-col gap-2">
                     <button
                         onClick={() => setShowStreetView(!showStreetView)}
                         className="flex items-center justify-center gap-2 w-full bg-neutral-100 hover:bg-neutral-200 text-neutral-700 py-2 rounded-xl font-medium text-sm transition-colors"
                     >
                         <MapPin className="w-4 h-4" />
-                        {showStreetView ? "Hide Street View" : "Show Start Street View"}
+                        {showStreetView
+                            ? "Hide Street View"
+                            : (clickedCoordinate ? "Show Street View at Click" : "Show Start Street View")}
                     </button>
 
                     {showStreetView && (
@@ -108,7 +113,7 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
                                     }}
                                     loading="lazy"
                                     allowFullScreen
-                                    src={`https://maps.google.com/maps?q=&layer=c&cbll=${startCoordinates[1]},${startCoordinates[0]}&cbp=11,0,0,0,0&output=svembed`}
+                                    src={`https://maps.google.com/maps?q=&layer=c&cbll=${effectiveCoordinates[1]},${effectiveCoordinates[0]}&cbp=11,0,0,0,0&output=svembed`}
                                 ></iframe>
                             </div>
                         </div>

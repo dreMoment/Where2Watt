@@ -15,6 +15,7 @@ interface MapProps {
 
 export default function InteractiveMap({ segments, riderPower, riderWeight, bikeWeight }: MapProps) {
   const [selectedSegment, setSelectedSegment] = useState<Segment | null>(null);
+  const [clickedCoordinate, setClickedCoordinate] = useState<[number, number] | null>(null);
   const [cursor, setCursor] = useState("grab");
 
   const filteredSegments = segments;
@@ -47,10 +48,14 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
             const clickedSegment = filteredSegments.find(s => s.id === featureId);
             if (clickedSegment) {
               setSelectedSegment(clickedSegment);
+              if (e.lngLat) {
+                setClickedCoordinate([e.lngLat.lng, e.lngLat.lat]);
+              }
               return;
             }
           }
           setSelectedSegment(null);
+          setClickedCoordinate(null);
         }}
         onMouseEnter={() => setCursor("pointer")}
         onMouseLeave={() => setCursor("grab")}
@@ -105,10 +110,10 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
 
         {selectedSegment && (() => {
           const coordinates = selectedSegment.polyline ? decodePolyline(selectedSegment.polyline) : [];
-          const startPoint = coordinates.length > 0 ? coordinates[0] : [
+          const startPoint = clickedCoordinate || (coordinates.length > 0 ? coordinates[0] : [
             8.5417 + filteredSegments.indexOf(selectedSegment) * 0.01,
             47.3769 + filteredSegments.indexOf(selectedSegment) * 0.01
-          ];
+          ]);
 
           return (
             <Popup
@@ -116,13 +121,22 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
               latitude={startPoint[1]}
               anchor="bottom"
               offset={[0, -10]}
-              onClose={() => setSelectedSegment(null)}
+              onClose={() => {
+                setSelectedSegment(null);
+                setClickedCoordinate(null);
+              }}
               closeOnClick={false}
               className="custom-popup z-10"
               maxWidth="350px"
             >
               <div className="p-1">
-                <SegmentCard segment={selectedSegment} riderPower={riderPower} riderWeight={riderWeight} bikeWeight={bikeWeight} />
+                <SegmentCard
+                  segment={selectedSegment}
+                  riderPower={riderPower}
+                  riderWeight={riderWeight}
+                  bikeWeight={bikeWeight}
+                  clickedCoordinate={clickedCoordinate}
+                />
               </div>
             </Popup>
           );
