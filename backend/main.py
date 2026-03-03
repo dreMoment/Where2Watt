@@ -4,7 +4,6 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, ConfigDict
-from bson import ObjectId
 from typing import List
 import httpx
 import re
@@ -42,14 +41,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class PyObjectId(ObjectId):
-    @classmethod
-    def __get_pydantic_core_schema__(cls, _source_type, _handler):
-        from pydantic_core import core_schema
-        return core_schema.union_schema([
-            core_schema.str_schema(),
-            core_schema.is_instance_schema(ObjectId),
-        ])
+def extract_strava_id(strava_url: str) -> str | None:
+    """Extracts the segment ID from a Strava segment URL."""
+    if not strava_url:
+        return None
+    match = re.search(r"segments/(\d+)", strava_url)
+    return match.group(1) if match else None
 
 class SegmentSchema(BaseModel):
     name: str | None = None
@@ -93,13 +90,9 @@ async def get_strava_access_token():
             print(f"Failed to get Strava token: {response.text}")
     return None
 
-async def fetch_segment_details(strava_url: str):
-    if not strava_url:
+async def fetch_segment_details(segment_id: str):
+    if not segment_id:
         return None
-    match = re.search(r"segments/(\d+)", strava_url)
-    if not match:
-        return None
-    segment_id = match.group(1)
     
     access_token = await get_strava_access_token()
     if not access_token:
@@ -129,9 +122,8 @@ async def create_segment(segment: SegmentSchema):
     
     strava_url = segment_dict.get("strava_url")
     if strava_url:
-        match = re.search(r"segments/(\d+)", strava_url)
-        if match:
-            segment_id = match.group(1)
+        segment_id = extract_strava_id(strava_url)
+        if segment_id:
             existing = await db.segments.find_one({
                 "$or": [
                     {"strava_id": segment_id},
@@ -142,17 +134,12 @@ async def create_segment(segment: SegmentSchema):
                 raise HTTPException(status_code=400, detail="Segment already exists")
             segment_dict["strava_id"] = segment_id
 
-        # Try to fetch polyline and details if missing and we have a strava_url
-        details = await fetch_segment_details(strava_url)
-        if details:
-            if not segment_dict.get("polyline"):
-                segment_dict["polyline"] = details["polyline"]
-            if not segment_dict.get("name"):
-                segment_dict["name"] = details["name"]
-            if not segment_dict.get("distance_km"):
-                segment_dict["distance_km"] = details["distance_km"]
-            if not segment_dict.get("gradient_pct"):
-                segment_dict["gradient_pct"] = details["gradient_pct"]
+            # Try to fetch polyline and details if missing and we have a strava_url
+            details = await fetch_segment_details(segment_id)
+            if details:
+                for key in ["polyline", "name", "distance_km", "gradient_pct"]:
+                    if not segment_dict.get(key):
+                        segment_dict[key] = details.get(key)
 
     # No terrain mapping needed
 

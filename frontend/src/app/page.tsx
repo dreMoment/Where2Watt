@@ -5,6 +5,8 @@ import dynamic from "next/dynamic";
 import { Plus, Compass, Activity } from "lucide-react";
 import type { Segment } from "@/types";
 import SubmissionForm from "@/components/SubmissionForm";
+import InputField from "@/components/InputField";
+import SectionCard from "@/components/SectionCard";
 import { fetchSegments } from "@/utils/api";
 import { calculateVelocity } from "@/utils/physics";
 
@@ -39,17 +41,13 @@ export default function Home() {
     const w = localStorage.getItem("riderWeight");
     const bw = localStorage.getItem("bikeWeight");
     if (p) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPowerStr(p);
       setFilterPowerStr(p);
     }
     if (w) setWeightStr(w);
     if (bw) setBikeWeightStr(bw);
   }, []);
-
-  const handlePowerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPowerStr(e.target.value);
-    localStorage.setItem("plannedPower", e.target.value);
-  };
 
   const handleWeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setWeightStr(e.target.value);
@@ -121,71 +119,52 @@ export default function Home() {
 
 
           {/* Rider Profile Configuration */}
-          <div className="bg-white/50 border border-neutral-200/60 p-5 rounded-3xl shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]">
-            <div className="flex items-center gap-2 text-[13px] uppercase tracking-widest font-bold text-neutral-400 mb-4">
-              Rider Profile
-            </div>
-
-            <div className="flex-1 relative">
-              <label htmlFor="global-weight" className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5 pl-1">Rider (kg)</label>
-              <input
-                id="global-weight"
-                type="number"
-                min="0"
-                value={weightStr}
-                onChange={handleWeightChange}
-                className="w-full text-sm font-semibold text-neutral-800 p-2.5 bg-white border border-neutral-200 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 transition-all shadow-sm"
-                placeholder="e.g. 75"
-              />
-            </div>
-            <div className="flex-1 relative">
-              <label htmlFor="global-bike-weight" className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5 pl-1">Bike (kg)</label>
-              <input
-                id="global-bike-weight"
-                type="number"
-                min="0"
-                value={bikeWeightStr}
-                onChange={handleBikeWeightChange}
-                className="w-full text-sm font-semibold text-neutral-800 p-2.5 bg-white border border-neutral-200 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 transition-all shadow-sm"
-                placeholder="e.g. 9"
-              />
-            </div>
-          </div>
+          <SectionCard title="Rider Profile">
+            <InputField
+              id="global-weight"
+              label="Rider (kg)"
+              type="number"
+              min="0"
+              value={weightStr}
+              onChange={handleWeightChange}
+              placeholder="e.g. 75"
+            />
+            <InputField
+              id="global-bike-weight"
+              label="Bike (kg)"
+              type="number"
+              min="0"
+              value={bikeWeightStr}
+              onChange={handleBikeWeightChange}
+              placeholder="e.g. 9"
+            />
+          </SectionCard>
         </div>
 
         <hr className="border-neutral-100/80" />
 
         {/* Interval Filter */}
-        <div className="bg-white/50 border border-neutral-200/60 p-5 rounded-3xl shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]">
-          <div className="flex items-center gap-2 text-[13px] uppercase tracking-widest font-bold text-neutral-400 mb-4">
-            Interval Filter
-          </div>
+        <SectionCard title="Interval Filter">
           <div className="flex flex-col gap-4">
             <div className="flex gap-3">
-              <div className="flex-1 relative">
-                <label htmlFor="filter-power" className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5 pl-1">Power (W)</label>
-                <input
-                  id="filter-power"
-                  type="number"
-                  min="0"
-                  value={filterPowerStr}
-                  onChange={(e) => setFilterPowerStr(e.target.value)}
-                  className="w-full text-sm font-semibold text-neutral-800 p-2.5 bg-white border border-neutral-200 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 transition-all shadow-sm"
-                  placeholder="e.g. 300"
-                />
-              </div>
-              <div className="flex-1 relative">
-                <label htmlFor="filter-time" className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5 pl-1">Min. Time (m)</label>
-                <input
-                  id="filter-time"
-                  type="number"
-                  min="0"
-                  value={filterTimeStr}
-                  onChange={(e) => setFilterTimeStr(e.target.value)}
-                  className="w-full text-sm font-semibold text-neutral-800 p-2.5 bg-white border border-neutral-200 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 transition-all shadow-sm"
-                  placeholder="e.g. 5"
-                />
-              </div>
+              <InputField
+                id="filter-power"
+                label="Power (W)"
+                type="number"
+                min="0"
+                value={filterPowerStr}
+                onChange={(e) => setFilterPowerStr(e.target.value)}
+                placeholder="e.g. 300"
+              />
+              <InputField
+                id="filter-time"
+                label="Min. Time (m)"
+                type="number"
+                min="0"
+                value={filterTimeStr}
+                onChange={(e) => setFilterTimeStr(e.target.value)}
+                placeholder="e.g. 5"
+              />
             </div>
             <div className="flex gap-2">
               <button
@@ -204,7 +183,7 @@ export default function Home() {
               )}
             </div>
           </div>
-        </div>
+        </SectionCard>
 
         <hr className="border-neutral-100/80" />
 

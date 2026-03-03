@@ -36,7 +36,7 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
 
         const distanceMeters = segment.distance_km * 1000;
         return distanceMeters / velocity;
-    }, [power, weight, segment.distance_km, segment.gradient_pct]);
+    }, [power, weight, bWeight, segment.distance_km, segment.gradient_pct]);
 
     const [showStreetView, setShowStreetView] = useState(false);
 

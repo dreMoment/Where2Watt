@@ -87,7 +87,7 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
 
           const isSelected = selectedSegment?.id === segment.id;
           const lineColor = isSelected ? "#fc4c02" : "#be123c";
-          const lineWidth = isSelected ? 5 : 3;
+          const lineWidth = isSelected ? 6 : 3;
 
           return (
             <Source key={`source-${segment.id || idx}`} id={`source-${segment.id || idx}`} type="geojson" data={geojsonData}>
