@@ -22,7 +22,6 @@ A fast, simple web map displaying high-quality, pre-vetted training segments, ca
 - **Submission Form:** A straightforward public form where users can contribute:
   - Strava Segment URL
   - Terrain Type (Hilly/Flat)
-  - Road Surface Quality (e.g., Smooth Tarmac, Rough)
   - A free-text field for safety notes / hazard warnings.
 - **Manual Curation:** Submissions are stored in a simple database. Instead of a complex moderator queue UI, the admin manually reviews new DB entries, verifies them via Strava, and toggles an "approved" flag to make them live on the map.
 

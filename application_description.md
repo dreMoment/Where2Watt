@@ -9,7 +9,7 @@ FindMyIntervals is a highly focused, web-based map application designed to help 
 
 ## 2. Target Audience & Core Use Cases
 
-- **Individual Cyclists (Training):** Finding hills or flat stretches to integrate specific interval efforts into longer rides, avoiding traffic lights, poor surfaces, or unsafe intersections.
+- **Individual Cyclists (Training):** Finding hills or flat stretches to integrate specific interval efforts into longer rides, avoiding traffic lights or unsafe intersections.
     
 - **Group Ride Organizers:** Planning routes with safe, designated "drop zones" where riders can race each other up a hill before regrouping.
     
@@ -27,7 +27,7 @@ FindMyIntervals is a highly focused, web-based map application designed to help 
 
 ### Curation & Moderated Submissions
 
-- **Link-Based Submission Form:** Users suggest new segments by pasting a Strava segment URL into a form, along with filling out specific metadata (surface type, hazards, etc.).
+- **Link-Based Submission Form:** Users suggest new segments by pasting a Strava segment URL into a form, along with filling out specific metadata (hazards, etc.).
     
 - **Moderator Approval Queue:** To ensure high data quality and prevent spam, all user suggestions go to a hidden queue. A moderator reviews the segment for safety and accuracy before publishing it to the live map.
     
@@ -39,8 +39,6 @@ FindMyIntervals is a highly focused, web-based map application designed to help 
 - **Terrain Categorization:** Clear tags to filter segments by "Hilly" (climbs) or "Flat" (sprints, threshold intervals).
     
 - **Hazard & Intersection Warnings:** Clear indicators for cross-traffic or left turns (which disrupt intervals and pose safety risks).
-    
-- **Road Surface Quality:** Tags indicating road condition (e.g., Smooth Tarmac, Rough Chipseal, Gravel).
     
 - **Google Street View Link:** Quick access to visually inspect the segment's shoulder width and surroundings.
     

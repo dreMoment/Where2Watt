@@ -1,11 +1,90 @@
-import { ExternalLink, Ruler, Mountain } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { ExternalLink, Ruler, Mountain, Timer } from "lucide-react";
 import type { Segment } from "@/types";
 
 interface Props {
     segment: Segment;
 }
 
+function formatTime(seconds: number): string {
+    if (!isFinite(seconds) || seconds <= 0) return "--:--";
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    if (h > 0) {
+        return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+    return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Calculates a cyclist's steady-state velocity using the Newton-Raphson method.
+ */
+function calculateVelocity(power: number, gradient: number, riderWeight: number): number {
+    const bikeWeight = 8;
+    const m = riderWeight + bikeWeight;
+    const g = 9.81;
+    const Crr = 0.004;
+    const rho = 1.225;
+    const CdA = 0.32;
+    const eta = 0.97;
+
+    const A = 0.5 * rho * CdA;
+    const B = m * g * (gradient + Crr);
+    const C = power * eta;
+
+    let v = 5;
+    const tolerance = 0.001;
+    const maxIterations = 20;
+
+    for (let i = 0; i < maxIterations; i++) {
+        let f_v = (A * Math.pow(v, 3)) + (B * v) - C;
+        let f_prime_v = (3 * A * Math.pow(v, 2)) + B;
+        let next_v = v - (f_v / f_prime_v);
+
+        if (Math.abs(next_v - v) < tolerance) {
+            return next_v;
+        }
+        v = next_v;
+    }
+
+    return v;
+}
+
 export default function SegmentCard({ segment }: Props) {
+    const [powerStr, setPowerStr] = useState("250");
+    const [weightStr, setWeightStr] = useState("75");
+
+    useEffect(() => {
+        const p = localStorage.getItem("plannedPower");
+        const w = localStorage.getItem("riderWeight");
+        if (p) setPowerStr(p);
+        if (w) setWeightStr(w);
+    }, []);
+
+    const handlePowerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setPowerStr(e.target.value);
+        localStorage.setItem("plannedPower", e.target.value);
+    };
+
+    const handleWeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setWeightStr(e.target.value);
+        localStorage.setItem("riderWeight", e.target.value);
+    };
+
+    const power = parseFloat(powerStr);
+    const weight = parseFloat(weightStr);
+
+    const estimatedTime = useMemo(() => {
+        if (!power || !weight || !segment.distance_km) return null;
+        const gradientDecimal = (segment.gradient_pct ?? 0) / 100;
+        const velocity = calculateVelocity(power, gradientDecimal, weight);
+        if (velocity <= 0) return null;
+
+        const distanceMeters = segment.distance_km * 1000;
+        return distanceMeters / velocity;
+    }, [power, weight, segment.distance_km, segment.gradient_pct]);
+
     return (
         <div className="flex flex-col gap-3 min-w-[250px] font-sans">
             <div className="flex items-start justify-between border-b border-neutral-200 pb-2">
@@ -34,22 +113,43 @@ export default function SegmentCard({ segment }: Props) {
             </div>
 
             <div className="bg-neutral-50 p-2.5 rounded-lg border border-neutral-100 mt-1">
-                <p className="text-xs font-semibold text-neutral-500 mb-1.5 uppercase tracking-wider">
-                    Target Times
-                </p>
-                <div className="flex justify-between text-sm">
-                    <div className="flex flex-col items-center">
-                        <span className="text-emerald-600 font-medium">{segment.completion_times?.beginner ?? "N/A"}</span>
-                        <span className="text-[10px] text-neutral-400">Beg</span>
+                <div className="flex items-center gap-1.5 mb-2">
+                    <Timer className="w-3.5 h-3.5 text-neutral-500" />
+                    <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">
+                        Effort Estimator
+                    </p>
+                </div>
+
+                <div className="flex gap-2 mb-3">
+                    <div className="flex-1">
+                        <label className="text-[10px] font-medium text-neutral-500 block mb-1">Power (W)</label>
+                        <input
+                            type="number"
+                            min="0"
+                            value={powerStr}
+                            onChange={handlePowerChange}
+                            className="w-full text-sm p-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-[#fc4c02] focus:ring-1 focus:ring-[#fc4c02] transition-shadow bg-white"
+                            placeholder="e.g. 250"
+                        />
                     </div>
-                    <div className="flex flex-col items-center">
-                        <span className="text-amber-500 font-medium">{segment.completion_times?.intermediate ?? "N/A"}</span>
-                        <span className="text-[10px] text-neutral-400">Int</span>
+                    <div className="flex-1">
+                        <label className="text-[10px] font-medium text-neutral-500 block mb-1">Weight (kg)</label>
+                        <input
+                            type="number"
+                            min="0"
+                            value={weightStr}
+                            onChange={handleWeightChange}
+                            className="w-full text-sm p-1.5 border border-neutral-200 rounded-md focus:outline-none focus:border-[#fc4c02] focus:ring-1 focus:ring-[#fc4c02] transition-shadow bg-white"
+                            placeholder="e.g. 75"
+                        />
                     </div>
-                    <div className="flex flex-col items-center">
-                        <span className="text-rose-600 font-medium">{segment.completion_times?.advanced ?? "N/A"}</span>
-                        <span className="text-[10px] text-neutral-400">Adv</span>
-                    </div>
+                </div>
+
+                <div className="flex justify-between items-center text-sm pt-2 border-t border-neutral-200/60">
+                    <span className="text-neutral-600 font-medium text-xs">Estimated Time:</span>
+                    <span className="text-[#fc4c02] font-semibold text-base">
+                        {estimatedTime ? formatTime(estimatedTime) : "--:--"}
+                    </span>
                 </div>
             </div>
 

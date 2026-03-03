@@ -12,7 +12,6 @@ type TerrainType = "Flat" | "Hilly";
 interface SubmissionData {
     strava_url: string;
     terrain: TerrainType;
-    surface: string;
     safety_notes: string;
 }
 
@@ -20,7 +19,6 @@ export default function SubmissionForm({ onClose }: Props) {
     const [formData, setFormData] = useState<SubmissionData>({
         strava_url: "",
         terrain: "Flat",
-        surface: "",
         safety_notes: "",
     });
     const [loading, setLoading] = useState(false);
@@ -104,37 +102,20 @@ export default function SubmissionForm({ onClose }: Props) {
                     />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-                            Terrain
-                        </label>
-                        <select
-                            className="w-full px-4 py-2.5 rounded-lg border border-neutral-300 focus:ring-2 focus:ring-neutral-900 outline-none bg-white text-neutral-900"
-                            value={formData.terrain}
-                            onChange={(e) =>
-                                setFormData({ ...formData, terrain: e.target.value as TerrainType })
-                            }
-                        >
-                            <option value="Flat">Flat</option>
-                            <option value="Hilly">Hilly</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-                            Surface Quality
-                        </label>
-                        <input
-                            type="text"
-                            required
-                            placeholder="e.g. Smooth Tarmac"
-                            className="w-full px-4 py-2.5 rounded-lg border border-neutral-300 focus:ring-2 focus:ring-neutral-900 outline-none text-neutral-900"
-                            value={formData.surface}
-                            onChange={(e) =>
-                                setFormData({ ...formData, surface: e.target.value })
-                            }
-                        />
-                    </div>
+                <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                        Terrain
+                    </label>
+                    <select
+                        className="w-full px-4 py-2.5 rounded-lg border border-neutral-300 focus:ring-2 focus:ring-neutral-900 outline-none bg-white text-neutral-900"
+                        value={formData.terrain}
+                        onChange={(e) =>
+                            setFormData({ ...formData, terrain: e.target.value as TerrainType })
+                        }
+                    >
+                        <option value="Flat">Flat</option>
+                        <option value="Hilly">Hilly</option>
+                    </select>
                 </div>
 
                 <div>
