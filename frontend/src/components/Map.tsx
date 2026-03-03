@@ -29,7 +29,7 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
   );
 
   return (
-    <div className="h-full w-full rounded-xl shadow-lg border border-neutral-200 dark:border-neutral-800 overflow-hidden relative">
+    <div className="h-full w-full shadow-lg overflow-hidden relative">
       <Map
         initialViewState={{
           longitude: 8.5417,

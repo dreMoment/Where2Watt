@@ -114,34 +114,29 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Filters & Action */}
-        <div className="p-8 flex flex-col gap-8 flex-1 overflow-y-auto">
+        {/* Rider Profile Configuration */}
+        <SectionCard title="Rider Profile">
+          <InputField
+            id="global-weight"
+            label="Rider (kg)"
+            type="number"
+            min="0"
+            value={weightStr}
+            onChange={handleWeightChange}
+            placeholder="e.g. 75"
+          />
+          <InputField
+            id="global-bike-weight"
+            label="Bike (kg)"
+            type="number"
+            min="0"
+            value={bikeWeightStr}
+            onChange={handleBikeWeightChange}
+            placeholder="e.g. 9"
+          />
+        </SectionCard>
 
-
-          {/* Rider Profile Configuration */}
-          <SectionCard title="Rider Profile">
-            <InputField
-              id="global-weight"
-              label="Rider (kg)"
-              type="number"
-              min="0"
-              value={weightStr}
-              onChange={handleWeightChange}
-              placeholder="e.g. 75"
-            />
-            <InputField
-              id="global-bike-weight"
-              label="Bike (kg)"
-              type="number"
-              min="0"
-              value={bikeWeightStr}
-              onChange={handleBikeWeightChange}
-              placeholder="e.g. 9"
-            />
-          </SectionCard>
-        </div>
-
-        <hr className="border-neutral-100/80" />
+        {/*<hr className="border-neutral-100/80" />*/}
 
         {/* Interval Filter */}
         <SectionCard title="Interval Filter">
@@ -188,7 +183,7 @@ export default function Home() {
         <hr className="border-neutral-100/80" />
 
         {/* About / CTA */}
-        <div className="mt-auto pt-4 bg-gradient-to-b from-blue-50/50 to-blue-50/20 border border-blue-100/60 p-6 rounded-3xl flex flex-col gap-4 relative overflow-hidden group">
+        <div className="mt-auto pt-4 bg-gradient-to-b from-blue-50/50 to-blue-50/20 border border-blue-100/60 p-6 flex flex-col gap-4 relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-4 opacity-10 transform translate-x-4 -translate-y-4 group-hover:scale-110 transition-transform duration-500">
             <Compass className="w-24 h-24 text-blue-600" />
           </div>
@@ -209,9 +204,9 @@ export default function Home() {
       </aside>
 
       {/* Main Map Viewport */}
-      <section className="flex-1 h-[60vh] md:h-full p-2 md:p-6 bg-neutral-100/50 relative">
+      <section className="flex-1 h-[60vh] md:h-full bg-neutral-100/50 relative">
         {error && (
-          <div className="absolute top-10 left-1/2 -translate-x-1/2 z-[5000] bg-red-50/90 backdrop-blur-md border border-red-200 text-red-700 px-6 py-4 rounded-2xl shadow-xl max-w-sm w-[90%] text-center animate-in slide-in-from-top-4 fade-in duration-300">
+          <div className="absolute top-10 left-1/2 -translate-x-1/2 z-[5000] bg-red-50/90 backdrop-blur-md border border-red-200 text-red-700 px-6 py-4 shadow-xl max-w-sm w-[90%] text-center animate-in slide-in-from-top-4 fade-in duration-300">
             <p className="font-bold text-sm flex items-center justify-center gap-2">
               <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
               {error}
@@ -225,7 +220,7 @@ export default function Home() {
           </div>
         )}
 
-        <div className="w-full h-full rounded-3xl overflow-hidden shadow-2xl border border-neutral-200/60 bg-white">
+        <div className="w-full h-full overflow-hidden bg-white">
           <Map segments={filteredSegments} riderPower={powerStr} riderWeight={weightStr} bikeWeight={bikeWeightStr} />
         </div>
 
