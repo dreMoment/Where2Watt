@@ -15,6 +15,7 @@ from slowapi.errors import RateLimitExceeded
 
 # MongoDB Connection Parameters
 MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://db:27017")
+MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME", "findmyintervals")
 
 # Strava API Config
 STRAVA_CLIENT_ID = os.getenv("STRAVA_CLIENT_ID")
@@ -153,7 +154,7 @@ async def fetch_segment_details(segment_id: str):
 @app.post("/api/segments", response_model=SegmentResponseSchema, status_code=201)
 @limiter.limit("10/minute")
 async def create_segment(request: Request, segment: SegmentSchema):
-    db = db_client.findmyintervals
+    db = db_client[MONGODB_DB_NAME]
     segment_dict = segment.model_dump()
     segment_dict["created_at"] = datetime.utcnow().replace(tzinfo=timezone.utc).isoformat()
     segment_dict["approved"] = False # Force explicit false
@@ -192,7 +193,7 @@ async def create_segment(request: Request, segment: SegmentSchema):
 
 @app.get("/api/segments", response_model=List[SegmentResponseSchema])
 async def list_segments():
-    db = db_client.findmyintervals
+    db = db_client[MONGODB_DB_NAME]
     segments = await db.segments.find({
         "$or": [{"approved": True}, {"approved": {"$exists": False}}]
     }).to_list(100)
@@ -203,7 +204,7 @@ async def list_segments():
 
 @app.get("/api/admin/segments/unapproved", response_model=List[SegmentResponseSchema])
 async def list_unapproved_segments(is_admin: bool = Depends(verify_admin)):
-    db = db_client.findmyintervals
+    db = db_client[MONGODB_DB_NAME]
     segments = await db.segments.find({"approved": False}).sort("created_at", -1).to_list(100)
     for segment in segments:
         segment["id"] = str(segment["_id"])
@@ -212,7 +213,7 @@ async def list_unapproved_segments(is_admin: bool = Depends(verify_admin)):
 
 @app.get("/api/admin/segments", response_model=List[SegmentResponseSchema])
 async def list_all_segments(is_admin: bool = Depends(verify_admin)):
-    db = db_client.findmyintervals
+    db = db_client[MONGODB_DB_NAME]
     segments = await db.segments.find().sort("created_at", -1).to_list(500)
     for segment in segments:
         segment["id"] = str(segment["_id"])
@@ -221,7 +222,7 @@ async def list_all_segments(is_admin: bool = Depends(verify_admin)):
 
 @app.post("/api/admin/segments/{segment_id}/approve")
 async def approve_segment(segment_id: str, is_admin: bool = Depends(verify_admin)):
-    db = db_client.findmyintervals
+    db = db_client[MONGODB_DB_NAME]
     try:
         obj_id = ObjectId(segment_id)
     except:
@@ -238,7 +239,7 @@ async def approve_segment(segment_id: str, is_admin: bool = Depends(verify_admin
 
 @app.delete("/api/segments/{segment_id}")
 async def delete_segment(segment_id: str, is_admin: bool = Depends(verify_admin)):
-    db = db_client.findmyintervals
+    db = db_client[MONGODB_DB_NAME]
     try:
         obj_id = ObjectId(segment_id)
     except:
@@ -252,7 +253,7 @@ async def delete_segment(segment_id: str, is_admin: bool = Depends(verify_admin)
 
 @app.post("/api/admin/segments/quickadd", response_model=SegmentResponseSchema, status_code=201)
 async def quick_add_segment(data: QuickAddSchema, is_admin: bool = Depends(verify_admin)):
-    db = db_client.findmyintervals
+    db = db_client[MONGODB_DB_NAME]
     strava_url = data.strava_url
     
     segment_id = extract_strava_id(strava_url)

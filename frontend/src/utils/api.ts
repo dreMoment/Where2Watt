@@ -1,6 +1,6 @@
 import type { Segment } from "@/types";
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
+export const API_BASE_URL = "https://findmyintervals-backend-685652049624.europe-west1.run.app/api";
 
 export async function fetchSegments(): Promise<Segment[]> {
     const res = await fetch(`${API_BASE_URL}/segments`);

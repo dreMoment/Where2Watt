@@ -12,5 +12,5 @@ COPY . .
 # Expose port as defined in docker-compose.yml 
 EXPOSE 8080
 
-# Command to run the application using Uvicorn
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Command to run the application using Uvicorn (Cloud Run ready)
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080} --proxy-headers --forwarded-allow-ips '*'

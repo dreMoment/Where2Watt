@@ -1,13 +1,4 @@
 services:
-  db:
-    image: mongo:latest
-    container_name: findmyintervals-db
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=${MONGO_USERNAME}
-      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD}
-    volumes:
-      - mongo-data:/data/db
-
   backend:
     build:
       context: ./backend
@@ -16,29 +7,14 @@ services:
     env_file:
       - .env
     environment:
-      - MONGODB_URI=mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@db:27017/?appname=findmyintervals&authSource=admin
+      - MONGODB_URI=${MONGODB_URI}
+      - MONGODB_DB_NAME=${MONGODB_DB_NAME:-findmyintervals}
       - STRAVA_CLIENT_ID=${STRAVA_CLIENT_ID}
       - STRAVA_CLIENT_SECRET=${STRAVA_CLIENT_SECRET}
       - STRAVA_REFRESH_TOKEN=${STRAVA_REFRESH_TOKEN}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
       - CORS_ORIGIN=${CORS_ORIGIN}
-    depends_on:
-      - db
-
-  caddy:
-    image: caddy:2-alpine
-    container_name: findmyintervals-caddy
+      # Add this to ensure Uvicorn runs correctly inside docker compose locally
+      - PORT=8080
     ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy-data:/data
-      - caddy-config:/config
-    depends_on:
-      - backend
-
-volumes:
-  mongo-data:
-  caddy-data:
-  caddy-config:
+      - "8080:8080"
