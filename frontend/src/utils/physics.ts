@@ -1,8 +1,7 @@
 /**
  * Calculates a cyclist's steady-state velocity using the Newton-Raphson method.
  */
-export function calculateVelocity(power: number, gradient: number, riderWeight: number): number {
-    const bikeWeight = 9;
+export function calculateVelocity(power: number, gradient: number, riderWeight: number, bikeWeight: number = 9): number {
     const m = riderWeight + bikeWeight;
     const g = 9.81;
     const Crr = 0.004;

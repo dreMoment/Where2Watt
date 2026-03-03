@@ -53,9 +53,6 @@ class PyObjectId(ObjectId):
 
 class SegmentSchema(BaseModel):
     name: str | None = None
-    terrain: str | None = None
-    longitude: float | None = None
-    latitude: float | None = None
     polyline: str | None = None
     strava_url: str | None = None
     distance_km: float | None = None
@@ -156,6 +153,8 @@ async def create_segment(segment: SegmentSchema):
                 segment_dict["distance_km"] = details["distance_km"]
             if not segment_dict.get("gradient_pct"):
                 segment_dict["gradient_pct"] = details["gradient_pct"]
+
+    # No terrain mapping needed
 
     result = await db.segments.insert_one(segment_dict)
     

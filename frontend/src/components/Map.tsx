@@ -8,19 +8,16 @@ import type { Segment } from "@/types";
 
 interface MapProps {
   segments: Segment[];
-  activeFilter: "All" | "Hilly" | "Flat";
   riderPower?: string;
   riderWeight?: string;
+  bikeWeight?: string;
 }
 
-export default function InteractiveMap({ segments, activeFilter, riderPower, riderWeight }: MapProps) {
+export default function InteractiveMap({ segments, riderPower, riderWeight, bikeWeight }: MapProps) {
   const [selectedSegment, setSelectedSegment] = useState<Segment | null>(null);
   const [cursor, setCursor] = useState("grab");
 
-  const filteredSegments =
-    activeFilter === "All"
-      ? segments
-      : segments.filter((s) => s.terrain === activeFilter);
+  const filteredSegments = segments;
 
   // We use Carto Light (Voyager) as a free vector tile source that looks similar to the previous leaflet map
   const mapStyle = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
@@ -84,7 +81,7 @@ export default function InteractiveMap({ segments, activeFilter, riderPower, rid
           };
 
           const isSelected = selectedSegment?.id === segment.id;
-          const lineColor = isSelected ? "#fc4c02" : (segment.terrain === "Hilly" ? "#be123c" : "#047857");
+          const lineColor = isSelected ? "#fc4c02" : "#be123c";
           const lineWidth = isSelected ? 5 : 3;
 
           return (
@@ -125,7 +122,7 @@ export default function InteractiveMap({ segments, activeFilter, riderPower, rid
               maxWidth="350px"
             >
               <div className="p-1">
-                <SegmentCard segment={selectedSegment} riderPower={riderPower} riderWeight={riderWeight} />
+                <SegmentCard segment={selectedSegment} riderPower={riderPower} riderWeight={riderWeight} bikeWeight={bikeWeight} />
               </div>
             </Popup>
           );

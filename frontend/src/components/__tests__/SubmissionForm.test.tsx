@@ -17,7 +17,6 @@ describe('SubmissionForm', () => {
         render(<SubmissionForm onClose={mockOnClose} />);
         expect(screen.getByText('Add a Segment')).toBeInTheDocument();
         expect(screen.getByLabelText(/Strava Segment URL/i)).toBeInTheDocument();
-        expect(screen.getByLabelText(/Terrain/i)).toBeInTheDocument();
         expect(screen.getByLabelText(/Safety Notes/i)).toBeInTheDocument();
     });
 
@@ -28,9 +27,6 @@ describe('SubmissionForm', () => {
         fireEvent.change(screen.getByLabelText(/Strava Segment URL/i), {
             target: { value: 'https://www.strava.com/segments/123' },
         });
-        fireEvent.change(screen.getByLabelText(/Terrain/i), {
-            target: { value: 'Hilly' },
-        });
         fireEvent.change(screen.getByLabelText(/Safety Notes/i), {
             target: { value: 'Watch out' },
         });
@@ -39,7 +35,6 @@ describe('SubmissionForm', () => {
 
         expect(submitSegment).toHaveBeenCalledWith({
             strava_url: 'https://www.strava.com/segments/123',
-            terrain: 'Hilly',
             safety_notes: 'Watch out',
         });
 

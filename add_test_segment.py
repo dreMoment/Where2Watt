@@ -8,8 +8,7 @@ def add_test_segment():
     
     # Using the new workflow: provide strava_url and let the backend fetch details
     segment_data = {
-        "strava_url": "https://www.strava.com/segments/723461",
-        "terrain": "Hilly"
+        "strava_url": "https://www.strava.com/segments/723461"
     }
     
     print(f"Creating test segment at {url}...")

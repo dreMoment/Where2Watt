@@ -9,6 +9,7 @@ jest.mock('react-map-gl/maplibre', () => {
         Popup: ({ children }: { children?: React.ReactNode }) => <div data-testid="mock-popup">{children}</div>,
         Source: ({ children }: { children?: React.ReactNode }) => <div data-testid="mock-source">{children}</div>,
         Layer: () => <div data-testid="mock-layer" />,
+        NavigationControl: () => null,
     };
 });
 
@@ -22,7 +23,6 @@ describe('InteractiveMap', () => {
             _id: "1",
             id: "1",
             strava_url: "https://strava.com",
-            terrain: "Flat" as const,
             name: "Test Flat",
             distance_km: 10,
             gradient_pct: 0,
@@ -33,7 +33,7 @@ describe('InteractiveMap', () => {
     ];
 
     it('renders map with segments', () => {
-        const { getByTestId, getAllByTestId } = render(<InteractiveMap segments={mockSegments} activeFilter="All" />);
+        const { getByTestId, getAllByTestId } = render(<InteractiveMap segments={mockSegments} />);
         expect(getByTestId('mock-map')).toBeInTheDocument();
         expect(getAllByTestId('mock-source').length).toBeGreaterThan(0);
         expect(getByTestId('mock-layer')).toBeInTheDocument();

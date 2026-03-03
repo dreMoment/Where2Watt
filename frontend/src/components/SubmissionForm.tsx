@@ -11,7 +11,6 @@ interface Props {
 export default function SubmissionForm({ onClose }: Props) {
     const [formData, setFormData] = useState<SubmissionData>({
         strava_url: "",
-        terrain: "Flat",
         safety_notes: "",
     });
     const [loading, setLoading] = useState(false);
@@ -94,27 +93,7 @@ export default function SubmissionForm({ onClose }: Props) {
                     />
                 </div>
 
-                <div className="group">
-                    <label htmlFor="terrain" className="block text-xs font-bold text-neutral-400 uppercase tracking-widest mb-2 group-focus-within:text-neutral-900 transition-colors">
-                        Terrain
-                    </label>
-                    <div className="relative">
-                        <select
-                            id="terrain"
-                            className="w-full px-4 py-3.5 rounded-xl border border-neutral-200 bg-neutral-50/50 focus:bg-white focus:ring-2 focus:ring-neutral-900 outline-none text-neutral-900 font-medium shadow-sm appearance-none cursor-pointer"
-                            value={formData.terrain}
-                            onChange={(e) =>
-                                setFormData({ ...formData, terrain: e.target.value as "Flat" | "Hilly" })
-                            }
-                        >
-                            <option value="Flat">Flat</option>
-                            <option value="Hilly">Hilly</option>
-                        </select>
-                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-neutral-500">
-                            <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
-                        </div>
-                    </div>
-                </div>
+
 
                 <div className="group">
                     <label htmlFor="safety_notes" className="block text-xs font-bold text-neutral-400 uppercase tracking-widest mb-2 group-focus-within:text-neutral-900 transition-colors">

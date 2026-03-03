@@ -5,7 +5,6 @@ const mockSegment: import('@/types').Segment = {
     _id: "1",
     id: "1",
     strava_url: "https://strava.com",
-    terrain: "Hilly" as const,
     name: "Test Climb",
     distance_km: 2.5,
     gradient_pct: 5,
@@ -21,7 +20,6 @@ describe('SegmentCard', () => {
     it('renders segment data correctly', () => {
         render(<SegmentCard segment={mockSegment} />);
         expect(screen.getByText('Test Climb')).toBeInTheDocument();
-        expect(screen.getByText('Hilly')).toBeInTheDocument();
         expect(screen.getByText('2.5')).toBeInTheDocument();
         expect(screen.getByText('5%')).toBeInTheDocument();
     });

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
-import { Plus, Compass, Activity, Wind, ListFilter, Mountain } from "lucide-react";
+import { Plus, Compass, Activity } from "lucide-react";
 import type { Segment } from "@/types";
 import SubmissionForm from "@/components/SubmissionForm";
 import { fetchSegments } from "@/utils/api";
+import { calculateVelocity } from "@/utils/physics";
 
 // Dynamically import Map with SSR disabled since maplibre relies on window object
 const Map = dynamic(() => import("@/components/Map"), {
@@ -20,19 +21,29 @@ const Map = dynamic(() => import("@/components/Map"), {
 
 export default function Home() {
   const [segments, setSegments] = useState<Segment[]>([]);
-  const [activeFilter, setActiveFilter] = useState<"All" | "Hilly" | "Flat">("All");
   const [showSubmissionContent, setShowSubmissionContent] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [powerStr, setPowerStr] = useState("250");
   const [weightStr, setWeightStr] = useState("75");
+  const [bikeWeightStr, setBikeWeightStr] = useState("9");
+
+  // Filter state
+  const [filterPowerStr, setFilterPowerStr] = useState("250");
+  const [filterTimeStr, setFilterTimeStr] = useState("5"); // in minutes
+  const [isFiltered, setIsFiltered] = useState(false);
 
   useEffect(() => {
     const p = localStorage.getItem("plannedPower");
     const w = localStorage.getItem("riderWeight");
-    if (p) setPowerStr(p);
+    const bw = localStorage.getItem("bikeWeight");
+    if (p) {
+      setPowerStr(p);
+      setFilterPowerStr(p);
+    }
     if (w) setWeightStr(w);
+    if (bw) setBikeWeightStr(bw);
   }, []);
 
   const handlePowerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -43,6 +54,11 @@ export default function Home() {
   const handleWeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setWeightStr(e.target.value);
     localStorage.setItem("riderWeight", e.target.value);
+  };
+
+  const handleBikeWeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setBikeWeightStr(e.target.value);
+    localStorage.setItem("bikeWeight", e.target.value);
   };
 
   useEffect(() => {
@@ -58,6 +74,27 @@ export default function Home() {
         setLoading(false);
       });
   }, []);
+
+  const filteredSegments = useMemo(() => {
+    if (!isFiltered) return segments;
+    const filterPwr = parseFloat(filterPowerStr);
+    const targetTimeSec = parseFloat(filterTimeStr) * 60;
+    const rw = parseFloat(weightStr) || 75;
+    const bw = parseFloat(bikeWeightStr) || 9;
+
+    if (!filterPwr || !targetTimeSec) return segments;
+
+    return segments.filter((seg) => {
+      if (!seg.distance_km) return false;
+      const gradientDecimal = (seg.gradient_pct ?? 0) / 100;
+      const velocity = calculateVelocity(filterPwr, gradientDecimal, rw, bw);
+      if (velocity <= 0) return false;
+      const distMeters = seg.distance_km * 1000;
+      const timeSec = distMeters / velocity;
+      return timeSec >= targetTimeSec;
+    });
+  }, [segments, isFiltered, filterPowerStr, filterTimeStr, weightStr, bikeWeightStr]);
+
 
   return (
     <main className="flex h-[100dvh] w-full flex-col md:flex-row bg-[#f9fafb] overflow-hidden">
@@ -81,101 +118,115 @@ export default function Home() {
 
         {/* Filters & Action */}
         <div className="p-8 flex flex-col gap-8 flex-1 overflow-y-auto">
-          <div>
-            <div className="flex items-center gap-2 text-[13px] uppercase tracking-widest font-bold text-neutral-400 mb-4">
-              <ListFilter className="w-4 h-4" />
-              Filter by Terrain
-            </div>
 
-            <div className="flex gap-2 p-1 bg-neutral-100/80 rounded-2xl">
-              <button
-                onClick={() => setActiveFilter("All")}
-                className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all duration-300 ${activeFilter === "All"
-                  ? "bg-white text-neutral-900 shadow-sm"
-                  : "text-neutral-500 hover:text-neutral-700 hover:bg-black/5"
-                  }`}
-              >
-                All
-              </button>
-              <button
-                onClick={() => setActiveFilter("Hilly")}
-                className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all duration-300 flex items-center justify-center gap-2 ${activeFilter === "Hilly"
-                  ? "bg-white text-rose-600 shadow-sm"
-                  : "text-neutral-500 hover:text-neutral-700 hover:bg-black/5"
-                  }`}
-              >
-                <Mountain className="w-4 h-4" />
-                Hilly
-              </button>
-              <button
-                onClick={() => setActiveFilter("Flat")}
-                className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all duration-300 flex items-center justify-center gap-2 ${activeFilter === "Flat"
-                  ? "bg-white text-emerald-600 shadow-sm"
-                  : "text-neutral-500 hover:text-neutral-700 hover:bg-black/5"
-                  }`}
-              >
-                <Wind className="w-4 h-4" />
-                Flat
-              </button>
-            </div>
-          </div>
 
           {/* Rider Profile Configuration */}
           <div className="bg-white/50 border border-neutral-200/60 p-5 rounded-3xl shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]">
             <div className="flex items-center gap-2 text-[13px] uppercase tracking-widest font-bold text-neutral-400 mb-4">
               Rider Profile
             </div>
-            <div className="flex gap-4">
-              <div className="flex-1 relative">
-                <label htmlFor="global-power" className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5 pl-1">Power (W)</label>
-                <input
-                  id="global-power"
-                  type="number"
-                  min="0"
-                  value={powerStr}
-                  onChange={handlePowerChange}
-                  className="w-full text-sm font-semibold text-neutral-800 p-2.5 bg-white border border-neutral-200 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 transition-all shadow-sm"
-                  placeholder="e.g. 250"
-                />
-              </div>
-              <div className="flex-1 relative">
-                <label htmlFor="global-weight" className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5 pl-1">Weight (kg)</label>
-                <input
-                  id="global-weight"
-                  type="number"
-                  min="0"
-                  value={weightStr}
-                  onChange={handleWeightChange}
-                  className="w-full text-sm font-semibold text-neutral-800 p-2.5 bg-white border border-neutral-200 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 transition-all shadow-sm"
-                  placeholder="e.g. 75"
-                />
-              </div>
-            </div>
-          </div>
 
-          <hr className="border-neutral-100/80" />
-
-          {/* About / CTA */}
-          <div className="mt-auto pt-4 bg-gradient-to-b from-blue-50/50 to-blue-50/20 border border-blue-100/60 p-6 rounded-3xl flex flex-col gap-4 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-10 transform translate-x-4 -translate-y-4 group-hover:scale-110 transition-transform duration-500">
-              <Compass className="w-24 h-24 text-blue-600" />
+            <div className="flex-1 relative">
+              <label htmlFor="global-weight" className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5 pl-1">Rider (kg)</label>
+              <input
+                id="global-weight"
+                type="number"
+                min="0"
+                value={weightStr}
+                onChange={handleWeightChange}
+                className="w-full text-sm font-semibold text-neutral-800 p-2.5 bg-white border border-neutral-200 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 transition-all shadow-sm"
+                placeholder="e.g. 75"
+              />
             </div>
-            <div className="relative z-10">
-              <h3 className="font-black text-blue-900 text-lg mb-2">Contribute a Route</h3>
-              <p className="text-sm text-blue-800/70 leading-relaxed font-medium mb-5">
-                Help the cycling community by crowdsourcing safe, traffic-free segments perfect for high-speed VO2 Max or Threshold efforts.
-              </p>
-              <button
-                onClick={() => setShowSubmissionContent(true)}
-                className="flex items-center justify-center gap-2 w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-blue-600/20 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0"
-              >
-                <Plus className="w-5 h-5" />
-                Submit Segment
-              </button>
+            <div className="flex-1 relative">
+              <label htmlFor="global-bike-weight" className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5 pl-1">Bike (kg)</label>
+              <input
+                id="global-bike-weight"
+                type="number"
+                min="0"
+                value={bikeWeightStr}
+                onChange={handleBikeWeightChange}
+                className="w-full text-sm font-semibold text-neutral-800 p-2.5 bg-white border border-neutral-200 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 transition-all shadow-sm"
+                placeholder="e.g. 9"
+              />
             </div>
           </div>
         </div>
 
+        <hr className="border-neutral-100/80" />
+
+        {/* Interval Filter */}
+        <div className="bg-white/50 border border-neutral-200/60 p-5 rounded-3xl shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]">
+          <div className="flex items-center gap-2 text-[13px] uppercase tracking-widest font-bold text-neutral-400 mb-4">
+            Interval Filter
+          </div>
+          <div className="flex flex-col gap-4">
+            <div className="flex gap-3">
+              <div className="flex-1 relative">
+                <label htmlFor="filter-power" className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5 pl-1">Power (W)</label>
+                <input
+                  id="filter-power"
+                  type="number"
+                  min="0"
+                  value={filterPowerStr}
+                  onChange={(e) => setFilterPowerStr(e.target.value)}
+                  className="w-full text-sm font-semibold text-neutral-800 p-2.5 bg-white border border-neutral-200 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 transition-all shadow-sm"
+                  placeholder="e.g. 300"
+                />
+              </div>
+              <div className="flex-1 relative">
+                <label htmlFor="filter-time" className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5 pl-1">Min. Time (m)</label>
+                <input
+                  id="filter-time"
+                  type="number"
+                  min="0"
+                  value={filterTimeStr}
+                  onChange={(e) => setFilterTimeStr(e.target.value)}
+                  className="w-full text-sm font-semibold text-neutral-800 p-2.5 bg-white border border-neutral-200 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 transition-all shadow-sm"
+                  placeholder="e.g. 5"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setIsFiltered(true)}
+                className="flex-1 bg-neutral-900 hover:bg-neutral-800 text-white py-2.5 rounded-xl font-bold text-xs transition-all shadow-md shadow-neutral-900/10 active:scale-[0.98]"
+              >
+                Apply Filter
+              </button>
+              {isFiltered && (
+                <button
+                  onClick={() => setIsFiltered(false)}
+                  className="flex-[0.5] bg-neutral-100 hover:bg-neutral-200 text-neutral-600 border border-neutral-200 py-2.5 rounded-xl font-bold text-xs transition-all active:scale-[0.98]"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <hr className="border-neutral-100/80" />
+
+        {/* About / CTA */}
+        <div className="mt-auto pt-4 bg-gradient-to-b from-blue-50/50 to-blue-50/20 border border-blue-100/60 p-6 rounded-3xl flex flex-col gap-4 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-10 transform translate-x-4 -translate-y-4 group-hover:scale-110 transition-transform duration-500">
+            <Compass className="w-24 h-24 text-blue-600" />
+          </div>
+          <div className="relative z-10">
+            <h3 className="font-black text-blue-900 text-lg mb-2">Contribute a Route</h3>
+            <p className="text-sm text-blue-800/70 leading-relaxed font-medium mb-5">
+              Help the cycling community by crowdsourcing safe, traffic-free segments.
+            </p>
+            <button
+              onClick={() => setShowSubmissionContent(true)}
+              className="flex items-center justify-center gap-2 w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-blue-600/20 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0"
+            >
+              <Plus className="w-5 h-5" />
+              Submit Segment
+            </button>
+          </div>
+        </div>
       </aside>
 
       {/* Main Map Viewport */}
@@ -196,7 +247,7 @@ export default function Home() {
         )}
 
         <div className="w-full h-full rounded-3xl overflow-hidden shadow-2xl border border-neutral-200/60 bg-white">
-          <Map segments={segments} activeFilter={activeFilter} riderPower={powerStr} riderWeight={weightStr} />
+          <Map segments={filteredSegments} riderPower={powerStr} riderWeight={weightStr} bikeWeight={bikeWeightStr} />
         </div>
 
         {/* Floating Modal Overlay for Form */}
@@ -206,6 +257,6 @@ export default function Home() {
           </div>
         )}
       </section>
-    </main>
+    </main >
   );
 }

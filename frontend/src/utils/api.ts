@@ -12,7 +12,6 @@ export async function fetchSegments(): Promise<Segment[]> {
 
 export interface SubmissionData {
     strava_url: string;
-    terrain: "Flat" | "Hilly";
     safety_notes: string;
 }
 

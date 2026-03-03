@@ -1,7 +1,6 @@
 export type Segment = {
   id?: string;
   name: string;
-  terrain: "Hilly" | "Flat";
   distance_km: number;
   gradient_pct: number;
   completion_times: {

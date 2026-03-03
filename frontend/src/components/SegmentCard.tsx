@@ -7,6 +7,7 @@ interface Props {
     segment: Segment;
     riderPower?: string;
     riderWeight?: string;
+    bikeWeight?: string;
 }
 
 function formatTime(seconds: number): string {
@@ -20,14 +21,15 @@ function formatTime(seconds: number): string {
     return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-export default function SegmentCard({ segment, riderPower = "250", riderWeight = "75" }: Props) {
+export default function SegmentCard({ segment, riderPower = "250", riderWeight = "75", bikeWeight = "9" }: Props) {
     const power = parseFloat(riderPower);
     const weight = parseFloat(riderWeight);
+    const bWeight = parseFloat(bikeWeight);
 
     const estimatedTime = useMemo(() => {
         if (!power || !weight || !segment.distance_km) return null;
         const gradientDecimal = (segment.gradient_pct ?? 0) / 100;
-        const velocity = calculateVelocity(power, gradientDecimal, weight);
+        const velocity = calculateVelocity(power, gradientDecimal, weight, bWeight);
         if (velocity <= 0) return null;
 
         const distanceMeters = segment.distance_km * 1000;
@@ -40,14 +42,6 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
                 <h3 className="font-bold text-lg text-neutral-800 leading-tight pr-2">
                     {segment.name}
                 </h3>
-                <span
-                    className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg shrink-0 flex items-center shadow-sm ${segment.terrain === "Hilly"
-                        ? "bg-rose-50 text-rose-600 border border-rose-100"
-                        : "bg-emerald-50 text-emerald-600 border border-emerald-100"
-                        }`}
-                >
-                    {segment.terrain}
-                </span>
             </div>
 
             <div className="grid grid-cols-2 gap-3 divide-x divide-neutral-100">
