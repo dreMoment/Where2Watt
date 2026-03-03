@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useMemo } from "react";
 import { ExternalLink, Ruler, Mountain, Timer } from "lucide-react";
 import type { Segment } from "@/types";
 import { calculateVelocity } from "@/utils/physics";

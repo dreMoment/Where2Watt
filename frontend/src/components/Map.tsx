@@ -40,7 +40,7 @@ export default function InteractiveMap({ segments, activeFilter, riderPower, rid
           bearing: 0
         }}
         maxPitch={85}
-        terrain={{ source: "terrain-source", exaggeration: 1.5 }}
+        terrain={{ source: "terrain-source", exaggeration: 2 }}
         mapStyle={mapStyle}
         style={{ width: "100%", height: "100%" }}
         interactiveLayerIds={interactiveLayerIds}
@@ -74,11 +74,11 @@ export default function InteractiveMap({ segments, activeFilter, riderPower, rid
           if (!segment.polyline) return null;
 
           const coordinates = decodePolyline(segment.polyline);
-          const geojsonData: any = {
-            type: "Feature",
+          const geojsonData = {
+            type: "Feature" as const,
             properties: { id: segment.id },
             geometry: {
-              type: "LineString",
+              type: "LineString" as const,
               coordinates
             }
           };

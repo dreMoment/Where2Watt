@@ -1,12 +1,13 @@
 import { render } from '@testing-library/react';
+import React from 'react';
 import InteractiveMap from '../Map';
 
 jest.mock('react-map-gl/maplibre', () => {
     return {
         __esModule: true,
-        default: ({ children }: any) => <div data-testid="mock-map">{children}</div>,
-        Popup: ({ children }: any) => <div data-testid="mock-popup">{children}</div>,
-        Source: ({ children }: any) => <div data-testid="mock-source">{children}</div>,
+        default: ({ children }: { children?: React.ReactNode }) => <div data-testid="mock-map">{children}</div>,
+        Popup: ({ children }: { children?: React.ReactNode }) => <div data-testid="mock-popup">{children}</div>,
+        Source: ({ children }: { children?: React.ReactNode }) => <div data-testid="mock-source">{children}</div>,
         Layer: () => <div data-testid="mock-layer" />,
     };
 });
