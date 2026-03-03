@@ -74,6 +74,7 @@ class SegmentSchema(BaseModel):
     distance_km: float | None = None
     gradient_pct: float | None = None
     approved: bool | None = False
+    strava_id: str | None = None
     created_at: str | None = None
     
     model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True, extra="ignore")
