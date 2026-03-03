@@ -6,21 +6,10 @@ import sys
 def add_test_segment():
     url = "http://localhost:8080/api/segments"
     
-    # Matching the Segment type expected by the frontend
+    # Using the new workflow: provide strava_url and let the backend fetch details
     segment_data = {
-        "name": "Zugerberg",
-        "terrain": "Hilly",
-        "distance_km": 6.04,
-        "gradient_pct": 7.1,
-        "longitude": 8.526036482141343,
-        "latitude": 47.170922756264886,
-        "completion_times": {
-            "beginner": "30:00",
-            "intermediate": "25:00",
-            "advanced": "20:00"
-        },
         "strava_url": "https://www.strava.com/segments/723461",
-        "approved": True
+        "terrain": "Hilly"
     }
     
     print(f"Creating test segment at {url}...")

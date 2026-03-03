@@ -24,6 +24,15 @@ export async function submitSegment(data: SubmissionData): Promise<void> {
     });
 
     if (!res.ok) {
-        throw new Error("Failed to submit segment");
+        let errorMessage = "Failed to submit segment";
+        try {
+            const errorData = await res.json();
+            if (errorData.detail) {
+                errorMessage = errorData.detail;
+            }
+        } catch (e) {
+            // ignore JSON parse error
+        }
+        throw new Error(errorMessage);
     }
 }

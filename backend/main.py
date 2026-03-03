@@ -130,9 +130,23 @@ async def create_segment(segment: SegmentSchema):
     db = db_client.findmyintervals
     segment_dict = segment.model_dump()
     
-    # Try to fetch polyline and details if missing and we have a strava_url
-    if segment_dict.get("strava_url"):
-        details = await fetch_segment_details(segment_dict["strava_url"])
+    strava_url = segment_dict.get("strava_url")
+    if strava_url:
+        match = re.search(r"segments/(\d+)", strava_url)
+        if match:
+            segment_id = match.group(1)
+            existing = await db.segments.find_one({
+                "$or": [
+                    {"strava_id": segment_id},
+                    {"strava_url": {"$regex": f"segments/{segment_id}(?![0-9])"}}
+                ]
+            })
+            if existing:
+                raise HTTPException(status_code=400, detail="Segment already exists")
+            segment_dict["strava_id"] = segment_id
+
+        # Try to fetch polyline and details if missing and we have a strava_url
+        details = await fetch_segment_details(strava_url)
         if details:
             if not segment_dict.get("polyline"):
                 segment_dict["polyline"] = details["polyline"]

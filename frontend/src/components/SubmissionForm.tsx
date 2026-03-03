@@ -35,7 +35,11 @@ export default function SubmissionForm({ onClose }: Props) {
             }, 2000);
         } catch (err) {
             console.error(err);
-            alert("Error submitting segment. Check backend is running.");
+            if (err instanceof Error) {
+                alert(err.message);
+            } else {
+                alert("Error submitting segment. Check backend is running.");
+            }
         } finally {
             setLoading(false);
         }
