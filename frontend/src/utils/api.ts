@@ -71,6 +71,18 @@ export async function fetchUnapprovedSegments(password: string): Promise<Segment
     return res.json();
 }
 
+export async function fetchAllSegments(password: string): Promise<Segment[]> {
+    const res = await fetch(`${API_BASE_URL}/admin/segments`, {
+        headers: {
+            "x-admin-password": password
+        }
+    });
+    if (!res.ok) {
+        throw new Error("Failed to fetch all segments");
+    }
+    return res.json();
+}
+
 export async function approveSegment(id: string, password: string): Promise<void> {
     const res = await fetch(`${API_BASE_URL}/admin/segments/${id}/approve`, {
         method: "POST",
@@ -81,4 +93,29 @@ export async function approveSegment(id: string, password: string): Promise<void
     if (!res.ok) {
         throw new Error("Failed to approve segment");
     }
+}
+
+export async function quickAddSegment(stravaUrl: string, password: string): Promise<Segment> {
+    const res = await fetch(`${API_BASE_URL}/admin/segments/quickadd`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "x-admin-password": password
+        },
+        body: JSON.stringify({ strava_url: stravaUrl }),
+    });
+
+    if (!res.ok) {
+        let errorMessage = "Failed to quickadd segment";
+        try {
+            const errorData = await res.json();
+            if (errorData.detail) {
+                errorMessage = errorData.detail;
+            }
+        } catch {
+            // ignore JSON parse error
+        }
+        throw new Error(errorMessage);
+    }
+    return res.json();
 }

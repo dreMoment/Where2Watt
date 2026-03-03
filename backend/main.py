@@ -64,6 +64,9 @@ class SegmentSchema(BaseModel):
     
     model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True, extra="allow")
 
+class QuickAddSchema(BaseModel):
+    strava_url: str
+
 class SegmentResponseSchema(SegmentSchema):
     id: str
     
@@ -190,6 +193,15 @@ async def list_unapproved_segments(is_admin: bool = Depends(verify_admin)):
         del segment["_id"]
     return segments
 
+@app.get("/api/admin/segments", response_model=List[SegmentResponseSchema])
+async def list_all_segments(is_admin: bool = Depends(verify_admin)):
+    db = db_client.findmyintervals
+    segments = await db.segments.find().sort("created_at", -1).to_list(500)
+    for segment in segments:
+        segment["id"] = str(segment["_id"])
+        del segment["_id"]
+    return segments
+
 @app.post("/api/admin/segments/{segment_id}/approve")
 async def approve_segment(segment_id: str, is_admin: bool = Depends(verify_admin)):
     db = db_client.findmyintervals
@@ -220,3 +232,47 @@ async def delete_segment(segment_id: str, is_admin: bool = Depends(verify_admin)
         raise HTTPException(status_code=404, detail="Segment not found")
     
     return {"status": "deleted"}
+
+@app.post("/api/admin/segments/quickadd", response_model=SegmentResponseSchema, status_code=201)
+async def quick_add_segment(data: QuickAddSchema, is_admin: bool = Depends(verify_admin)):
+    db = db_client.findmyintervals
+    strava_url = data.strava_url
+    
+    segment_id = extract_strava_id(strava_url)
+    if not segment_id:
+        raise HTTPException(status_code=400, detail="Invalid Strava URL")
+    
+    # Check if segment already exists
+    existing = await db.segments.find_one({
+        "$or": [
+            {"strava_id": segment_id},
+            {"strava_url": {"$regex": f"segments/{segment_id}(?![0-9])"}}
+        ]
+    })
+    if existing:
+        raise HTTPException(status_code=400, detail="Segment already exists")
+    
+    # Fetch details from Strava
+    details = await fetch_segment_details(segment_id)
+    if not details:
+        raise HTTPException(status_code=400, detail="Could not fetch segment details from Strava")
+    
+    # Prepare segment document
+    segment_dict = {
+        "strava_url": strava_url,
+        "strava_id": segment_id,
+        "name": details.get("name"),
+        "polyline": details.get("polyline"),
+        "distance_km": details.get("distance_km"),
+        "gradient_pct": details.get("gradient_pct"),
+        "approved": True,
+        "created_at": datetime.utcnow().replace(tzinfo=timezone.utc).isoformat()
+    }
+    
+    result = await db.segments.insert_one(segment_dict)
+    
+    created_segment = await db.segments.find_one({"_id": result.inserted_id})
+    if created_segment:
+        created_segment["id"] = str(created_segment["_id"])
+        del created_segment["_id"]
+    return created_segment
