@@ -1,7 +1,8 @@
-import React, { useMemo } from "react";
-import { ExternalLink, Ruler, Mountain, Timer } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { ExternalLink, Ruler, Mountain, Timer, MapPin } from "lucide-react";
 import type { Segment } from "@/types";
 import { calculateVelocity } from "@/utils/physics";
+import { decodePolyline } from "@/utils/polyline";
 
 interface Props {
     segment: Segment;
@@ -35,6 +36,15 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
         const distanceMeters = segment.distance_km * 1000;
         return distanceMeters / velocity;
     }, [power, weight, segment.distance_km, segment.gradient_pct]);
+
+    const [showStreetView, setShowStreetView] = useState(false);
+
+    const startCoordinates = useMemo(() => {
+        if (!segment.polyline) return null;
+        const coords = decodePolyline(segment.polyline);
+        if (coords.length === 0) return null;
+        return coords[0]; // [longitude, latitude]
+    }, [segment.polyline]);
 
     return (
         <div className="flex flex-col gap-4 min-w-[280px] font-sans">
@@ -74,6 +84,37 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
                     </span>
                 </div>
             </div>
+
+            {startCoordinates && (
+                <div className="mt-1 flex flex-col gap-2">
+                    <button
+                        onClick={() => setShowStreetView(!showStreetView)}
+                        className="flex items-center justify-center gap-2 w-full bg-neutral-100 hover:bg-neutral-200 text-neutral-700 py-2 rounded-xl font-medium text-sm transition-colors"
+                    >
+                        <MapPin className="w-4 h-4" />
+                        {showStreetView ? "Hide Street View" : "Show Start Street View"}
+                    </button>
+
+                    {showStreetView && (
+                        <div className="w-full bg-neutral-100 rounded-xl overflow-hidden shadow-inner border border-neutral-200 border-t-0 p-1 h-48 relative">
+                            <div className="w-full h-full overflow-hidden rounded-lg">
+                                <iframe
+                                    style={{
+                                        border: 0,
+                                        width: '150%',
+                                        height: '150%',
+                                        transform: 'scale(0.6666)',
+                                        transformOrigin: 'top left'
+                                    }}
+                                    loading="lazy"
+                                    allowFullScreen
+                                    src={`https://maps.google.com/maps?q=&layer=c&cbll=${startCoordinates[1]},${startCoordinates[0]}&cbp=11,0,0,0,0&output=svembed`}
+                                ></iframe>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
 
             <a
                 href={segment.strava_url}
