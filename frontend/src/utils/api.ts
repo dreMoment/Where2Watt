@@ -35,3 +35,50 @@ export async function submitSegment(data: SubmissionData): Promise<void> {
         throw new Error(errorMessage);
     }
 }
+
+export async function verifyAdminPassword(password: string): Promise<boolean> {
+    const res = await fetch(`${API_BASE_URL}/admin/verify`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "x-admin-password": password
+        }
+    });
+    return res.ok;
+}
+
+export async function deleteSegment(id: string, password: string): Promise<void> {
+    const res = await fetch(`${API_BASE_URL}/segments/${id}`, {
+        method: "DELETE",
+        headers: {
+            "x-admin-password": password
+        }
+    });
+    if (!res.ok) {
+        throw new Error("Failed to delete segment");
+    }
+}
+
+export async function fetchUnapprovedSegments(password: string): Promise<Segment[]> {
+    const res = await fetch(`${API_BASE_URL}/admin/segments/unapproved`, {
+        headers: {
+            "x-admin-password": password
+        }
+    });
+    if (!res.ok) {
+        throw new Error("Failed to fetch unapproved segments");
+    }
+    return res.json();
+}
+
+export async function approveSegment(id: string, password: string): Promise<void> {
+    const res = await fetch(`${API_BASE_URL}/admin/segments/${id}/approve`, {
+        method: "POST",
+        headers: {
+            "x-admin-password": password
+        }
+    });
+    if (!res.ok) {
+        throw new Error("Failed to approve segment");
+    }
+}

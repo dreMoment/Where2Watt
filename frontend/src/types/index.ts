@@ -9,6 +9,8 @@ export type Segment = {
     advanced: string;
   };
   strava_url: string;
+  strava_id?: string;
   approved: boolean;
   polyline?: string;
+  created_at?: string;
 };

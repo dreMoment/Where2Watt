@@ -1,11 +1,13 @@
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, ConfigDict
-from typing import List
+from typing import List, Annotated
+from bson import ObjectId
 import httpx
+from datetime import datetime, timezone
 import re
 
 # MongoDB Connection Parameters
@@ -15,6 +17,9 @@ MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://db:27017")
 STRAVA_CLIENT_ID = os.getenv("STRAVA_CLIENT_ID")
 STRAVA_CLIENT_SECRET = os.getenv("STRAVA_CLIENT_SECRET")
 STRAVA_REFRESH_TOKEN = os.getenv("STRAVA_REFRESH_TOKEN")
+
+# Admin Config
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin")
 
 # Global DB Client
 db_client = None
@@ -54,6 +59,8 @@ class SegmentSchema(BaseModel):
     strava_url: str | None = None
     distance_km: float | None = None
     gradient_pct: float | None = None
+    approved: bool | None = False
+    created_at: str | None = None
     
     model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True, extra="allow")
 
@@ -68,6 +75,15 @@ async def health_check():
         return {"status": "ok", "db_connected": True}
     except Exception as e:
         return {"status": "error", "db_connected": False, "error": str(e)}
+
+def verify_admin(x_admin_password: Annotated[str, Header()] = None):
+    if not x_admin_password or x_admin_password != ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return True
+
+@app.post("/api/admin/verify")
+async def verify_admin_password(is_admin: bool = Depends(verify_admin)):
+    return {"status": "ok"}
 
 async def get_strava_access_token():
     if not all([STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN]):
@@ -119,6 +135,9 @@ async def fetch_segment_details(segment_id: str):
 async def create_segment(segment: SegmentSchema):
     db = db_client.findmyintervals
     segment_dict = segment.model_dump()
+    segment_dict["created_at"] = datetime.utcnow().replace(tzinfo=timezone.utc).isoformat()
+    segment_dict["approved"] = False # Force explicit false
+
     
     strava_url = segment_dict.get("strava_url")
     if strava_url:
@@ -154,8 +173,50 @@ async def create_segment(segment: SegmentSchema):
 @app.get("/api/segments", response_model=List[SegmentResponseSchema])
 async def list_segments():
     db = db_client.findmyintervals
-    segments = await db.segments.find().to_list(100)
+    segments = await db.segments.find({
+        "$or": [{"approved": True}, {"approved": {"$exists": False}}]
+    }).to_list(100)
     for segment in segments:
         segment["id"] = str(segment["_id"])
         del segment["_id"]
     return segments
+
+@app.get("/api/admin/segments/unapproved", response_model=List[SegmentResponseSchema])
+async def list_unapproved_segments(is_admin: bool = Depends(verify_admin)):
+    db = db_client.findmyintervals
+    segments = await db.segments.find({"approved": False}).sort("created_at", -1).to_list(100)
+    for segment in segments:
+        segment["id"] = str(segment["_id"])
+        del segment["_id"]
+    return segments
+
+@app.post("/api/admin/segments/{segment_id}/approve")
+async def approve_segment(segment_id: str, is_admin: bool = Depends(verify_admin)):
+    db = db_client.findmyintervals
+    try:
+        obj_id = ObjectId(segment_id)
+    except:
+        raise HTTPException(status_code=400, detail="Invalid segment ID format")
+    
+    result = await db.segments.update_one(
+        {"_id": obj_id},
+        {"$set": {"approved": True}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Segment not found")
+    
+    return {"status": "approved"}
+
+@app.delete("/api/segments/{segment_id}")
+async def delete_segment(segment_id: str, is_admin: bool = Depends(verify_admin)):
+    db = db_client.findmyintervals
+    try:
+        obj_id = ObjectId(segment_id)
+    except:
+        raise HTTPException(status_code=400, detail="Invalid segment ID format")
+    
+    result = await db.segments.delete_one({"_id": obj_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Segment not found")
+    
+    return {"status": "deleted"}
