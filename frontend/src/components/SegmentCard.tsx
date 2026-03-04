@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from "react";
-import { ExternalLink, Ruler, Mountain, Timer, MapPin } from "lucide-react";
+import { ExternalLink, Ruler, Mountain, Timer, MapPin, Flag } from "lucide-react";
 import type { Segment } from "@/types";
 import { calculateVelocity } from "@/utils/physics";
 import { decodePolyline } from "@/utils/polyline";
+import { reportSegmentBlocked } from "@/utils/api";
 
 interface Props {
     segment: Segment;
@@ -10,6 +11,7 @@ interface Props {
     riderWeight?: string;
     bikeWeight?: string;
     clickedCoordinate?: [number, number] | null;
+    onSegmentBlocked?: (segmentId: string, blockedUntil?: string) => void;
 }
 
 function formatTime(seconds: number): string {
@@ -23,7 +25,7 @@ function formatTime(seconds: number): string {
     return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-export default function SegmentCard({ segment, riderPower = "250", riderWeight = "75", bikeWeight = "9", clickedCoordinate = null }: Props) {
+export default function SegmentCard({ segment, riderPower = "250", riderWeight = "75", bikeWeight = "9", clickedCoordinate = null, onSegmentBlocked }: Props) {
     const power = parseFloat(riderPower);
     const weight = parseFloat(riderWeight);
     const bWeight = parseFloat(bikeWeight);
@@ -49,13 +51,83 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
 
     const effectiveCoordinates = clickedCoordinate || startCoordinates;
 
+    const [showReportForm, setShowReportForm] = useState(false);
+    const [reportUntilDate, setReportUntilDate] = useState("");
+    const [isReporting, setIsReporting] = useState(false);
+
+    const handleReport = async () => {
+        if (!segment.id) return;
+        try {
+            setIsReporting(true);
+            const blockedUntil = reportUntilDate ? new Date(reportUntilDate).toISOString() : undefined;
+            await reportSegmentBlocked(segment.id, blockedUntil);
+            onSegmentBlocked?.(segment.id, blockedUntil);
+            setShowReportForm(false);
+            setReportUntilDate("");
+        } catch {
+            alert("Failed to report segment. Please try again.");
+        } finally {
+            setIsReporting(false);
+        }
+    };
+
     return (
         <div className="flex flex-col gap-4 min-w-[280px] font-sans">
+            {segment.blocked && (
+                <div className="bg-red-50 border border-red-200 rounded-xl px-3.5 py-2.5 flex items-start gap-2">
+                    <span className="text-red-500 text-base leading-none mt-0.5">⚠️</span>
+                    <div className="flex flex-col gap-0.5">
+                        <span className="text-red-700 font-semibold text-sm">This segment is currently blocked</span>
+                        {segment.blocked_until && (
+                            <span className="text-red-500 text-xs">
+                                Until {new Date(segment.blocked_until).toLocaleDateString()}
+                            </span>
+                        )}
+                    </div>
+                </div>
+            )}
             <div className="flex items-start justify-between border-b border-neutral-100/80 pb-3">
                 <h3 className="font-bold text-lg text-neutral-800 leading-tight pr-2">
                     {segment.name}
                 </h3>
+                {!segment.blocked && (
+                    <button
+                        onClick={() => setShowReportForm(!showReportForm)}
+                        title="Report as blocked"
+                        className="shrink-0 p-1.5 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                    >
+                        <Flag className="w-4 h-4" />
+                    </button>
+                )}
             </div>
+
+            {showReportForm && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5 flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <span className="text-amber-800 font-semibold text-xs">Report this segment as blocked</span>
+                    <input
+                        type="date"
+                        value={reportUntilDate}
+                        onChange={(e) => setReportUntilDate(e.target.value)}
+                        className="w-full bg-white border border-amber-300 rounded-lg px-2.5 py-1.5 text-xs text-neutral-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        placeholder="Blocked until (optional)"
+                    />
+                    <div className="flex gap-2">
+                        <button
+                            onClick={handleReport}
+                            disabled={isReporting}
+                            className="flex-1 bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white py-1.5 rounded-lg font-semibold text-xs transition-colors"
+                        >
+                            {isReporting ? "Reporting..." : "Confirm Report"}
+                        </button>
+                        <button
+                            onClick={() => { setShowReportForm(false); setReportUntilDate(""); }}
+                            className="flex-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 py-1.5 rounded-lg font-semibold text-xs transition-colors"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3 divide-x divide-neutral-100">
                 <div className="flex flex-col gap-1 items-center justify-center p-2 rounded-xl bg-neutral-50/50">

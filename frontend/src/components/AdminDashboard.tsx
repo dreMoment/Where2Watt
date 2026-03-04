@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { fetchUnapprovedSegments, fetchAllSegments, deleteSegment, approveSegment } from "@/utils/api";
+import { fetchUnapprovedSegments, fetchAllSegments, deleteSegment, approveSegment, blockSegment, unblockSegment } from "@/utils/api";
 import type { Segment } from "@/types";
 
 function timeAgo(dateString?: string): string {
@@ -133,6 +133,10 @@ export default function AdminDashboard({ password, onLogout }: AdminDashboardPro
     const [isQuickAdding, setIsQuickAdding] = useState(false);
     const [quickAddMessage, setQuickAddMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
+    // Block segment state
+    const [blockingSegmentId, setBlockingSegmentId] = useState<string | null>(null);
+    const [blockUntilDate, setBlockUntilDate] = useState("");
+
     const handleQuickAdd = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!quickAddUrl.trim()) return;
@@ -152,6 +156,33 @@ export default function AdminDashboard({ password, onLogout }: AdminDashboardPro
             setQuickAddMessage({ text: err.message || "Failed to add segment", type: "error" });
         } finally {
             setIsQuickAdding(false);
+        }
+    };
+
+    const handleBlock = async (id: string) => {
+        try {
+            const blockedUntil = blockUntilDate ? new Date(blockUntilDate).toISOString() : undefined;
+            await blockSegment(id, password, blockedUntil);
+            const updateSegment = (s: Segment) =>
+                s.id === id ? { ...s, blocked: true, blocked_until: blockedUntil || undefined } : s;
+            setPendingSegments((prev) => prev.map(updateSegment));
+            setAllSegments((prev) => prev.map(updateSegment));
+            setBlockingSegmentId(null);
+            setBlockUntilDate("");
+        } catch (err: any) {
+            alert(err.message || "Failed to block segment");
+        }
+    };
+
+    const handleUnblock = async (id: string) => {
+        try {
+            await unblockSegment(id, password);
+            const updateSegment = (s: Segment) =>
+                s.id === id ? { ...s, blocked: false, blocked_until: undefined } : s;
+            setPendingSegments((prev) => prev.map(updateSegment));
+            setAllSegments((prev) => prev.map(updateSegment));
+        } catch (err: any) {
+            alert(err.message || "Failed to unblock segment");
         }
     };
 
@@ -219,8 +250,8 @@ export default function AdminDashboard({ password, onLogout }: AdminDashboardPro
                     </form>
                     {quickAddMessage && (
                         <div className={`mt-4 p-3 rounded-xl text-sm font-medium border animate-in fade-in slide-in-from-top-2 duration-300 ${quickAddMessage.type === "success"
-                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                : "bg-red-500/10 text-red-400 border-red-500/20"
+                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                            : "bg-red-500/10 text-red-400 border-red-500/20"
                             }`}>
                             {quickAddMessage.text}
                         </div>
@@ -335,17 +366,30 @@ export default function AdminDashboard({ password, onLogout }: AdminDashboardPro
                                             </td>
                                             {activeTab === "all" && (
                                                 <td className="p-5">
-                                                    {segment.approved ? (
-                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-semibold border border-emerald-500/20">
-                                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                                                            Approved
-                                                        </span>
-                                                    ) : (
-                                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 text-xs font-semibold border border-amber-500/20">
-                                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                                                            Pending
-                                                        </span>
-                                                    )}
+                                                    <div className="flex flex-col gap-1.5">
+                                                        {segment.approved ? (
+                                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-semibold border border-emerald-500/20">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                                                                Approved
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 text-xs font-semibold border border-amber-500/20">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                                                                Pending
+                                                            </span>
+                                                        )}
+                                                        {segment.blocked && (
+                                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/10 text-red-400 text-xs font-semibold border border-red-500/20">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+                                                                Blocked
+                                                                {segment.blocked_until && (
+                                                                    <span className="text-red-400/70 font-normal ml-1">
+                                                                        until {new Date(segment.blocked_until).toLocaleDateString()}
+                                                                    </span>
+                                                                )}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </td>
                                             )}
                                             <td className="p-5">
@@ -370,6 +414,49 @@ export default function AdminDashboard({ password, onLogout }: AdminDashboardPro
                                             )}
                                             <td className="p-5 pr-6 text-right">
                                                 <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    {segment.blocked ? (
+                                                        <button
+                                                            onClick={() => segment.id && handleUnblock(segment.id)}
+                                                            className="inline-flex items-center px-4 py-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-lg text-sm font-semibold transition-all shadow-sm focus:opacity-100"
+                                                        >
+                                                            <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" /></svg>
+                                                            Unblock
+                                                        </button>
+                                                    ) : (
+                                                        <>
+                                                            {blockingSegmentId === segment.id ? (
+                                                                <div className="flex items-center gap-2">
+                                                                    <input
+                                                                        type="date"
+                                                                        value={blockUntilDate}
+                                                                        onChange={(e) => setBlockUntilDate(e.target.value)}
+                                                                        className="bg-gray-800 border border-gray-600 rounded-lg px-2 py-1.5 text-xs text-gray-300 focus:outline-none focus:ring-1 focus:ring-red-500"
+                                                                        placeholder="Until (optional)"
+                                                                    />
+                                                                    <button
+                                                                        onClick={() => segment.id && handleBlock(segment.id)}
+                                                                        className="inline-flex items-center px-3 py-1.5 bg-red-500 text-white rounded-lg text-xs font-semibold transition-all hover:bg-red-600"
+                                                                    >
+                                                                        Confirm
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => { setBlockingSegmentId(null); setBlockUntilDate(""); }}
+                                                                        className="inline-flex items-center px-3 py-1.5 bg-gray-700 text-gray-300 rounded-lg text-xs font-semibold transition-all hover:bg-gray-600"
+                                                                    >
+                                                                        Cancel
+                                                                    </button>
+                                                                </div>
+                                                            ) : (
+                                                                <button
+                                                                    onClick={() => { setBlockingSegmentId(segment.id || null); setBlockUntilDate(""); }}
+                                                                    className="inline-flex items-center px-4 py-2 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white rounded-lg text-sm font-semibold transition-all shadow-sm focus:opacity-100"
+                                                                >
+                                                                    <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                                                                    Block
+                                                                </button>
+                                                            )}
+                                                        </>
+                                                    )}
                                                     <button
                                                         onClick={() => segment.id && handleDelete(segment.id, segment.name || segment.strava_id || segment.id || "Unknown Segment")}
                                                         className="inline-flex items-center px-4 py-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg text-sm font-semibold transition-all shadow-sm focus:opacity-100"

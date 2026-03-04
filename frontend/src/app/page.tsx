@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { Plus, Compass, Activity } from "lucide-react";
 import type { Segment } from "@/types";
@@ -92,6 +92,14 @@ export default function Home() {
       return timeSec >= targetTimeSec * 0.95;
     });
   }, [segments, isFiltered, filterPowerStr, filterTimeStr, weightStr, bikeWeightStr]);
+
+  const handleSegmentBlocked = useCallback((segmentId: string, blockedUntil?: string) => {
+    setSegments((prev) =>
+      prev.map((s) =>
+        s.id === segmentId ? { ...s, blocked: true, blocked_until: blockedUntil } : s
+      )
+    );
+  }, []);
 
 
   return (
@@ -221,7 +229,7 @@ export default function Home() {
         )}
 
         <div className="w-full h-full overflow-hidden bg-white">
-          <Map segments={filteredSegments} riderPower={powerStr} riderWeight={weightStr} bikeWeight={bikeWeightStr} isFiltered={isFiltered} filterPower={filterPowerStr} filterTime={filterTimeStr} />
+          <Map segments={filteredSegments} riderPower={powerStr} riderWeight={weightStr} bikeWeight={bikeWeightStr} isFiltered={isFiltered} filterPower={filterPowerStr} filterTime={filterTimeStr} onSegmentBlocked={handleSegmentBlocked} />
         </div>
 
         {/* Floating Modal Overlay for Form */}

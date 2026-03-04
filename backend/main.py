@@ -77,11 +77,16 @@ class SegmentSchema(BaseModel):
     approved: bool | None = False
     strava_id: str | None = None
     created_at: str | None = None
+    blocked: bool | None = False
+    blocked_until: str | None = None
     
     model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True, extra="ignore")
 
 class QuickAddSchema(BaseModel):
     strava_url: str
+
+class BlockSchema(BaseModel):
+    blocked_until: str | None = None
 
 class SegmentResponseSchema(SegmentSchema):
     id: str
@@ -197,10 +202,46 @@ async def list_segments():
     segments = await db.segments.find({
         "$or": [{"approved": True}, {"approved": {"$exists": False}}]
     }).to_list(100)
+    now = datetime.now(timezone.utc)
     for segment in segments:
+        # Auto-unblock segments whose blocked_until has passed
+        if segment.get("blocked") and segment.get("blocked_until"):
+            try:
+                until = datetime.fromisoformat(segment["blocked_until"])
+                if until <= now:
+                    await db.segments.update_one(
+                        {"_id": segment["_id"]},
+                        {"$set": {"blocked": False, "blocked_until": None}}
+                    )
+                    segment["blocked"] = False
+                    segment["blocked_until"] = None
+            except (ValueError, TypeError):
+                pass
         segment["id"] = str(segment["_id"])
         del segment["_id"]
     return segments
+
+@app.post("/api/segments/{segment_id}/report-blocked")
+@limiter.limit("5/minute")
+async def report_segment_blocked(request: Request, segment_id: str, data: BlockSchema = BlockSchema()):
+    db = db_client[MONGODB_DB_NAME]
+    try:
+        obj_id = ObjectId(segment_id)
+    except:
+        raise HTTPException(status_code=400, detail="Invalid segment ID format")
+    
+    update = {"blocked": True}
+    if data.blocked_until:
+        update["blocked_until"] = data.blocked_until
+    
+    result = await db.segments.update_one(
+        {"_id": obj_id},
+        {"$set": update}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Segment not found")
+    
+    return {"status": "reported"}
 
 @app.get("/api/admin/segments/unapproved", response_model=List[SegmentResponseSchema])
 async def list_unapproved_segments(is_admin: bool = Depends(verify_admin)):
@@ -236,6 +277,46 @@ async def approve_segment(segment_id: str, is_admin: bool = Depends(verify_admin
         raise HTTPException(status_code=404, detail="Segment not found")
     
     return {"status": "approved"}
+
+@app.patch("/api/admin/segments/{segment_id}/block")
+async def block_segment(segment_id: str, data: BlockSchema = BlockSchema(), is_admin: bool = Depends(verify_admin)):
+    db = db_client[MONGODB_DB_NAME]
+    try:
+        obj_id = ObjectId(segment_id)
+    except:
+        raise HTTPException(status_code=400, detail="Invalid segment ID format")
+    
+    update = {"blocked": True}
+    if data.blocked_until:
+        update["blocked_until"] = data.blocked_until
+    else:
+        update["blocked_until"] = None
+    
+    result = await db.segments.update_one(
+        {"_id": obj_id},
+        {"$set": update}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Segment not found")
+    
+    return {"status": "blocked"}
+
+@app.patch("/api/admin/segments/{segment_id}/unblock")
+async def unblock_segment(segment_id: str, is_admin: bool = Depends(verify_admin)):
+    db = db_client[MONGODB_DB_NAME]
+    try:
+        obj_id = ObjectId(segment_id)
+    except:
+        raise HTTPException(status_code=400, detail="Invalid segment ID format")
+    
+    result = await db.segments.update_one(
+        {"_id": obj_id},
+        {"$set": {"blocked": False, "blocked_until": None}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Segment not found")
+    
+    return {"status": "unblocked"}
 
 @app.delete("/api/segments/{segment_id}")
 async def delete_segment(segment_id: str, is_admin: bool = Depends(verify_admin)):

@@ -13,4 +13,6 @@ export type Segment = {
   approved: boolean;
   polyline?: string;
   created_at?: string;
+  blocked?: boolean;
+  blocked_until?: string;
 };

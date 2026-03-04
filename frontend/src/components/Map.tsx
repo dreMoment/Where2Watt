@@ -15,6 +15,7 @@ interface MapProps {
   isFiltered?: boolean;
   filterPower?: string;
   filterTime?: string;
+  onSegmentBlocked?: (segmentId: string, blockedUntil?: string) => void;
 }
 
 /**
@@ -34,7 +35,7 @@ function getMarginColor(ratio: number): string {
   return `hsl(${hue}, 65%, 45%)`;
 }
 
-export default function InteractiveMap({ segments, riderPower, riderWeight, bikeWeight, isFiltered, filterPower, filterTime }: MapProps) {
+export default function InteractiveMap({ segments, riderPower, riderWeight, bikeWeight, isFiltered, filterPower, filterTime, onSegmentBlocked }: MapProps) {
   const [selectedSegment, setSelectedSegment] = useState<Segment | null>(null);
   const [clickedCoordinate, setClickedCoordinate] = useState<[number, number] | null>(null);
   const [cursor, setCursor] = useState("grab");
@@ -130,8 +131,11 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
 
           const isSelected = selectedSegment?.id === segment.id;
           const segKey = segment.id || String(idx);
-          const defaultColor = (isFiltered && segmentColors[segKey]) ? segmentColors[segKey] : "#2563eb";
-          const lineColor = isSelected ? "#fc4c02" : defaultColor;
+          const isBlocked = segment.blocked === true;
+          const defaultColor = isBlocked
+            ? "#dc2626"
+            : (isFiltered && segmentColors[segKey]) ? segmentColors[segKey] : "#2563eb";
+          const lineColor = isSelected ? (isBlocked ? "#dc2626" : "#fc4c02") : defaultColor;
           const lineWidth = isSelected ? 6 : 3;
 
           const startCoord = coordinates.length > 0 ? coordinates[0] : null;
@@ -193,7 +197,7 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
                 setClickedCoordinate(null);
               }}
               closeOnClick={false}
-              className="custom-popup z-10"
+              className={`custom-popup z-10${selectedSegment.blocked ? ' blocked-popup' : ''}`}
               maxWidth="350px"
             >
               <div className="p-1">
@@ -203,6 +207,7 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
                   riderWeight={riderWeight}
                   bikeWeight={bikeWeight}
                   clickedCoordinate={clickedCoordinate}
+                  onSegmentBlocked={onSegmentBlocked}
                 />
               </div>
             </Popup>

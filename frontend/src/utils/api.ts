@@ -119,3 +119,48 @@ export async function quickAddSegment(stravaUrl: string, password: string): Prom
     }
     return res.json();
 }
+
+export async function blockSegment(id: string, password: string, blockedUntil?: string): Promise<void> {
+    const body: Record<string, string> = {};
+    if (blockedUntil) {
+        body.blocked_until = blockedUntil;
+    }
+    const res = await fetch(`${API_BASE_URL}/admin/segments/${id}/block`, {
+        method: "PATCH",
+        headers: {
+            "Content-Type": "application/json",
+            "x-admin-password": password
+        },
+        body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+        throw new Error("Failed to block segment");
+    }
+}
+
+export async function unblockSegment(id: string, password: string): Promise<void> {
+    const res = await fetch(`${API_BASE_URL}/admin/segments/${id}/unblock`, {
+        method: "PATCH",
+        headers: {
+            "x-admin-password": password
+        }
+    });
+    if (!res.ok) {
+        throw new Error("Failed to unblock segment");
+    }
+}
+
+export async function reportSegmentBlocked(id: string, blockedUntil?: string): Promise<void> {
+    const body: Record<string, string> = {};
+    if (blockedUntil) {
+        body.blocked_until = blockedUntil;
+    }
+    const res = await fetch(`${API_BASE_URL}/segments/${id}/report-blocked`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+        throw new Error("Failed to report segment as blocked");
+    }
+}
