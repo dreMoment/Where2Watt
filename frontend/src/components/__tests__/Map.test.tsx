@@ -36,6 +36,6 @@ describe('InteractiveMap', () => {
         const { getByTestId, getAllByTestId } = render(<InteractiveMap segments={mockSegments} />);
         expect(getByTestId('mock-map')).toBeInTheDocument();
         expect(getAllByTestId('mock-source').length).toBeGreaterThan(0);
-        expect(getByTestId('mock-layer')).toBeInTheDocument();
+        expect(getAllByTestId('mock-layer').length).toBeGreaterThan(0);
     });
 });

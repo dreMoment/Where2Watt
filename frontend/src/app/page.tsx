@@ -89,7 +89,7 @@ export default function Home() {
       if (velocity <= 0) return false;
       const distMeters = seg.distance_km * 1000;
       const timeSec = distMeters / velocity;
-      return timeSec >= targetTimeSec;
+      return timeSec >= targetTimeSec * 0.95;
     });
   }, [segments, isFiltered, filterPowerStr, filterTimeStr, weightStr, bikeWeightStr]);
 
@@ -221,7 +221,7 @@ export default function Home() {
         )}
 
         <div className="w-full h-full overflow-hidden bg-white">
-          <Map segments={filteredSegments} riderPower={powerStr} riderWeight={weightStr} bikeWeight={bikeWeightStr} />
+          <Map segments={filteredSegments} riderPower={powerStr} riderWeight={weightStr} bikeWeight={bikeWeightStr} isFiltered={isFiltered} filterPower={filterPowerStr} filterTime={filterTimeStr} />
         </div>
 
         {/* Floating Modal Overlay for Form */}

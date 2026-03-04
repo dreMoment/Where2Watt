@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react";
 import Map, { Popup, Source, Layer, NavigationControl, Marker } from "react-map-gl/maplibre";
 import SegmentCard from "./SegmentCard";
 import { decodePolyline } from "@/utils/polyline";
+import { calculateVelocity } from "@/utils/physics";
 import type { Segment } from "@/types";
 
 interface MapProps {
@@ -11,14 +12,56 @@ interface MapProps {
   riderPower?: string;
   riderWeight?: string;
   bikeWeight?: string;
+  isFiltered?: boolean;
+  filterPower?: string;
+  filterTime?: string;
 }
 
-export default function InteractiveMap({ segments, riderPower, riderWeight, bikeWeight }: MapProps) {
+/**
+ * Returns a color between orange (#f97316) and green (#16a34a)
+ * based on how much margin a segment has above the target interval time.
+ * ratio = segmentTime / targetTime (can be < 1.0 since filter allows 5% below).
+ * ratio <= 1.05 → orange (tight, within ±5% of target)
+ * ratio >= 1.25 → green  (plenty of margin)
+ * In between  → interpolated via HSL hue
+ */
+function getMarginColor(ratio: number): string {
+  const TIGHT = 1.05;
+  const PLENTY = 1.25;
+  const t = Math.min(1, Math.max(0, (ratio - TIGHT) / (PLENTY - TIGHT)));
+  // Reddish-orange hue ≈ 10, Green hue ≈ 140 (HSL)
+  const hue = 0 + t * (140 - 10);
+  return `hsl(${hue}, 65%, 45%)`;
+}
+
+export default function InteractiveMap({ segments, riderPower, riderWeight, bikeWeight, isFiltered, filterPower, filterTime }: MapProps) {
   const [selectedSegment, setSelectedSegment] = useState<Segment | null>(null);
   const [clickedCoordinate, setClickedCoordinate] = useState<[number, number] | null>(null);
   const [cursor, setCursor] = useState("grab");
 
   const filteredSegments = segments;
+
+  // Pre-compute interval margin colors for each segment when filter is active
+  const targetTimeSec = isFiltered && filterTime ? parseFloat(filterTime) * 60 : 0;
+  const filterPwr = isFiltered && filterPower ? parseFloat(filterPower) : 0;
+  const rw = parseFloat(riderWeight || "75") || 75;
+  const bw = parseFloat(bikeWeight || "9") || 9;
+
+  const segmentColors = useMemo(() => {
+    if (!isFiltered || !filterPwr || !targetTimeSec) return {};
+    const colors: Record<string, string> = {};
+    filteredSegments.forEach((seg, idx) => {
+      const key = seg.id || String(idx);
+      if (!seg.distance_km) return;
+      const gradientDecimal = (seg.gradient_pct ?? 0) / 100;
+      const velocity = calculateVelocity(filterPwr, gradientDecimal, rw, bw);
+      if (velocity <= 0) return;
+      const timeSec = (seg.distance_km * 1000) / velocity;
+      const ratio = timeSec / targetTimeSec;
+      colors[key] = getMarginColor(ratio);
+    });
+    return colors;
+  }, [filteredSegments, isFiltered, filterPwr, targetTimeSec, rw, bw]);
 
   // We use Carto Light (Voyager) as a free vector tile source that looks similar to the previous leaflet map
   const mapStyle = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
@@ -86,7 +129,9 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
           };
 
           const isSelected = selectedSegment?.id === segment.id;
-          const lineColor = isSelected ? "#fc4c02" : "#be123c";
+          const segKey = segment.id || String(idx);
+          const defaultColor = (isFiltered && segmentColors[segKey]) ? segmentColors[segKey] : "#2563eb";
+          const lineColor = isSelected ? "#fc4c02" : defaultColor;
           const lineWidth = isSelected ? 6 : 3;
 
           const startCoord = coordinates.length > 0 ? coordinates[0] : null;
