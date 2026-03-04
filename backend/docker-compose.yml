@@ -1,9 +1,11 @@
 services:
   backend:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
     container_name: findmyintervals-backend
+    depends_on:
+      - mongodb
     env_file:
       - .env
     environment:
@@ -18,3 +20,19 @@ services:
       - PORT=8080
     ports:
       - "8080:8080"
+
+  mongodb:
+    image: mongo:latest
+    container_name: findmyintervals-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD}
+      - MONGO_INITDB_DATABASE=${MONGODB_DB_NAME:-findmyintervals_dev}
+    volumes:
+      - mongodb_data:/data/db
+
+volumes:
+  mongodb_data:

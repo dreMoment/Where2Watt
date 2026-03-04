@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import Map, { Popup, Source, Layer, NavigationControl } from "react-map-gl/maplibre";
+import Map, { Popup, Source, Layer, NavigationControl, Marker } from "react-map-gl/maplibre";
 import SegmentCard from "./SegmentCard";
 import { decodePolyline } from "@/utils/polyline";
 import type { Segment } from "@/types";
@@ -89,22 +89,44 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
           const lineColor = isSelected ? "#fc4c02" : "#be123c";
           const lineWidth = isSelected ? 6 : 3;
 
+          const startCoord = coordinates.length > 0 ? coordinates[0] : null;
+          const endCoord = coordinates.length > 0 ? coordinates[coordinates.length - 1] : null;
+
           return (
-            <Source key={`source-${segment.id || idx}`} id={`source-${segment.id || idx}`} type="geojson" data={geojsonData}>
-              <Layer
-                id={`route-${segment.id || idx}`}
-                type="line"
-                layout={{
-                  "line-join": "round",
-                  "line-cap": "round"
-                }}
-                paint={{
-                  "line-color": lineColor,
-                  "line-width": lineWidth,
-                  "line-opacity": 0.8
-                }}
-              />
-            </Source>
+            <React.Fragment key={`segment-group-${segment.id || idx}`}>
+              <Source id={`source-${segment.id || idx}`} type="geojson" data={geojsonData}>
+                <Layer
+                  id={`route-${segment.id || idx}`}
+                  type="line"
+                  layout={{
+                    "line-join": "round",
+                    "line-cap": "round"
+                  }}
+                  paint={{
+                    "line-color": lineColor,
+                    "line-width": lineWidth,
+                    "line-opacity": 0.8
+                  }}
+                />
+              </Source>
+              {startCoord && (
+                <Source id={`start-source-${segment.id || idx}`} type="geojson" data={{
+                  type: "Feature",
+                  geometry: { type: "Point", coordinates: startCoord },
+                  properties: {}
+                }}>
+                  <Layer
+                    id={`start-layer-${segment.id || idx}`}
+                    type="circle"
+                    paint={{
+                      "circle-radius": 3.5,
+                      "circle-color": "rgba(22, 163, 74, 1.0)", // green-600 equivalent
+                      "circle-stroke-width": 0,
+                    }}
+                  />
+                </Source>
+              )}
+            </React.Fragment>
           );
         })}
 

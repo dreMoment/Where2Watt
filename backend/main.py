@@ -14,8 +14,8 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 # MongoDB Connection Parameters
-MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://db:27017")
-MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME", "findmyintervals")
+MONGODB_URI = os.getenv("MONGODB_URI")
+MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME")
 
 # Strava API Config
 STRAVA_CLIENT_ID = os.getenv("STRAVA_CLIENT_ID")
@@ -28,7 +28,7 @@ if not ADMIN_PASSWORD:
     raise RuntimeError("ADMIN_PASSWORD environment variable must be set")
 
 # CORS Config
-CORS_ORIGIN = os.getenv("CORS_ORIGIN", "http://localhost:3000")
+CORS_ORIGIN = os.getenv("CORS_ORIGIN")
 CORS_ORIGINS = [origin.strip() for origin in CORS_ORIGIN.split(",")]
 
 # Rate Limiter
