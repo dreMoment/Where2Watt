@@ -14,7 +14,7 @@ services:
       - STRAVA_CLIENT_ID=${STRAVA_CLIENT_ID}
       - STRAVA_CLIENT_SECRET=${STRAVA_CLIENT_SECRET}
       - STRAVA_REFRESH_TOKEN=${STRAVA_REFRESH_TOKEN}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - ADMIN_STRAVA_IDS=${ADMIN_STRAVA_IDS}
       - CORS_ORIGIN=${CORS_ORIGIN}
       # Add this to ensure Uvicorn runs correctly inside docker compose locally
       - PORT=8080

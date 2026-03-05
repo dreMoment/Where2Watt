@@ -2,15 +2,9 @@ from datetime import datetime, timezone
 from typing import Annotated
 
 import jwt
-from fastapi import Header, HTTPException
+from fastapi import Depends, Header, HTTPException
 
-from config import ADMIN_PASSWORD, JWT_ALGORITHM, JWT_EXPIRATION_HOURS, JWT_SECRET
-
-
-def verify_admin(x_admin_password: Annotated[str, Header()] = None):
-    if not x_admin_password or x_admin_password != ADMIN_PASSWORD:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    return True
+from config import ADMIN_STRAVA_IDS, JWT_ALGORITHM, JWT_EXPIRATION_HOURS, JWT_SECRET
 
 
 def verify_user(authorization: Annotated[str, Header()] = None) -> int:
@@ -24,6 +18,12 @@ def verify_user(authorization: Annotated[str, Header()] = None) -> int:
         raise HTTPException(status_code=401, detail="Token expired")
     except (jwt.InvalidTokenError, KeyError):
         raise HTTPException(status_code=401, detail="Invalid token")
+
+
+def verify_admin(strava_id: int = Depends(verify_user)):
+    if strava_id not in ADMIN_STRAVA_IDS:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return True
 
 
 def create_jwt(strava_id: int) -> str:

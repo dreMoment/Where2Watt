@@ -7,11 +7,11 @@ import SegmentsTable from "@/components/SegmentsTable";
 import { useAdminSegments } from "@/hooks/useAdminSegments";
 
 interface AdminDashboardProps {
-  password: string;
+  token: string;
   onLogout: () => void;
 }
 
-export default function AdminDashboard({ password, onLogout }: AdminDashboardProps) {
+export default function AdminDashboard({ token, onLogout }: AdminDashboardProps) {
   const {
     activeTab,
     setActiveTab,
@@ -47,7 +47,7 @@ export default function AdminDashboard({ password, onLogout }: AdminDashboardPro
     handleUnblock,
     startBlocking,
     cancelBlocking,
-  } = useAdminSegments({ password, onLogout });
+  } = useAdminSegments({ token, onLogout });
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">

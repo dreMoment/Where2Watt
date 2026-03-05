@@ -15,17 +15,22 @@ function getErrorMessage(err: unknown, fallback: string): string {
   return err instanceof Error ? err.message : fallback;
 }
 
+function isAuthFailure(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return normalized.includes("unauthorized") || normalized.includes("not authenticated") || normalized.includes("admin access required");
+}
+
 export type Tab = "pending" | "all";
 export type ApprovalFilter = "all" | "approved" | "pending";
 export type BlockFilter = "all" | "blocked" | "unblocked";
 export type ReportFilter = "all" | "reported" | "not_reported";
 
 interface UseAdminSegmentsParams {
-  password: string;
+  token: string;
   onLogout: () => void;
 }
 
-export function useAdminSegments({ password, onLogout }: UseAdminSegmentsParams) {
+export function useAdminSegments({ token, onLogout }: UseAdminSegmentsParams) {
   const { confirm, showToast } = useUiFeedback();
   const [activeTab, setActiveTab] = useState<Tab>("pending");
 
@@ -53,7 +58,7 @@ export function useAdminSegments({ password, onLogout }: UseAdminSegmentsParams)
   const loadPendingSegments = useCallback(async () => {
     try {
       setPendingLoading(true);
-      const data = await fetchUnapprovedSegments(password);
+      const data = await fetchUnapprovedSegments(token);
       setPendingSegments(data);
       setPendingError("");
     } catch (err: unknown) {
@@ -61,12 +66,12 @@ export function useAdminSegments({ password, onLogout }: UseAdminSegmentsParams)
     } finally {
       setPendingLoading(false);
     }
-  }, [password]);
+  }, [token]);
 
   const loadAllSegments = useCallback(async () => {
     try {
       setAllLoading(true);
-      const data = await fetchAllSegments(password);
+      const data = await fetchAllSegments(token);
       setAllSegments(data);
       setAllError("");
       setAllLoaded(true);
@@ -75,7 +80,7 @@ export function useAdminSegments({ password, onLogout }: UseAdminSegmentsParams)
     } finally {
       setAllLoading(false);
     }
-  }, [password]);
+  }, [token]);
 
   useEffect(() => {
     loadPendingSegments();
@@ -101,35 +106,35 @@ export function useAdminSegments({ password, onLogout }: UseAdminSegmentsParams)
       }
 
       try {
-        await deleteSegment(id, password);
+        await deleteSegment(id, token);
         setPendingSegments((prev) => prev.filter((s) => s.id !== id));
         setAllSegments((prev) => prev.filter((s) => s.id !== id));
       } catch (err: unknown) {
         const message = getErrorMessage(err, "Failed to delete segment");
         showToast(message, { type: "error" });
-        if (message.toLowerCase().includes("unauthorized")) {
+        if (isAuthFailure(message)) {
           onLogout();
         }
       }
     },
-    [confirm, onLogout, password, showToast]
+    [confirm, onLogout, token, showToast]
   );
 
   const handleApprove = useCallback(
     async (id: string) => {
       try {
-        await approveSegment(id, password);
+        await approveSegment(id, token);
         setPendingSegments((prev) => prev.filter((s) => s.id !== id));
         setAllSegments((prev) => prev.map((s) => (s.id === id ? { ...s, approved: true } : s)));
       } catch (err: unknown) {
         const message = getErrorMessage(err, "Failed to approve segment");
         showToast(message, { type: "error" });
-        if (message.toLowerCase().includes("unauthorized")) {
+        if (isAuthFailure(message)) {
           onLogout();
         }
       }
     },
-    [onLogout, password, showToast]
+    [onLogout, token, showToast]
   );
 
   const handleRefresh = useCallback(() => {
@@ -219,7 +224,7 @@ export function useAdminSegments({ password, onLogout }: UseAdminSegmentsParams)
       try {
         setIsQuickAdding(true);
         setQuickAddMessage(null);
-        const newSegment = await quickAddSegment(quickAddUrl, password);
+        const newSegment = await quickAddSegment(quickAddUrl, token);
 
         setQuickAddMessage({ text: `Successfully added and approved "${newSegment.name}"`, type: "success" });
         setQuickAddUrl("");
@@ -232,14 +237,14 @@ export function useAdminSegments({ password, onLogout }: UseAdminSegmentsParams)
         setIsQuickAdding(false);
       }
     },
-    [loadAllSegments, loadPendingSegments, password, quickAddUrl]
+    [loadAllSegments, loadPendingSegments, quickAddUrl, token]
   );
 
   const handleBlock = useCallback(
     async (id: string) => {
       try {
         const blockedUntil = blockUntilDate ? new Date(blockUntilDate).toISOString() : undefined;
-        await blockSegment(id, password, blockedUntil);
+        await blockSegment(id, token, blockedUntil);
         const updateSegment = (s: Segment) =>
           s.id === id ? { ...s, blocked: true, blocked_until: blockedUntil || undefined } : s;
 
@@ -251,13 +256,13 @@ export function useAdminSegments({ password, onLogout }: UseAdminSegmentsParams)
         showToast(getErrorMessage(err, "Failed to block segment"), { type: "error" });
       }
     },
-    [blockUntilDate, password, showToast]
+    [blockUntilDate, showToast, token]
   );
 
   const handleUnblock = useCallback(
     async (id: string) => {
       try {
-        await unblockSegment(id, password);
+        await unblockSegment(id, token);
         const updateSegment = (s: Segment) => (s.id === id ? { ...s, blocked: false, blocked_until: undefined } : s);
 
         setPendingSegments((prev) => prev.map(updateSegment));
@@ -266,7 +271,7 @@ export function useAdminSegments({ password, onLogout }: UseAdminSegmentsParams)
         showToast(getErrorMessage(err, "Failed to unblock segment"), { type: "error" });
       }
     },
-    [password, showToast]
+    [showToast, token]
   );
 
   const startBlocking = useCallback((id: string | null) => {

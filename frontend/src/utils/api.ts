@@ -1,5 +1,5 @@
 import type { Segment } from "@/types";
-import { request, withAdminAuth } from "@/utils/apiClient";
+import { request, withBearerAuth } from "@/utils/apiClient";
 export { API_BASE_URL } from "@/utils/apiClient";
 
 export interface AuthUser {
@@ -49,12 +49,12 @@ export async function submitSegment(data: SubmissionData, token: string): Promis
     });
 }
 
-export async function verifyAdminPassword(password: string): Promise<boolean> {
+export async function verifyAdminAccess(token: string): Promise<boolean> {
     try {
         await request("/admin/verify", {
             method: "POST",
-            headers: withAdminAuth(password, { "Content-Type": "application/json" }),
-            errorMessage: "Invalid admin password",
+            headers: withBearerAuth(token, { "Content-Type": "application/json" }),
+            errorMessage: "Admin access required",
         });
         return true;
     } catch {
@@ -62,62 +62,62 @@ export async function verifyAdminPassword(password: string): Promise<boolean> {
     }
 }
 
-export async function deleteSegment(id: string, password: string): Promise<void> {
+export async function deleteSegment(id: string, token: string): Promise<void> {
     await request(`/segments/${id}`, {
         method: "DELETE",
-        headers: withAdminAuth(password),
+        headers: withBearerAuth(token),
         errorMessage: "Failed to delete segment",
     });
 }
 
-export async function fetchUnapprovedSegments(password: string): Promise<Segment[]> {
+export async function fetchUnapprovedSegments(token: string): Promise<Segment[]> {
     return request<Segment[]>("/admin/segments/unapproved", {
-        headers: withAdminAuth(password),
+        headers: withBearerAuth(token),
         errorMessage: "Failed to fetch unapproved segments",
     });
 }
 
-export async function fetchAllSegments(password: string): Promise<Segment[]> {
+export async function fetchAllSegments(token: string): Promise<Segment[]> {
     return request<Segment[]>("/admin/segments", {
-        headers: withAdminAuth(password),
+        headers: withBearerAuth(token),
         errorMessage: "Failed to fetch all segments",
     });
 }
 
-export async function approveSegment(id: string, password: string): Promise<void> {
+export async function approveSegment(id: string, token: string): Promise<void> {
     await request(`/admin/segments/${id}/approve`, {
         method: "POST",
-        headers: withAdminAuth(password),
+        headers: withBearerAuth(token),
         errorMessage: "Failed to approve segment",
     });
 }
 
-export async function quickAddSegment(stravaUrl: string, password: string): Promise<Segment> {
+export async function quickAddSegment(stravaUrl: string, token: string): Promise<Segment> {
     return request<Segment>("/admin/segments/quickadd", {
         method: "POST",
-        headers: withAdminAuth(password, { "Content-Type": "application/json" }),
+        headers: withBearerAuth(token, { "Content-Type": "application/json" }),
         body: JSON.stringify({ strava_url: stravaUrl }),
         errorMessage: "Failed to quickadd segment",
     });
 }
 
-export async function blockSegment(id: string, password: string, blockedUntil?: string): Promise<void> {
+export async function blockSegment(id: string, token: string, blockedUntil?: string): Promise<void> {
     const body: Record<string, string> = {};
     if (blockedUntil) {
         body.blocked_until = blockedUntil;
     }
     await request(`/admin/segments/${id}/block`, {
         method: "PATCH",
-        headers: withAdminAuth(password, { "Content-Type": "application/json" }),
+        headers: withBearerAuth(token, { "Content-Type": "application/json" }),
         body: JSON.stringify(body),
         errorMessage: "Failed to block segment",
     });
 }
 
-export async function unblockSegment(id: string, password: string): Promise<void> {
+export async function unblockSegment(id: string, token: string): Promise<void> {
     await request(`/admin/segments/${id}/unblock`, {
         method: "PATCH",
-        headers: withAdminAuth(password),
+        headers: withBearerAuth(token),
         errorMessage: "Failed to unblock segment",
     });
 }

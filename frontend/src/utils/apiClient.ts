@@ -23,8 +23,8 @@ function mergeHeaders(...headerSets: Array<HeadersInit | undefined>): Headers {
     return merged;
 }
 
-export function withAdminAuth(password: string, headers?: HeadersInit): Headers {
-    return mergeHeaders(headers, { "x-admin-password": password });
+export function withBearerAuth(token: string, headers?: HeadersInit): Headers {
+    return mergeHeaders(headers, { Authorization: `Bearer ${token}` });
 }
 
 export async function parseNormalizedError(res: Response, fallbackMessage: string): Promise<Error> {

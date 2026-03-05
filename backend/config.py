@@ -20,9 +20,18 @@ JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24 * 30  # 30 days
 
 # Admin Config
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
-if not ADMIN_PASSWORD:
-    raise RuntimeError("ADMIN_PASSWORD environment variable must be set")
+ADMIN_STRAVA_IDS_RAW = os.getenv("ADMIN_STRAVA_IDS", "")
+ADMIN_STRAVA_IDS: set[int] = set()
+for raw_id in ADMIN_STRAVA_IDS_RAW.split(","):
+    candidate = raw_id.strip()
+    if not candidate:
+        continue
+    try:
+        ADMIN_STRAVA_IDS.add(int(candidate))
+    except ValueError as exc:
+        raise RuntimeError("ADMIN_STRAVA_IDS must be a comma-separated list of integer Strava IDs") from exc
+if not ADMIN_STRAVA_IDS:
+    raise RuntimeError("ADMIN_STRAVA_IDS environment variable must include at least one Strava ID")
 
 # CORS Config
 CORS_ORIGIN = os.getenv("CORS_ORIGIN")
