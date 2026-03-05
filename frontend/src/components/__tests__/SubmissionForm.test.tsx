@@ -6,6 +6,17 @@ jest.mock('@/utils/api', () => ({
     submitSegment: jest.fn(),
 }));
 
+jest.mock('@/components/AuthContext', () => ({
+    useAuth: () => ({
+        isLoggedIn: true,
+        token: 'mock-token',
+        user: { strava_id: 1, firstname: 'Test', lastname: 'User', username: 'testuser', profile_pic: null },
+        login: jest.fn(),
+        logout: jest.fn(),
+        isLoading: false,
+    }),
+}));
+
 describe('SubmissionForm', () => {
     const mockOnClose = jest.fn();
 
@@ -36,7 +47,7 @@ describe('SubmissionForm', () => {
         expect(submitSegment).toHaveBeenCalledWith({
             strava_url: 'https://www.strava.com/segments/123',
             safety_notes: 'Watch out',
-        });
+        }, 'mock-token');
 
         await waitFor(() => {
             expect(screen.getByText(/Submitted!/i)).toBeInTheDocument();

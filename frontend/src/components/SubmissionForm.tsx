@@ -1,14 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { X, Send, Loader2 } from "lucide-react";
+import { X, Send, Loader2, LogIn } from "lucide-react";
 import { submitSegment, type SubmissionData } from "@/utils/api";
+import { useAuth } from "@/components/AuthContext";
 
 interface Props {
     onClose: () => void;
 }
 
 export default function SubmissionForm({ onClose }: Props) {
+    const { isLoggedIn, login, token } = useAuth();
     const [formData, setFormData] = useState<SubmissionData>({
         strava_url: "",
         safety_notes: "",
@@ -24,10 +26,15 @@ export default function SubmissionForm({ onClose }: Props) {
             return;
         }
 
+        if (!token) {
+            alert("You must be logged in to submit a segment.");
+            return;
+        }
+
         setLoading(true);
 
         try {
-            await submitSegment(formData);
+            await submitSegment(formData, token);
             setSuccess(true);
             setTimeout(() => {
                 onClose();
@@ -55,6 +62,37 @@ export default function SubmissionForm({ onClose }: Props) {
                 <p className="text-neutral-500 font-medium leading-relaxed">
                     Thanks for contributing! Your segment is now pending review.
                 </p>
+            </div>
+        );
+    }
+
+    // Not logged in — show login prompt
+    if (!isLoggedIn) {
+        return (
+            <div className="bg-white/95 backdrop-blur-2xl p-8 rounded-3xl shadow-2xl w-full max-w-md relative border border-white/50 transform transition-all animate-in fade-in slide-in-from-bottom-4 duration-300">
+                <button
+                    onClick={onClose}
+                    className="absolute top-5 right-5 text-neutral-400 hover:text-neutral-900 bg-neutral-100/50 hover:bg-neutral-100 p-2 rounded-full transition-all"
+                >
+                    <X className="w-5 h-5" />
+                </button>
+
+                <div className="text-center py-4">
+                    <div className="w-20 h-20 bg-orange-50 text-[#fc4c02] rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-orange-100">
+                        <LogIn className="w-10 h-10" />
+                    </div>
+                    <h2 className="text-2xl font-black text-neutral-900 mb-2 tracking-tight">Login Required</h2>
+                    <p className="text-sm text-neutral-500 font-medium mb-6">
+                        You need to log in with Strava to submit segments.
+                    </p>
+                    <button
+                        onClick={login}
+                        className="w-full bg-[#fc4c02] hover:bg-[#e34402] text-white py-3.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-orange-500/20 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2"
+                    >
+                        <LogIn className="w-5 h-5" />
+                        Login with Strava
+                    </button>
+                </div>
             </div>
         );
     }

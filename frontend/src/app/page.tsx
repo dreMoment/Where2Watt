@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
-import { Plus, Compass, Activity } from "lucide-react";
+import { Plus, Compass, Activity, LogIn, LogOut } from "lucide-react";
 import type { Segment } from "@/types";
+import { useAuth } from "@/components/AuthContext";
 import SubmissionForm from "@/components/SubmissionForm";
 import InputField from "@/components/InputField";
 import SectionCard from "@/components/SectionCard";
@@ -22,6 +23,7 @@ const Map = dynamic(() => import("@/components/Map"), {
 });
 
 export default function Home() {
+  const { user, isLoggedIn, login, logout, isLoading: authLoading } = useAuth();
   const [segments, setSegments] = useState<Segment[]>([]);
   const [showSubmissionContent, setShowSubmissionContent] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -110,13 +112,48 @@ export default function Home() {
 
         {/* Header Section */}
         <div className="p-8 pb-6 border-b border-neutral-100/80 bg-white/80 backdrop-blur-xl sticky top-0 z-20">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="bg-gradient-to-br from-rose-400 to-rose-600 text-white p-2.5 rounded-xl shadow-lg shadow-rose-500/20">
-              <Activity className="w-6 h-6" />
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <div className="bg-gradient-to-br from-rose-400 to-rose-600 text-white p-2.5 rounded-xl shadow-lg shadow-rose-500/20">
+                <Activity className="w-6 h-6" />
+              </div>
+              <h1 className="text-3xl font-black text-neutral-900 tracking-tight">
+                FindMy<span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-orange-500">Intervals</span>
+              </h1>
             </div>
-            <h1 className="text-3xl font-black text-neutral-900 tracking-tight">
-              FindMy<span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-orange-500">Intervals</span>
-            </h1>
+
+            {/* Auth Button */}
+            {!authLoading && (
+              isLoggedIn && user ? (
+                <div className="flex items-center gap-2">
+                  {user.profile_pic && (
+                    <img
+                      src={user.profile_pic}
+                      alt={user.firstname || "User"}
+                      className="w-8 h-8 rounded-full border-2 border-neutral-200 shadow-sm"
+                    />
+                  )}
+                  <span className="text-sm font-semibold text-neutral-700 hidden sm:inline max-w-[80px] truncate">
+                    {user.firstname || user.username}
+                  </span>
+                  <button
+                    onClick={logout}
+                    title="Log out"
+                    className="p-1.5 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={login}
+                  className="flex items-center gap-1.5 bg-[#fc4c02] hover:bg-[#e34402] text-white px-3 py-1.5 rounded-lg font-semibold text-xs transition-all shadow-sm hover:shadow-md"
+                >
+                  <LogIn className="w-3.5 h-3.5" />
+                  Login
+                </button>
+              )
+            )}
           </div>
           <p className="text-[15px] text-neutral-500 font-medium leading-relaxed">
             Discover uninterrupted roads for structured interval training.

@@ -2,6 +2,36 @@ import type { Segment } from "@/types";
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
+export interface AuthUser {
+    strava_id: number;
+    username: string | null;
+    firstname: string | null;
+    lastname: string | null;
+    profile_pic: string | null;
+}
+
+export async function stravaLoginCallback(code: string, redirectUri: string): Promise<{ token: string; user: AuthUser }> {
+    const res = await fetch(`${API_BASE_URL}/auth/strava/callback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, redirect_uri: redirectUri }),
+    });
+    if (!res.ok) {
+        throw new Error("Failed to authenticate with Strava");
+    }
+    return res.json();
+}
+
+export async function fetchCurrentUser(token: string): Promise<AuthUser> {
+    const res = await fetch(`${API_BASE_URL}/auth/me`, {
+        headers: { "Authorization": `Bearer ${token}` },
+    });
+    if (!res.ok) {
+        throw new Error("Failed to fetch user");
+    }
+    return res.json();
+}
+
 export async function fetchSegments(): Promise<Segment[]> {
     const res = await fetch(`${API_BASE_URL}/segments`);
     if (!res.ok) {
@@ -15,10 +45,13 @@ export interface SubmissionData {
     safety_notes: string;
 }
 
-export async function submitSegment(data: SubmissionData): Promise<void> {
+export async function submitSegment(data: SubmissionData, token: string): Promise<void> {
     const res = await fetch(`${API_BASE_URL}/segments`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+        },
         body: JSON.stringify(data),
     });
 
@@ -150,14 +183,17 @@ export async function unblockSegment(id: string, password: string): Promise<void
     }
 }
 
-export async function reportSegmentBlocked(id: string, blockedUntil?: string): Promise<void> {
+export async function reportSegmentBlocked(id: string, token: string, blockedUntil?: string): Promise<void> {
     const body: Record<string, string> = {};
     if (blockedUntil) {
         body.blocked_until = blockedUntil;
     }
     const res = await fetch(`${API_BASE_URL}/segments/${id}/report-blocked`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+        },
         body: JSON.stringify(body),
     });
     if (!res.ok) {

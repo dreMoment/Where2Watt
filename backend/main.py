@@ -4,11 +4,12 @@ from fastapi import FastAPI, HTTPException, Header, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, ConfigDict
-from typing import List, Annotated
+from typing import List, Annotated, Optional
 from bson import ObjectId
 import httpx
 from datetime import datetime, timezone
 import re
+import jwt
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -21,6 +22,13 @@ MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME")
 STRAVA_CLIENT_ID = os.getenv("STRAVA_CLIENT_ID")
 STRAVA_CLIENT_SECRET = os.getenv("STRAVA_CLIENT_SECRET")
 STRAVA_REFRESH_TOKEN = os.getenv("STRAVA_REFRESH_TOKEN")
+
+# Auth Config
+JWT_SECRET = os.getenv("JWT_SECRET")
+if not JWT_SECRET:
+    raise RuntimeError("JWT_SECRET environment variable must be set")
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRATION_HOURS = 24 * 30  # 30 days
 
 # Admin Config
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
@@ -90,6 +98,18 @@ class BlockSchema(BaseModel):
 
 class SegmentResponseSchema(SegmentSchema):
     id: str
+    submitted_by_strava_id: int | None = None
+
+class StravaCallbackSchema(BaseModel):
+    code: str
+    redirect_uri: str
+
+class UserResponseSchema(BaseModel):
+    strava_id: int
+    username: str | None = None
+    firstname: str | None = None
+    lastname: str | None = None
+    profile_pic: str | None = None
     
 @app.get("/health")
 async def health_check():
@@ -105,10 +125,108 @@ def verify_admin(x_admin_password: Annotated[str, Header()] = None):
         raise HTTPException(status_code=401, detail="Unauthorized")
     return True
 
+def verify_user(authorization: Annotated[str, Header()] = None) -> int:
+    """Verify JWT token and return the user's Strava ID."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    token = authorization.split(" ", 1)[1]
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        return payload["strava_id"]
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except (jwt.InvalidTokenError, KeyError):
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+def create_jwt(strava_id: int) -> str:
+    """Create a JWT token for the given Strava athlete ID."""
+    payload = {
+        "strava_id": strava_id,
+        "exp": datetime.now(timezone.utc).timestamp() + JWT_EXPIRATION_HOURS * 3600,
+        "iat": datetime.now(timezone.utc).timestamp(),
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
 @app.post("/api/admin/verify")
 @limiter.limit("5/minute")
 async def verify_admin_password(request: Request, is_admin: bool = Depends(verify_admin)):
     return {"status": "ok"}
+
+# ===== Auth Endpoints =====
+
+@app.post("/api/auth/strava/callback")
+@limiter.limit("10/minute")
+async def strava_auth_callback(request: Request, data: StravaCallbackSchema):
+    """Exchange Strava auth code for tokens, upsert user, return JWT."""
+    print(f"Received code from frontend: '{data.code}'")
+    
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "https://www.strava.com/oauth/token",
+            data={
+                "client_id": STRAVA_CLIENT_ID,
+                "client_secret": STRAVA_CLIENT_SECRET,
+                "code": data.code,
+                "grant_type": "authorization_code",
+                "redirect_uri": data.redirect_uri
+            }
+        )
+        if response.status_code != 200:
+            print(f"Strava auth failed. Code: {response.status_code}, Body: {response.text}")
+            raise HTTPException(status_code=400, detail="Failed to authenticate with Strava")
+        
+        token_data = response.json()
+    
+    athlete = token_data.get("athlete", {})
+    strava_id = athlete.get("id")
+    if not strava_id:
+        raise HTTPException(status_code=400, detail="No athlete data received from Strava")
+    
+    # Upsert user in database
+    db = db_client[MONGODB_DB_NAME]
+    now = datetime.now(timezone.utc).isoformat()
+    user_doc = {
+        "strava_id": strava_id,
+        "username": athlete.get("username"),
+        "firstname": athlete.get("firstname"),
+        "lastname": athlete.get("lastname"),
+        "profile_pic": athlete.get("profile"),
+        "last_login": now,
+    }
+    await db.users.update_one(
+        {"strava_id": strava_id},
+        {"$set": user_doc, "$setOnInsert": {"created_at": now}},
+        upsert=True
+    )
+    
+    # Create JWT
+    token = create_jwt(strava_id)
+    
+    return {
+        "token": token,
+        "user": {
+            "strava_id": strava_id,
+            "username": athlete.get("username"),
+            "firstname": athlete.get("firstname"),
+            "lastname": athlete.get("lastname"),
+            "profile_pic": athlete.get("profile"),
+        }
+    }
+
+@app.get("/api/auth/me", response_model=UserResponseSchema)
+async def get_current_user(strava_id: int = Depends(verify_user)):
+    """Return the current user's profile."""
+    db = db_client[MONGODB_DB_NAME]
+    user = await db.users.find_one({"strava_id": strava_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {
+        "strava_id": user["strava_id"],
+        "username": user.get("username"),
+        "firstname": user.get("firstname"),
+        "lastname": user.get("lastname"),
+        "profile_pic": user.get("profile_pic"),
+    }
 
 async def get_strava_access_token():
     if not all([STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN]):
@@ -158,11 +276,12 @@ async def fetch_segment_details(segment_id: str):
 
 @app.post("/api/segments", response_model=SegmentResponseSchema, status_code=201)
 @limiter.limit("10/minute")
-async def create_segment(request: Request, segment: SegmentSchema):
+async def create_segment(request: Request, segment: SegmentSchema, strava_id: int = Depends(verify_user)):
     db = db_client[MONGODB_DB_NAME]
     segment_dict = segment.model_dump()
     segment_dict["created_at"] = datetime.utcnow().replace(tzinfo=timezone.utc).isoformat()
     segment_dict["approved"] = False # Force explicit false
+    segment_dict["submitted_by_strava_id"] = strava_id
 
     
     strava_url = segment_dict.get("strava_url")
@@ -223,14 +342,14 @@ async def list_segments():
 
 @app.post("/api/segments/{segment_id}/report-blocked")
 @limiter.limit("5/minute")
-async def report_segment_blocked(request: Request, segment_id: str, data: BlockSchema = BlockSchema()):
+async def report_segment_blocked(request: Request, segment_id: str, data: BlockSchema = BlockSchema(), strava_id: int = Depends(verify_user)):
     db = db_client[MONGODB_DB_NAME]
     try:
         obj_id = ObjectId(segment_id)
     except:
         raise HTTPException(status_code=400, detail="Invalid segment ID format")
     
-    update = {"blocked": True}
+    update = {"blocked": True, "reported_by_strava_id": strava_id}
     if data.blocked_until:
         update["blocked_until"] = data.blocked_until
     

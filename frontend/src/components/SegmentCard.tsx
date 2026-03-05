@@ -4,6 +4,7 @@ import type { Segment } from "@/types";
 import { calculateVelocity } from "@/utils/physics";
 import { decodePolyline } from "@/utils/polyline";
 import { reportSegmentBlocked } from "@/utils/api";
+import { useAuth } from "@/components/AuthContext";
 
 interface Props {
     segment: Segment;
@@ -26,6 +27,7 @@ function formatTime(seconds: number): string {
 }
 
 export default function SegmentCard({ segment, riderPower = "250", riderWeight = "75", bikeWeight = "9", clickedCoordinate = null, onSegmentBlocked }: Props) {
+    const { isLoggedIn, token } = useAuth();
     const power = parseFloat(riderPower);
     const weight = parseFloat(riderWeight);
     const bWeight = parseFloat(bikeWeight);
@@ -60,7 +62,7 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
         try {
             setIsReporting(true);
             const blockedUntil = reportUntilDate ? new Date(reportUntilDate).toISOString() : undefined;
-            await reportSegmentBlocked(segment.id, blockedUntil);
+            await reportSegmentBlocked(segment.id, token!, blockedUntil);
             onSegmentBlocked?.(segment.id, blockedUntil);
             setShowReportForm(false);
             setReportUntilDate("");
@@ -90,7 +92,7 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
                 <h3 className="font-bold text-lg text-neutral-800 leading-tight pr-2">
                     {segment.name}
                 </h3>
-                {!segment.blocked && (
+                {!segment.blocked && isLoggedIn && (
                     <button
                         onClick={() => setShowReportForm(!showReportForm)}
                         title="Report as blocked"
