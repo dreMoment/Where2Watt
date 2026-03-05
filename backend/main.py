@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException, Header, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import DuplicateKeyError
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Annotated, Optional
 from bson import ObjectId
 import httpx
@@ -106,11 +106,19 @@ class QuickAddSchema(BaseModel):
 class BlockSchema(BaseModel):
     blocked_until: str | None = None
 
+class UserSummarySchema(BaseModel):
+    strava_id: int
+    username: str | None = None
+    firstname: str | None = None
+    lastname: str | None = None
+
 class SegmentResponseSchema(SegmentSchema):
     id: str
-    added_by_strava_id: int | None = None
     submitted_by_strava_id: int | None = None
     blocked_report_count: int | None = 0
+    reported_by_strava_ids: list[int] = Field(default_factory=list)
+    submitted_by_user: UserSummarySchema | None = None
+    reported_by_users: list[UserSummarySchema] = Field(default_factory=list)
 
 class StravaCallbackSchema(BaseModel):
     code: str
@@ -134,6 +142,68 @@ async def get_block_report_counts(db, segment_object_ids: list[ObjectId]) -> dic
     ]
     grouped = await db.segment_block_reports.aggregate(pipeline).to_list(length=None)
     return {str(item["_id"]): item["count"] for item in grouped}
+
+def to_user_summary(user_doc: dict) -> dict:
+    return {
+        "strava_id": user_doc["strava_id"],
+        "username": user_doc.get("username"),
+        "firstname": user_doc.get("firstname"),
+        "lastname": user_doc.get("lastname"),
+    }
+
+async def enrich_admin_segment_users(db, segments: list[dict]) -> None:
+    if not segments:
+        return
+
+    segment_ids = [segment["_id"] for segment in segments]
+    reports = await db.segment_block_reports.find(
+        {"segment_id": {"$in": segment_ids}},
+        {"_id": 0, "segment_id": 1, "reported_by_strava_id": 1, "reported_at": 1},
+    ).sort("reported_at", -1).to_list(length=None)
+
+    reporter_ids_by_segment: dict[str, list[int]] = {}
+    reporter_id_seen_by_segment: dict[str, set[int]] = {}
+    all_user_ids: set[int] = set()
+
+    for segment in segments:
+        user_id = segment.get("submitted_by_strava_id")
+        if isinstance(user_id, int):
+            all_user_ids.add(user_id)
+
+    for report in reports:
+        reporter_id = report.get("reported_by_strava_id")
+        if not isinstance(reporter_id, int):
+            continue
+        segment_key = str(report["segment_id"])
+        if segment_key not in reporter_ids_by_segment:
+            reporter_ids_by_segment[segment_key] = []
+            reporter_id_seen_by_segment[segment_key] = set()
+        if reporter_id not in reporter_id_seen_by_segment[segment_key]:
+            reporter_ids_by_segment[segment_key].append(reporter_id)
+            reporter_id_seen_by_segment[segment_key].add(reporter_id)
+        all_user_ids.add(reporter_id)
+
+    users = await db.users.find(
+        {"strava_id": {"$in": list(all_user_ids)}},
+        {"_id": 0, "strava_id": 1, "username": 1, "firstname": 1, "lastname": 1},
+    ).to_list(length=None) if all_user_ids else []
+
+    user_map: dict[int, dict] = {user["strava_id"]: to_user_summary(user) for user in users}
+
+    for segment in segments:
+        segment_key = str(segment["_id"])
+        segment_reporter_ids = reporter_ids_by_segment.get(segment_key, [])
+        segment["reported_by_strava_ids"] = segment_reporter_ids
+
+        submitted_by_id = segment.get("submitted_by_strava_id")
+
+        if isinstance(submitted_by_id, int):
+            segment["submitted_by_user"] = user_map.get(submitted_by_id, {"strava_id": submitted_by_id})
+
+        segment["reported_by_users"] = [
+            user_map.get(reporter_id, {"strava_id": reporter_id})
+            for reporter_id in segment_reporter_ids
+        ]
     
 @app.get("/health")
 async def health_check():
@@ -305,7 +375,6 @@ async def create_segment(request: Request, segment: SegmentSchema, strava_id: in
     segment_dict = segment.model_dump()
     segment_dict["created_at"] = datetime.utcnow().replace(tzinfo=timezone.utc).isoformat()
     segment_dict["approved"] = False # Force explicit false
-    segment_dict["added_by_strava_id"] = strava_id
     segment_dict["submitted_by_strava_id"] = strava_id
 
     
@@ -435,6 +504,7 @@ async def list_unapproved_segments(is_admin: bool = Depends(verify_admin)):
     db = db_client[MONGODB_DB_NAME]
     segments = await db.segments.find({"approved": False}).sort("created_at", -1).to_list(100)
     report_counts = await get_block_report_counts(db, [segment["_id"] for segment in segments])
+    await enrich_admin_segment_users(db, segments)
     for segment in segments:
         segment["blocked_report_count"] = report_counts.get(str(segment["_id"]), 0)
         segment["id"] = str(segment["_id"])
@@ -446,6 +516,7 @@ async def list_all_segments(is_admin: bool = Depends(verify_admin)):
     db = db_client[MONGODB_DB_NAME]
     segments = await db.segments.find().sort("created_at", -1).to_list(500)
     report_counts = await get_block_report_counts(db, [segment["_id"] for segment in segments])
+    await enrich_admin_segment_users(db, segments)
     for segment in segments:
         segment["blocked_report_count"] = report_counts.get(str(segment["_id"]), 0)
         segment["id"] = str(segment["_id"])
@@ -585,7 +656,6 @@ async def quick_add_segment(data: QuickAddSchema, is_admin: bool = Depends(verif
         "distance_km": details.get("distance_km"),
         "gradient_pct": details.get("gradient_pct"),
         "approved": True,
-        "added_by_strava_id": None,
         "created_at": datetime.utcnow().replace(tzinfo=timezone.utc).isoformat()
     }
     
