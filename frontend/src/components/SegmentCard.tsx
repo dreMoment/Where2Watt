@@ -27,7 +27,7 @@ function formatTime(seconds: number): string {
 }
 
 export default function SegmentCard({ segment, riderPower = "250", riderWeight = "75", bikeWeight = "9", clickedCoordinate = null, onSegmentBlocked }: Props) {
-    const { isLoggedIn, token } = useAuth();
+    const { isLoggedIn, token, login } = useAuth();
     const power = parseFloat(riderPower);
     const weight = parseFloat(riderWeight);
     const bWeight = parseFloat(bikeWeight);
@@ -54,6 +54,7 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
     const effectiveCoordinates = clickedCoordinate || startCoordinates;
 
     const [showReportForm, setShowReportForm] = useState(false);
+    const [showLoginPrompt, setShowLoginPrompt] = useState(false);
     const [reportUntilDate, setReportUntilDate] = useState("");
     const [isReporting, setIsReporting] = useState(false);
 
@@ -92,9 +93,15 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
                 <h3 className="font-bold text-lg text-neutral-800 leading-tight pr-2">
                     {segment.name}
                 </h3>
-                {!segment.blocked && isLoggedIn && (
+                {!segment.blocked && (
                     <button
-                        onClick={() => setShowReportForm(!showReportForm)}
+                        onClick={() => {
+                            if (isLoggedIn) {
+                                setShowReportForm(!showReportForm);
+                            } else {
+                                setShowLoginPrompt(true);
+                            }
+                        }}
                         title="Report as blocked"
                         className="shrink-0 p-1.5 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                     >
@@ -102,6 +109,31 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
                     </button>
                 )}
             </div>
+
+            {showLoginPrompt && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl px-3.5 py-2.5 flex flex-col gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="flex flex-col gap-1">
+                        <span className="text-blue-800 font-semibold text-xs">Login Required</span>
+                        <p className="text-blue-700 text-[11px] leading-relaxed">
+                            You need to log in with Strava to report segments as blocked and help the community.
+                        </p>
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => login()}
+                            className="flex-1 bg-[#fc4c02] hover:bg-[#e34402] text-white py-1.5 rounded-lg font-semibold text-xs transition-colors"
+                        >
+                            Log in with Strava
+                        </button>
+                        <button
+                            onClick={() => setShowLoginPrompt(false)}
+                            className="flex-1 bg-white border border-blue-200 hover:bg-blue-100 text-blue-600 py-1.5 rounded-lg font-semibold text-xs transition-colors"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {showReportForm && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5 flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
