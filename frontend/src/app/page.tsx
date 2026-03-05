@@ -9,7 +9,7 @@ import SubmissionForm from "@/components/SubmissionForm";
 import InputField from "@/components/InputField";
 import SectionCard from "@/components/SectionCard";
 import { fetchSegments } from "@/utils/api";
-import { calculateVelocity } from "@/utils/physics";
+import { filterSegmentsByInterval } from "@/utils/intervals";
 
 // Dynamically import Map with SSR disabled since maplibre relies on window object
 const Map = dynamic(() => import("@/components/Map"), {
@@ -76,23 +76,12 @@ export default function Home() {
   }, []);
 
   const filteredSegments = useMemo(() => {
-    if (!isFiltered) return segments;
-    const filterPwr = parseFloat(filterPowerStr);
-    const targetTimeSec = parseFloat(filterTimeStr) * 60;
-    const rw = parseFloat(weightStr) || 75;
-    const bw = parseFloat(bikeWeightStr) || 9;
-
-    if (!filterPwr || !targetTimeSec) return segments;
-
-    return segments.filter((seg) => {
-      if (seg.blocked) return false;
-      if (!seg.distance_km) return false;
-      const gradientDecimal = (seg.gradient_pct ?? 0) / 100;
-      const velocity = calculateVelocity(filterPwr, gradientDecimal, rw, bw);
-      if (velocity <= 0) return false;
-      const distMeters = seg.distance_km * 1000;
-      const timeSec = distMeters / velocity;
-      return timeSec >= targetTimeSec * 0.95;
+    return filterSegmentsByInterval(segments, {
+      isFiltered,
+      filterPower: filterPowerStr,
+      filterTimeMinutes: filterTimeStr,
+      riderWeight: weightStr,
+      bikeWeight: bikeWeightStr,
     });
   }, [segments, isFiltered, filterPowerStr, filterTimeStr, weightStr, bikeWeightStr]);
 

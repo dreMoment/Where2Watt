@@ -4,6 +4,7 @@ import { useState } from "react";
 import { X, Send, Loader2, LogIn } from "lucide-react";
 import { submitSegment, type SubmissionData } from "@/utils/api";
 import { useAuth } from "@/components/AuthContext";
+import { useUiFeedback } from "@/components/ui/UiFeedbackProvider";
 
 interface Props {
     onClose: () => void;
@@ -11,6 +12,7 @@ interface Props {
 
 export default function SubmissionForm({ onClose }: Props) {
     const { isLoggedIn, login, token } = useAuth();
+    const { showToast } = useUiFeedback();
     const [formData, setFormData] = useState<SubmissionData>({
         strava_url: "",
         safety_notes: "",
@@ -22,12 +24,12 @@ export default function SubmissionForm({ onClose }: Props) {
         e.preventDefault();
 
         if (!formData.strava_url.includes("strava.com/segments/")) {
-            alert("Please enter a valid Strava segment URL");
+            showToast("Please enter a valid Strava segment URL", { type: "error" });
             return;
         }
 
         if (!token) {
-            alert("You must be logged in to submit a segment.");
+            showToast("You must be logged in to submit a segment.", { type: "error" });
             return;
         }
 
@@ -42,9 +44,9 @@ export default function SubmissionForm({ onClose }: Props) {
         } catch (err) {
             console.error(err);
             if (err instanceof Error) {
-                alert(err.message);
+                showToast(err.message, { type: "error" });
             } else {
-                alert("Error submitting segment. Check backend is running.");
+                showToast("Error submitting segment. Check backend is running.", { type: "error" });
             }
         } finally {
             setLoading(false);

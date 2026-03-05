@@ -1,6 +1,6 @@
 import type { Segment } from "@/types";
-
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+import { request, withAdminAuth } from "@/utils/apiClient";
+export { API_BASE_URL } from "@/utils/apiClient";
 
 export interface AuthUser {
     strava_id: number;
@@ -11,33 +11,25 @@ export interface AuthUser {
 }
 
 export async function stravaLoginCallback(code: string, redirectUri: string): Promise<{ token: string; user: AuthUser }> {
-    const res = await fetch(`${API_BASE_URL}/auth/strava/callback`, {
+    return request<{ token: string; user: AuthUser }>("/auth/strava/callback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code, redirect_uri: redirectUri }),
+        errorMessage: "Failed to authenticate with Strava",
     });
-    if (!res.ok) {
-        throw new Error("Failed to authenticate with Strava");
-    }
-    return res.json();
 }
 
 export async function fetchCurrentUser(token: string): Promise<AuthUser> {
-    const res = await fetch(`${API_BASE_URL}/auth/me`, {
+    return request<AuthUser>("/auth/me", {
         headers: { "Authorization": `Bearer ${token}` },
+        errorMessage: "Failed to fetch user",
     });
-    if (!res.ok) {
-        throw new Error("Failed to fetch user");
-    }
-    return res.json();
 }
 
 export async function fetchSegments(): Promise<Segment[]> {
-    const res = await fetch(`${API_BASE_URL}/segments`);
-    if (!res.ok) {
-        throw new Error("Network response was not ok");
-    }
-    return res.json();
+    return request<Segment[]>("/segments", {
+        errorMessage: "Network response was not ok",
+    });
 }
 
 export interface SubmissionData {
@@ -46,111 +38,67 @@ export interface SubmissionData {
 }
 
 export async function submitSegment(data: SubmissionData, token: string): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/segments`, {
+    await request("/segments", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify(data),
+        errorMessage: "Failed to submit segment",
     });
-
-    if (!res.ok) {
-        let errorMessage = "Failed to submit segment";
-        try {
-            const errorData = await res.json();
-            if (errorData.detail) {
-                errorMessage = errorData.detail;
-            }
-        } catch {
-            // ignore JSON parse error
-        }
-        throw new Error(errorMessage);
-    }
 }
 
 export async function verifyAdminPassword(password: string): Promise<boolean> {
-    const res = await fetch(`${API_BASE_URL}/admin/verify`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "x-admin-password": password
-        }
-    });
-    return res.ok;
+    try {
+        await request("/admin/verify", {
+            method: "POST",
+            headers: withAdminAuth(password, { "Content-Type": "application/json" }),
+            errorMessage: "Invalid admin password",
+        });
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 export async function deleteSegment(id: string, password: string): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/segments/${id}`, {
+    await request(`/segments/${id}`, {
         method: "DELETE",
-        headers: {
-            "x-admin-password": password
-        }
+        headers: withAdminAuth(password),
+        errorMessage: "Failed to delete segment",
     });
-    if (!res.ok) {
-        throw new Error("Failed to delete segment");
-    }
 }
 
 export async function fetchUnapprovedSegments(password: string): Promise<Segment[]> {
-    const res = await fetch(`${API_BASE_URL}/admin/segments/unapproved`, {
-        headers: {
-            "x-admin-password": password
-        }
+    return request<Segment[]>("/admin/segments/unapproved", {
+        headers: withAdminAuth(password),
+        errorMessage: "Failed to fetch unapproved segments",
     });
-    if (!res.ok) {
-        throw new Error("Failed to fetch unapproved segments");
-    }
-    return res.json();
 }
 
 export async function fetchAllSegments(password: string): Promise<Segment[]> {
-    const res = await fetch(`${API_BASE_URL}/admin/segments`, {
-        headers: {
-            "x-admin-password": password
-        }
+    return request<Segment[]>("/admin/segments", {
+        headers: withAdminAuth(password),
+        errorMessage: "Failed to fetch all segments",
     });
-    if (!res.ok) {
-        throw new Error("Failed to fetch all segments");
-    }
-    return res.json();
 }
 
 export async function approveSegment(id: string, password: string): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/admin/segments/${id}/approve`, {
+    await request(`/admin/segments/${id}/approve`, {
         method: "POST",
-        headers: {
-            "x-admin-password": password
-        }
+        headers: withAdminAuth(password),
+        errorMessage: "Failed to approve segment",
     });
-    if (!res.ok) {
-        throw new Error("Failed to approve segment");
-    }
 }
 
 export async function quickAddSegment(stravaUrl: string, password: string): Promise<Segment> {
-    const res = await fetch(`${API_BASE_URL}/admin/segments/quickadd`, {
+    return request<Segment>("/admin/segments/quickadd", {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "x-admin-password": password
-        },
+        headers: withAdminAuth(password, { "Content-Type": "application/json" }),
         body: JSON.stringify({ strava_url: stravaUrl }),
+        errorMessage: "Failed to quickadd segment",
     });
-
-    if (!res.ok) {
-        let errorMessage = "Failed to quickadd segment";
-        try {
-            const errorData = await res.json();
-            if (errorData.detail) {
-                errorMessage = errorData.detail;
-            }
-        } catch {
-            // ignore JSON parse error
-        }
-        throw new Error(errorMessage);
-    }
-    return res.json();
 }
 
 export async function blockSegment(id: string, password: string, blockedUntil?: string): Promise<void> {
@@ -158,29 +106,20 @@ export async function blockSegment(id: string, password: string, blockedUntil?: 
     if (blockedUntil) {
         body.blocked_until = blockedUntil;
     }
-    const res = await fetch(`${API_BASE_URL}/admin/segments/${id}/block`, {
+    await request(`/admin/segments/${id}/block`, {
         method: "PATCH",
-        headers: {
-            "Content-Type": "application/json",
-            "x-admin-password": password
-        },
+        headers: withAdminAuth(password, { "Content-Type": "application/json" }),
         body: JSON.stringify(body),
+        errorMessage: "Failed to block segment",
     });
-    if (!res.ok) {
-        throw new Error("Failed to block segment");
-    }
 }
 
 export async function unblockSegment(id: string, password: string): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/admin/segments/${id}/unblock`, {
+    await request(`/admin/segments/${id}/unblock`, {
         method: "PATCH",
-        headers: {
-            "x-admin-password": password
-        }
+        headers: withAdminAuth(password),
+        errorMessage: "Failed to unblock segment",
     });
-    if (!res.ok) {
-        throw new Error("Failed to unblock segment");
-    }
 }
 
 export interface ReportBlockedResponse {
@@ -195,16 +134,13 @@ export async function reportSegmentBlocked(id: string, token: string, blockedUnt
     if (blockedUntil) {
         body.blocked_until = blockedUntil;
     }
-    const res = await fetch(`${API_BASE_URL}/segments/${id}/report-blocked`, {
+    return request<ReportBlockedResponse>(`/segments/${id}/report-blocked`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify(body),
+        errorMessage: "Failed to report segment as blocked",
     });
-    if (!res.ok) {
-        throw new Error("Failed to report segment as blocked");
-    }
-    return res.json();
 }

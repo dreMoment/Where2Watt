@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from "react";
 import { ExternalLink, Ruler, Mountain, Timer, MapPin, Flag } from "lucide-react";
 import type { Segment } from "@/types";
-import { calculateVelocity } from "@/utils/physics";
 import { decodePolyline } from "@/utils/polyline";
 import { reportSegmentBlocked } from "@/utils/api";
 import { useAuth } from "@/components/AuthContext";
+import { useUiFeedback } from "@/components/ui/UiFeedbackProvider";
+import { createIntervalProfile, estimateSegmentDurationSeconds, formatDuration } from "@/utils/intervals";
 
 interface Props {
     segment: Segment;
@@ -15,32 +16,18 @@ interface Props {
     onSegmentBlocked?: (segmentId: string, report: { blocked: boolean; blockedReportsCount: number; blockedUntil?: string }) => void;
 }
 
-function formatTime(seconds: number): string {
-    if (!isFinite(seconds) || seconds <= 0) return "--:--";
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.floor(seconds % 60);
-    if (h > 0) {
-        return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-    }
-    return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
 export default function SegmentCard({ segment, riderPower = "250", riderWeight = "75", bikeWeight = "9", clickedCoordinate = null, onSegmentBlocked }: Props) {
     const { isLoggedIn, token, login } = useAuth();
-    const power = parseFloat(riderPower);
-    const weight = parseFloat(riderWeight);
-    const bWeight = parseFloat(bikeWeight);
+    const { showToast } = useUiFeedback();
+    const profile = useMemo(
+        () => createIntervalProfile(riderPower, riderWeight, bikeWeight),
+        [riderPower, riderWeight, bikeWeight]
+    );
 
     const estimatedTime = useMemo(() => {
-        if (!power || !weight || !segment.distance_km) return null;
-        const gradientDecimal = (segment.gradient_pct ?? 0) / 100;
-        const velocity = calculateVelocity(power, gradientDecimal, weight, bWeight);
-        if (velocity <= 0) return null;
-
-        const distanceMeters = segment.distance_km * 1000;
-        return distanceMeters / velocity;
-    }, [power, weight, bWeight, segment.distance_km, segment.gradient_pct]);
+        if (!profile) return null;
+        return estimateSegmentDurationSeconds(segment, profile);
+    }, [profile, segment]);
 
     const [showStreetView, setShowStreetView] = useState(false);
 
@@ -72,7 +59,7 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
             setShowReportForm(false);
             setReportUntilDate("");
         } catch {
-            alert("Failed to report segment. Please try again.");
+            showToast("Failed to report segment. Please try again.", { type: "error" });
         } finally {
             setIsReporting(false);
         }
@@ -193,7 +180,7 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
                 <div className="flex justify-between items-center text-sm">
                     <span className="text-neutral-500 font-semibold text-xs uppercase tracking-wide">Estimated Time</span>
                     <span className="text-[#fc4c02] font-black text-lg tracking-tight">
-                        {estimatedTime ? formatTime(estimatedTime) : "--:--"}
+                        {formatDuration(estimatedTime)}
                     </span>
                 </div>
             </div>

@@ -1,6 +1,21 @@
 import { render, screen } from '@testing-library/react';
 import SegmentCard from '../SegmentCard';
 
+jest.mock('@/components/AuthContext', () => ({
+    useAuth: () => ({
+        isLoggedIn: false,
+        token: null,
+        login: jest.fn(),
+    }),
+}));
+
+jest.mock('@/components/ui/UiFeedbackProvider', () => ({
+    useUiFeedback: () => ({
+        showToast: jest.fn(),
+        confirm: jest.fn(),
+    }),
+}));
+
 const mockSegment: import('@/types').Segment = {
     _id: "1",
     id: "1",

@@ -17,6 +17,13 @@ jest.mock('@/components/AuthContext', () => ({
     }),
 }));
 
+jest.mock('@/components/ui/UiFeedbackProvider', () => ({
+    useUiFeedback: () => ({
+        showToast: jest.fn(),
+        confirm: jest.fn(),
+    }),
+}));
+
 describe('SubmissionForm', () => {
     const mockOnClose = jest.fn();
 

@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import Map, { Popup, Source, Layer, NavigationControl, Marker } from "react-map-gl/maplibre";
+import Map, { Popup, Source, Layer, NavigationControl } from "react-map-gl/maplibre";
 import SegmentCard from "./SegmentCard";
 import { decodePolyline } from "@/utils/polyline";
-import { calculateVelocity } from "@/utils/physics";
 import type { Segment } from "@/types";
+import { createIntervalProfile, getIntervalMarginRatio, parseIntervalMinutes } from "@/utils/intervals";
 
 interface MapProps {
   segments: Segment[];
@@ -43,26 +43,23 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
   const filteredSegments = segments;
 
   // Pre-compute interval margin colors for each segment when filter is active
-  const targetTimeSec = isFiltered && filterTime ? parseFloat(filterTime) * 60 : 0;
-  const filterPwr = isFiltered && filterPower ? parseFloat(filterPower) : 0;
-  const rw = parseFloat(riderWeight || "75") || 75;
-  const bw = parseFloat(bikeWeight || "9") || 9;
+  const filterProfile = useMemo(
+    () => createIntervalProfile(filterPower, riderWeight, bikeWeight),
+    [filterPower, riderWeight, bikeWeight]
+  );
+  const targetMinutes = parseIntervalMinutes(filterTime);
 
   const segmentColors = useMemo(() => {
-    if (!isFiltered || !filterPwr || !targetTimeSec) return {};
+    if (!isFiltered || !filterProfile || !targetMinutes) return {};
     const colors: Record<string, string> = {};
     filteredSegments.forEach((seg, idx) => {
       const key = seg.id || String(idx);
-      if (!seg.distance_km) return;
-      const gradientDecimal = (seg.gradient_pct ?? 0) / 100;
-      const velocity = calculateVelocity(filterPwr, gradientDecimal, rw, bw);
-      if (velocity <= 0) return;
-      const timeSec = (seg.distance_km * 1000) / velocity;
-      const ratio = timeSec / targetTimeSec;
+      const ratio = getIntervalMarginRatio(seg, filterProfile, targetMinutes);
+      if (!ratio) return;
       colors[key] = getMarginColor(ratio);
     });
     return colors;
-  }, [filteredSegments, isFiltered, filterPwr, targetTimeSec, rw, bw]);
+  }, [filteredSegments, isFiltered, filterProfile, targetMinutes]);
 
   // We use Carto Light (Voyager) as a free vector tile source that looks similar to the previous leaflet map
   const mapStyle = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
@@ -138,7 +135,6 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
           const lineOpacity = isBlocked ? 0.3 : 0.8;
 
           const startCoord = coordinates.length > 0 ? coordinates[0] : null;
-          const endCoord = coordinates.length > 0 ? coordinates[coordinates.length - 1] : null;
 
           return (
             <React.Fragment key={`segment-group-${segment.id || idx}`}>
