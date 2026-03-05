@@ -1,5 +1,5 @@
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from bson import ObjectId
@@ -115,7 +115,7 @@ def test_report_segment_blocked_handles_already_reported_and_threshold(monkeypat
             update_one=AsyncMock(),
         ),
         segment_block_reports=SimpleNamespace(
-            find_one=AsyncMock(side_effect=[{"segment_id": segment_id}, None]),
+            find_one=AsyncMock(side_effect=[{"segment_id": segment_id}, None, None]),
             insert_one=AsyncMock(side_effect=[None, DuplicateKeyError("dup")]),
             count_documents=AsyncMock(side_effect=[1, 2, 2]),
         ),
@@ -231,7 +231,7 @@ def test_admin_segment_state_mutations_and_report_listing(monkeypatch, app_clien
             update_one=AsyncMock(return_value=SimpleNamespace(matched_count=1)),
         ),
         segment_block_reports=SimpleNamespace(
-            find=AsyncMock(
+            find=Mock(
                 return_value=FindCursor(
                     [
                         {
@@ -277,14 +277,14 @@ def test_list_segments_and_admin_lists_include_report_counts(monkeypatch, app_cl
     admin_id = ObjectId()
     user_db = SimpleNamespace(
         segments=SimpleNamespace(
-            find=AsyncMock(
+            find=Mock(
                 return_value=FindCursor([{"_id": pub_id, "approved": True, "strava_url": "https://www.strava.com/segments/1"}])
             )
         )
     )
     admin_db = SimpleNamespace(
         segments=SimpleNamespace(
-            find=AsyncMock(
+            find=Mock(
                 side_effect=[
                     FindCursor([{"_id": admin_id, "approved": False, "created_at": "2026-03-05T10:00:00+00:00"}]),
                     FindCursor([{"_id": admin_id, "approved": False, "created_at": "2026-03-05T10:00:00+00:00"}]),
