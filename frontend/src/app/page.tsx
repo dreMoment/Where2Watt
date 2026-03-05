@@ -126,8 +126,8 @@ export default function Home() {
                       className="w-8 h-8 rounded-full border-2 border-neutral-200 shadow-sm"
                     />
                   )}
-                  <span className="text-sm font-semibold text-neutral-700 hidden sm:inline max-w-[80px] truncate">
-                    {user.firstname || user.username}
+                  <span className="text-sm font-semibold text-neutral-700 hidden sm:inline max-w-[120px] truncate">
+                    {user.firstname || user.username || `Agent ${user.actor_id.slice(0, 8)}`}
                   </span>
                   <button
                     onClick={logout}

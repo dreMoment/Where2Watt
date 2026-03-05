@@ -3,11 +3,13 @@ import { request, withBearerAuth } from "@/utils/apiClient";
 export { API_BASE_URL } from "@/utils/apiClient";
 
 export interface AuthUser {
-    strava_id: number;
-    username: string | null;
-    firstname: string | null;
-    lastname: string | null;
-    profile_pic: string | null;
+    actor_id: string;
+    is_admin: boolean;
+    strava_id?: number;
+    username?: string | null;
+    firstname?: string | null;
+    lastname?: string | null;
+    profile_pic?: string | null;
 }
 
 export async function stravaLoginCallback(code: string, redirectUri: string): Promise<{ token: string; user: AuthUser }> {
