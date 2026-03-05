@@ -116,13 +116,14 @@ async def report_segment_blocked(
         }
 
     reports_count = await db.segment_block_reports.count_documents({"segment_id": obj_id})
-    update: dict[str, object] = {"blocked_report_count": reports_count}
+    update: dict[str, object] = {}
     if reports_count >= BLOCK_REPORT_THRESHOLD:
         update["blocked"] = True
         if data.blocked_until:
             update["blocked_until"] = data.blocked_until
 
-    await db.segments.update_one({"_id": obj_id}, {"$set": update})
+    if update:
+        await db.segments.update_one({"_id": obj_id}, {"$set": update})
 
     return {
         "status": "reported",
