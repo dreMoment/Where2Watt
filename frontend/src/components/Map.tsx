@@ -132,11 +132,10 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
           const isSelected = selectedSegment?.id === segment.id;
           const segKey = segment.id || String(idx);
           const isBlocked = segment.blocked === true;
-          const defaultColor = isBlocked
-            ? "#dc2626"
-            : (isFiltered && segmentColors[segKey]) ? segmentColors[segKey] : "#2563eb";
-          const lineColor = isSelected ? (isBlocked ? "#dc2626" : "#fc4c02") : defaultColor;
+          const defaultColor = (isFiltered && segmentColors[segKey]) ? segmentColors[segKey] : "#2563eb";
+          const lineColor = isSelected ? "#fc4c02" : defaultColor;
           const lineWidth = isSelected ? 6 : 3;
+          const lineOpacity = isBlocked ? 0.3 : 0.8;
 
           const startCoord = coordinates.length > 0 ? coordinates[0] : null;
           const endCoord = coordinates.length > 0 ? coordinates[coordinates.length - 1] : null;
@@ -154,7 +153,7 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
                   paint={{
                     "line-color": lineColor,
                     "line-width": lineWidth,
-                    "line-opacity": 0.8
+                    "line-opacity": lineOpacity
                   }}
                 />
               </Source>
@@ -169,7 +168,7 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
                     type="circle"
                     paint={{
                       "circle-radius": 3.5,
-                      "circle-color": "rgba(22, 163, 74, 1.0)", // green-600 equivalent
+                      "circle-color": isBlocked ? "rgba(22, 163, 74, 0.3)" : "rgba(22, 163, 74, 1.0)", // transparent green if blocked
                       "circle-stroke-width": 0,
                     }}
                   />

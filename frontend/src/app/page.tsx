@@ -83,6 +83,7 @@ export default function Home() {
     if (!filterPwr || !targetTimeSec) return segments;
 
     return segments.filter((seg) => {
+      if (seg.blocked) return false;
       if (!seg.distance_km) return false;
       const gradientDecimal = (seg.gradient_pct ?? 0) / 100;
       const velocity = calculateVelocity(filterPwr, gradientDecimal, rw, bw);
