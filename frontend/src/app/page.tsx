@@ -29,7 +29,6 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [powerStr, setPowerStr] = useState("250");
   const [weightStr, setWeightStr] = useState("75");
   const [bikeWeightStr, setBikeWeightStr] = useState("9");
 
@@ -43,8 +42,6 @@ export default function Home() {
     const w = localStorage.getItem("riderWeight");
     const bw = localStorage.getItem("bikeWeight");
     if (p) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setPowerStr(p);
       setFilterPowerStr(p);
     }
     if (w) setWeightStr(w);
@@ -263,7 +260,7 @@ export default function Home() {
         )}
 
         <div className="w-full h-full overflow-hidden bg-white">
-          <Map segments={filteredSegments} riderPower={powerStr} riderWeight={weightStr} bikeWeight={bikeWeightStr} isFiltered={isFiltered} filterPower={filterPowerStr} filterTime={filterTimeStr} onSegmentBlocked={handleSegmentBlocked} />
+          <Map segments={filteredSegments} riderPower={filterPowerStr} riderWeight={weightStr} bikeWeight={bikeWeightStr} isFiltered={isFiltered} filterPower={filterPowerStr} filterTime={filterTimeStr} onSegmentBlocked={handleSegmentBlocked} />
         </div>
 
         {/* Floating Modal Overlay for Form */}
