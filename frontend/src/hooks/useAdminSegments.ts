@@ -52,9 +52,6 @@ export function useAdminSegments({ token, onLogout }: UseAdminSegmentsParams) {
   const [isQuickAdding, setIsQuickAdding] = useState(false);
   const [quickAddMessage, setQuickAddMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
-  const [blockingSegmentId, setBlockingSegmentId] = useState<string | null>(null);
-  const [blockUntilDate, setBlockUntilDate] = useState("");
-
   const loadPendingSegments = useCallback(async () => {
     try {
       setPendingLoading(true);
@@ -239,27 +236,29 @@ export function useAdminSegments({ token, onLogout }: UseAdminSegmentsParams) {
   const handleBlock = useCallback(
     async (id: string) => {
       try {
-        const blockedUntil = blockUntilDate ? new Date(blockUntilDate).toISOString() : undefined;
-        await blockSegment(id, token, blockedUntil);
+        await blockSegment(id, token);
         const updateSegment = (s: Segment) =>
-          s.id === id ? { ...s, blocked: true, blocked_until: blockedUntil || undefined } : s;
+          s.id === id
+            ? { ...s, blocked: true, blocked_report_count: 0, reported_by_actor_ids: [], reported_by_users: [], block_reports: [] }
+            : s;
 
         setPendingSegments((prev) => prev.map(updateSegment));
         setAllSegments((prev) => prev.map(updateSegment));
-        setBlockingSegmentId(null);
-        setBlockUntilDate("");
       } catch (err: unknown) {
         showToast(getErrorMessage(err, "Failed to block segment"), { type: "error" });
       }
     },
-    [blockUntilDate, showToast, token]
+    [showToast, token]
   );
 
   const handleUnblock = useCallback(
     async (id: string) => {
       try {
         await unblockSegment(id, token);
-        const updateSegment = (s: Segment) => (s.id === id ? { ...s, blocked: false, blocked_until: undefined } : s);
+        const updateSegment = (s: Segment) =>
+          s.id === id
+            ? { ...s, blocked: false, blocked_report_count: 0, reported_by_actor_ids: [], reported_by_users: [], block_reports: [] }
+            : s;
 
         setPendingSegments((prev) => prev.map(updateSegment));
         setAllSegments((prev) => prev.map(updateSegment));
@@ -269,16 +268,6 @@ export function useAdminSegments({ token, onLogout }: UseAdminSegmentsParams) {
     },
     [showToast, token]
   );
-
-  const startBlocking = useCallback((id: string | null) => {
-    setBlockingSegmentId(id);
-    setBlockUntilDate("");
-  }, []);
-
-  const cancelBlocking = useCallback(() => {
-    setBlockingSegmentId(null);
-    setBlockUntilDate("");
-  }, []);
 
   return {
     activeTab,
@@ -308,12 +297,7 @@ export function useAdminSegments({ token, onLogout }: UseAdminSegmentsParams) {
     handleRefresh,
     handleDelete,
     handleApprove,
-    blockingSegmentId,
-    blockUntilDate,
-    setBlockUntilDate,
     handleBlock,
     handleUnblock,
-    startBlocking,
-    cancelBlocking,
   };
 }

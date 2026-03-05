@@ -103,15 +103,11 @@ export async function quickAddSegment(stravaUrl: string, token: string): Promise
     });
 }
 
-export async function blockSegment(id: string, token: string, blockedUntil?: string): Promise<void> {
-    const body: Record<string, string> = {};
-    if (blockedUntil) {
-        body.blocked_until = blockedUntil;
-    }
+export async function blockSegment(id: string, token: string): Promise<void> {
     await request(`/admin/segments/${id}/block`, {
         method: "PATCH",
         headers: withBearerAuth(token, { "Content-Type": "application/json" }),
-        body: JSON.stringify(body),
+        body: JSON.stringify({}),
         errorMessage: "Failed to block segment",
     });
 }
@@ -126,15 +122,26 @@ export async function unblockSegment(id: string, token: string): Promise<void> {
 
 export interface ReportBlockedResponse {
     status: "reported" | "already_reported";
+    action: "blocked" | "unblocked";
     blocked: boolean;
     blocked_reports_count: number;
-    threshold: number;
 }
 
-export async function reportSegmentBlocked(id: string, token: string, blockedUntil?: string): Promise<ReportBlockedResponse> {
+export interface MySegmentReportStatusResponse {
+    segment_id: string;
+    expected_action: "blocked" | "unblocked";
+    has_reported: boolean;
+    report?: {
+        action?: "blocked" | "unblocked";
+        reported_at?: string;
+        note?: string | null;
+    } | null;
+}
+
+export async function reportSegmentBlocked(id: string, token: string, note?: string): Promise<ReportBlockedResponse> {
     const body: Record<string, string> = {};
-    if (blockedUntil) {
-        body.blocked_until = blockedUntil;
+    if (note) {
+        body.note = note;
     }
     return request<ReportBlockedResponse>(`/segments/${id}/report-blocked`, {
         method: "POST",
@@ -144,5 +151,29 @@ export async function reportSegmentBlocked(id: string, token: string, blockedUnt
         },
         body: JSON.stringify(body),
         errorMessage: "Failed to report segment as blocked",
+    });
+}
+
+export async function reportSegmentUnblocked(id: string, token: string, note?: string): Promise<ReportBlockedResponse> {
+    const body: Record<string, string> = {};
+    if (note) {
+        body.note = note;
+    }
+    return request<ReportBlockedResponse>(`/segments/${id}/report-unblocked`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+        errorMessage: "Failed to report segment as unblocked",
+    });
+}
+
+export async function fetchMySegmentReportStatus(id: string, token: string): Promise<MySegmentReportStatusResponse> {
+    return request<MySegmentReportStatusResponse>(`/segments/${id}/my-report-status`, {
+        method: "GET",
+        headers: withBearerAuth(token),
+        errorMessage: "Failed to fetch report status",
     });
 }

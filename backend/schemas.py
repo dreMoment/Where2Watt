@@ -1,5 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 
+SEGMENT_REPORT_NOTE_MAX_LENGTH = 500
+
 
 class SegmentSchema(BaseModel):
     name: str | None = None
@@ -11,7 +13,6 @@ class SegmentSchema(BaseModel):
     strava_id: str | None = None
     created_at: str | None = None
     blocked: bool | None = False
-    blocked_until: str | None = None
 
     model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True, extra="ignore")
 
@@ -20,12 +21,19 @@ class QuickAddSchema(BaseModel):
     strava_url: str
 
 
-class BlockSchema(BaseModel):
-    blocked_until: str | None = None
+class SegmentReportSchema(BaseModel):
+    note: str | None = Field(default=None, max_length=SEGMENT_REPORT_NOTE_MAX_LENGTH)
 
 
 class UserSummarySchema(BaseModel):
     actor_id: str
+
+
+class SegmentAdminReportSchema(BaseModel):
+    reported_by_actor_id: str
+    reported_at: str
+    action: str | None = None
+    note: str | None = None
 
 
 class SegmentResponseSchema(SegmentSchema):
@@ -35,6 +43,7 @@ class SegmentResponseSchema(SegmentSchema):
     reported_by_actor_ids: list[str] = Field(default_factory=list)
     submitted_by_user: UserSummarySchema | None = None
     reported_by_users: list[UserSummarySchema] = Field(default_factory=list)
+    block_reports: list[SegmentAdminReportSchema] = Field(default_factory=list)
 
 
 class StravaCallbackSchema(BaseModel):

@@ -82,14 +82,13 @@ export default function Home() {
     });
   }, [segments, isFiltered, filterPowerStr, filterTimeStr, weightStr, bikeWeightStr]);
 
-  const handleSegmentBlocked = useCallback((segmentId: string, report: { blocked: boolean; blockedReportsCount: number; blockedUntil?: string }) => {
+  const handleSegmentBlocked = useCallback((segmentId: string, report: { blocked: boolean; blockedReportsCount: number }) => {
     setSegments((prev) =>
       prev.map((s) =>
         s.id === segmentId
           ? {
             ...s,
             blocked: report.blocked,
-            blocked_until: report.blockedUntil,
             blocked_report_count: report.blockedReportsCount
           }
           : s
@@ -126,9 +125,6 @@ export default function Home() {
                       className="w-8 h-8 rounded-full border-2 border-neutral-200 shadow-sm"
                     />
                   )}
-                  <span className="text-sm font-semibold text-neutral-700 hidden sm:inline max-w-[120px] truncate">
-                    {user.firstname || user.username || `Agent ${user.actor_id.slice(0, 8)}`}
-                  </span>
                   <button
                     onClick={logout}
                     title="Log out"

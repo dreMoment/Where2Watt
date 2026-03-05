@@ -51,7 +51,7 @@ async def enrich_admin_segment_users(db, segments: list[dict]) -> None:
     reports = (
         await db.segment_block_reports.find(
             {"segment_id": {"$in": segment_ids}},
-            {"_id": 0, "segment_id": 1, "reported_by_actor_id": 1, "reported_at": 1},
+            {"_id": 0, "segment_id": 1, "reported_by_actor_id": 1, "reported_at": 1, "action": 1, "note": 1},
         )
         .sort("reported_at", -1)
         .to_list(length=None)
@@ -59,12 +59,23 @@ async def enrich_admin_segment_users(db, segments: list[dict]) -> None:
 
     reporter_ids_by_segment: dict[str, list[str]] = {}
     reporter_id_seen_by_segment: dict[str, set[str]] = {}
+    report_queue_by_segment: dict[str, list[dict]] = {}
 
     for report in reports:
         reporter_id = report.get("reported_by_actor_id")
         if not isinstance(reporter_id, str) or not reporter_id:
             continue
         segment_key = str(report["segment_id"])
+        if segment_key not in report_queue_by_segment:
+            report_queue_by_segment[segment_key] = []
+        report_queue_by_segment[segment_key].append(
+            {
+                "reported_by_actor_id": reporter_id,
+                "reported_at": report.get("reported_at"),
+                "action": report.get("action"),
+                "note": report.get("note"),
+            }
+        )
         if segment_key not in reporter_ids_by_segment:
             reporter_ids_by_segment[segment_key] = []
             reporter_id_seen_by_segment[segment_key] = set()
@@ -77,6 +88,7 @@ async def enrich_admin_segment_users(db, segments: list[dict]) -> None:
         segment_key = str(segment["_id"])
         segment_reporter_ids = reporter_ids_by_segment.get(segment_key, [])
         segment["reported_by_actor_ids"] = segment_reporter_ids
+        segment["block_reports"] = report_queue_by_segment.get(segment_key, [])
 
         submitted_by_id = segment.get("submitted_by_actor_id")
 
@@ -86,21 +98,6 @@ async def enrich_admin_segment_users(db, segments: list[dict]) -> None:
         segment["reported_by_users"] = [
             user_map.get(reporter_id, {"actor_id": reporter_id}) for reporter_id in segment_reporter_ids
         ]
-
-
-async def auto_unblock_if_needed(db, segment: dict, now: datetime):
-    if segment.get("blocked") and segment.get("blocked_until"):
-        try:
-            until = datetime.fromisoformat(segment["blocked_until"])
-            if until <= now:
-                await db.segments.update_one(
-                    {"_id": segment["_id"]},
-                    {"$set": {"blocked": False, "blocked_until": None}},
-                )
-                segment["blocked"] = False
-                segment["blocked_until"] = None
-        except (ValueError, TypeError):
-            pass
 
 
 def now_iso() -> str:

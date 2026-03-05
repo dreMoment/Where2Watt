@@ -2,11 +2,10 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from config import BLOCK_REPORT_THRESHOLD
 from database import get_db
 from dependencies import verify_admin
 from rate_limiter import limiter
-from schemas import BlockSchema, QuickAddSchema, SegmentResponseSchema
+from schemas import QuickAddSchema, SegmentResponseSchema
 from services.segments import (
     enrich_admin_segment_users,
     extract_strava_id,
@@ -64,12 +63,12 @@ async def list_block_reports_for_segment(request: Request, segment_id: str, is_a
     return {
         "segment_id": segment_id,
         "reports_count": len(reports),
-        "threshold": BLOCK_REPORT_THRESHOLD,
         "reports": [
             {
                 "reported_by_actor_id": report["reported_by_actor_id"],
                 "reported_at": report["reported_at"],
-                "blocked_until": report.get("blocked_until"),
+                "action": report.get("action"),
+                "note": report.get("note"),
             }
             for report in reports
         ],
@@ -91,24 +90,14 @@ async def approve_segment(request: Request, segment_id: str, is_admin: bool = De
 
 @router.patch("/api/admin/segments/{segment_id}/block")
 @limiter.limit("30/minute")
-async def block_segment(
-    request: Request,
-    segment_id: str,
-    data: BlockSchema = BlockSchema(),
-    is_admin: bool = Depends(verify_admin),
-):
+async def block_segment(request: Request, segment_id: str, is_admin: bool = Depends(verify_admin)):
     db = get_db()
     obj_id = parse_object_id(segment_id)
 
-    update = {"blocked": True}
-    if data.blocked_until:
-        update["blocked_until"] = data.blocked_until
-    else:
-        update["blocked_until"] = None
-
-    result = await db.segments.update_one({"_id": obj_id}, {"$set": update})
+    result = await db.segments.update_one({"_id": obj_id}, {"$set": {"blocked": True}})
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Segment not found")
+    await db.segment_block_reports.delete_many({"segment_id": obj_id})
 
     return {"status": "blocked"}
 
@@ -119,9 +108,10 @@ async def unblock_segment(request: Request, segment_id: str, is_admin: bool = De
     db = get_db()
     obj_id = parse_object_id(segment_id)
 
-    result = await db.segments.update_one({"_id": obj_id}, {"$set": {"blocked": False, "blocked_until": None}})
+    result = await db.segments.update_one({"_id": obj_id}, {"$set": {"blocked": False}})
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Segment not found")
+    await db.segment_block_reports.delete_many({"segment_id": obj_id})
 
     return {"status": "unblocked"}
 

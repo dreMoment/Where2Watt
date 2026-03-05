@@ -1,8 +1,5 @@
 import os
 
-# Reporting config
-BLOCK_REPORT_THRESHOLD = 2
-
 # MongoDB Connection Parameters
 MONGODB_URI = os.getenv("MONGODB_URI")
 MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME")

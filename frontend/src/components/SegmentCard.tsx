@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { ExternalLink, Ruler, Mountain, Timer, MapPin, Flag } from "lucide-react";
 import type { Segment } from "@/types";
 import { decodePolyline } from "@/utils/polyline";
-import { reportSegmentBlocked } from "@/utils/api";
+import { fetchMySegmentReportStatus, reportSegmentBlocked, reportSegmentUnblocked } from "@/utils/api";
 import { useAuth } from "@/components/AuthContext";
 import { useUiFeedback } from "@/components/ui/UiFeedbackProvider";
 import { createIntervalProfile, estimateSegmentDurationSeconds, formatDuration } from "@/utils/intervals";
@@ -13,8 +13,10 @@ interface Props {
     riderWeight?: string;
     bikeWeight?: string;
     clickedCoordinate?: [number, number] | null;
-    onSegmentBlocked?: (segmentId: string, report: { blocked: boolean; blockedReportsCount: number; blockedUntil?: string }) => void;
+    onSegmentBlocked?: (segmentId: string, report: { blocked: boolean; blockedReportsCount: number }) => void;
 }
+
+const REPORT_NOTE_MAX_LENGTH = 500;
 
 export default function SegmentCard({ segment, riderPower = "250", riderWeight = "75", bikeWeight = "9", clickedCoordinate = null, onSegmentBlocked }: Props) {
     const { isLoggedIn, token, login } = useAuth();
@@ -42,22 +44,49 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
 
     const [showReportForm, setShowReportForm] = useState(false);
     const [showLoginPrompt, setShowLoginPrompt] = useState(false);
-    const [reportUntilDate, setReportUntilDate] = useState("");
+    const [reportNote, setReportNote] = useState("");
     const [isReporting, setIsReporting] = useState(false);
+    const [hasReportedCurrentState, setHasReportedCurrentState] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+        async function loadReportStatus() {
+            if (!isLoggedIn || !token || !segment.id) {
+                setHasReportedCurrentState(false);
+                return;
+            }
+            try {
+                const status = await fetchMySegmentReportStatus(segment.id, token);
+                if (!cancelled) {
+                    setHasReportedCurrentState(status.has_reported);
+                }
+            } catch {
+                if (!cancelled) {
+                    setHasReportedCurrentState(false);
+                }
+            }
+        }
+        loadReportStatus();
+        return () => {
+            cancelled = true;
+        };
+    }, [isLoggedIn, token, segment.id, segment.blocked]);
 
     const handleReport = async () => {
         if (!segment.id) return;
         try {
             setIsReporting(true);
-            const blockedUntil = reportUntilDate ? new Date(reportUntilDate).toISOString() : undefined;
-            const report = await reportSegmentBlocked(segment.id, token!, blockedUntil);
+            const note = reportNote.trim() || undefined;
+            const report = segment.blocked
+                ? await reportSegmentUnblocked(segment.id, token!, note)
+                : await reportSegmentBlocked(segment.id, token!, note);
             onSegmentBlocked?.(segment.id, {
                 blocked: report.blocked,
                 blockedReportsCount: report.blocked_reports_count,
-                blockedUntil,
             });
+            setHasReportedCurrentState(true);
             setShowReportForm(false);
-            setReportUntilDate("");
+            setReportNote("");
         } catch {
             showToast("Failed to report segment. Please try again.", { type: "error" });
         } finally {
@@ -72,11 +101,6 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
                     <span className="text-red-500 text-base leading-none mt-0.5">⚠️</span>
                     <div className="flex flex-col gap-0.5">
                         <span className="text-red-700 font-semibold text-sm">This segment is currently blocked</span>
-                        {segment.blocked_until && (
-                            <span className="text-red-500 text-xs">
-                                Until {new Date(segment.blocked_until).toLocaleDateString()}
-                            </span>
-                        )}
                     </div>
                 </div>
             )}
@@ -84,21 +108,32 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
                 <h3 className="font-bold text-lg text-neutral-800 leading-tight pr-2">
                     {segment.name}
                 </h3>
-                {!segment.blocked && (
-                    <button
-                        onClick={() => {
-                            if (isLoggedIn) {
-                                setShowReportForm(!showReportForm);
-                            } else {
-                                setShowLoginPrompt(true);
+                <button
+                    onClick={() => {
+                        if (isLoggedIn) {
+                            if (hasReportedCurrentState) {
+                                showToast(
+                                    segment.blocked
+                                        ? "You already reported this segment as unblocked."
+                                        : "You already reported this segment as blocked.",
+                                    { type: "info" }
+                                );
+                                return;
                             }
-                        }}
-                        title="Report as blocked"
-                        className="shrink-0 p-1.5 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                    >
-                        <Flag className="w-4 h-4" />
-                    </button>
-                )}
+                            setShowReportForm(!showReportForm);
+                        } else {
+                            setShowLoginPrompt(true);
+                        }
+                    }}
+                    title={segment.blocked ? "Report as unblocked/free" : "Report as blocked"}
+                    className={`shrink-0 p-1.5 rounded-lg transition-colors ${
+                        hasReportedCurrentState
+                            ? "text-white bg-red-500 hover:bg-red-600"
+                            : "text-neutral-400 hover:text-red-500 hover:bg-red-50"
+                    }`}
+                >
+                    <Flag className={`w-4 h-4 ${hasReportedCurrentState ? "fill-current" : ""}`} />
+                </button>
             </div>
 
             {showLoginPrompt && (
@@ -106,7 +141,7 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
                     <div className="flex flex-col gap-1">
                         <span className="text-blue-800 font-semibold text-xs">Login Required</span>
                         <p className="text-blue-700 text-[11px] leading-relaxed">
-                            You need to log in with Strava to report segments as blocked and help the community.
+                            You need to log in with Strava to report blocked or free segments and help the community.
                         </p>
                     </div>
                     <div className="flex gap-2">
@@ -128,14 +163,19 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
 
             {showReportForm && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5 flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
-                    <span className="text-amber-800 font-semibold text-xs">Report this segment as blocked</span>
-                    <input
-                        type="date"
-                        value={reportUntilDate}
-                        onChange={(e) => setReportUntilDate(e.target.value)}
-                        className="w-full bg-white border border-amber-300 rounded-lg px-2.5 py-1.5 text-xs text-neutral-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
-                        placeholder="Blocked until (optional)"
+                    <span className="text-amber-800 font-semibold text-xs">
+                        {segment.blocked ? "Report this segment as unblocked" : "Report this segment as blocked"}
+                    </span>
+                    <textarea
+                        value={reportNote}
+                        onChange={(e) => setReportNote(e.target.value)}
+                        maxLength={REPORT_NOTE_MAX_LENGTH}
+                        className="w-full bg-white border border-amber-300 rounded-lg px-2.5 py-1.5 text-xs text-neutral-700 focus:outline-none focus:ring-1 focus:ring-amber-500 min-h-16 resize-y"
+                        placeholder={segment.blocked ? "Optional note for review..." : "Optional note (e.g. expected duration or unusual block)..."}
                     />
+                    <div className="text-[11px] text-amber-800 text-right">
+                        {reportNote.length}/{REPORT_NOTE_MAX_LENGTH}
+                    </div>
                     <div className="flex gap-2">
                         <button
                             onClick={handleReport}
@@ -145,7 +185,7 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
                             {isReporting ? "Reporting..." : "Confirm Report"}
                         </button>
                         <button
-                            onClick={() => { setShowReportForm(false); setReportUntilDate(""); }}
+                            onClick={() => { setShowReportForm(false); setReportNote(""); }}
                             className="flex-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 py-1.5 rounded-lg font-semibold text-xs transition-colors"
                         >
                             Cancel

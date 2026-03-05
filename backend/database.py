@@ -18,7 +18,7 @@ async def lifespan(app: FastAPI):
     db_client = AsyncIOMotorClient(MONGODB_URI)
     db = db_client[MONGODB_DB_NAME]
     await db.segment_block_reports.create_index(
-        [("segment_id", 1), ("reported_by_actor_id", 1)],
+        [("segment_id", 1), ("reported_by_actor_id", 1), ("action", 1)],
         unique=True,
     )
     await db.segment_block_reports.create_index([("segment_id", 1), ("reported_at", -1)])

@@ -6,6 +6,7 @@ from bson import ObjectId
 from pymongo.errors import DuplicateKeyError
 
 from dependencies import actor_id_from_strava_id, create_jwt
+from schemas import SEGMENT_REPORT_NOTE_MAX_LENGTH
 
 
 class FindCursor:
@@ -105,48 +106,155 @@ def test_create_segment_rejects_duplicate(monkeypatch, app_client):
 
 
 @pytest.mark.integration
-def test_report_segment_blocked_handles_already_reported_and_threshold(monkeypatch, app_client):
+def test_report_segment_blocked_uses_manual_queue_and_note(monkeypatch, app_client):
     import routers.segments as segments_router
 
     segment_id = ObjectId()
     db = SimpleNamespace(
         segments=SimpleNamespace(
             find_one=AsyncMock(return_value={"_id": segment_id, "blocked": False}),
-            update_one=AsyncMock(),
         ),
         segment_block_reports=SimpleNamespace(
-            find_one=AsyncMock(side_effect=[{"segment_id": segment_id}, None, None]),
+            find_one=AsyncMock(side_effect=[None, {"segment_id": segment_id}]),
             insert_one=AsyncMock(side_effect=[None, DuplicateKeyError("dup")]),
-            count_documents=AsyncMock(side_effect=[1, 2, 2]),
+            count_documents=AsyncMock(side_effect=[1, 1]),
         ),
     )
     monkeypatch.setattr(segments_router, "get_db", lambda: db)
 
     first = app_client.post(
         f"/api/segments/{segment_id}/report-blocked",
-        json={},
+        json={"note": "Roadworks until next week"},
         headers=user_auth_headers(),
     )
     assert first.status_code == 200
-    assert first.json()["status"] == "already_reported"
+    assert first.json()["status"] == "reported"
+    assert first.json()["action"] == "blocked"
+    assert first.json()["blocked"] is False
 
     second = app_client.post(
         f"/api/segments/{segment_id}/report-blocked",
-        json={"blocked_until": "2026-03-07T10:00:00+00:00"},
-        headers=user_auth_headers(22222),
+        json={},
+        headers=user_auth_headers(),
     )
     assert second.status_code == 200
-    assert second.json()["status"] == "reported"
-    assert second.json()["blocked"] is True
-    db.segments.update_one.assert_awaited_once()
+    assert second.json()["status"] == "already_reported"
+    assert second.json()["action"] == "blocked"
+    assert db.segment_block_reports.insert_one.await_count == 1
 
-    third = app_client.post(
-        f"/api/segments/{segment_id}/report-blocked",
-        json={},
-        headers=user_auth_headers(33333),
+
+@pytest.mark.integration
+def test_report_segment_unblocked_requires_blocked_state_and_dedupes(monkeypatch, app_client):
+    import routers.segments as segments_router
+
+    segment_id = ObjectId()
+    db = SimpleNamespace(
+        segments=SimpleNamespace(
+            find_one=AsyncMock(side_effect=[{"_id": segment_id, "blocked": True}, {"_id": segment_id, "blocked": True}]),
+        ),
+        segment_block_reports=SimpleNamespace(
+            find_one=AsyncMock(side_effect=[None, {"segment_id": segment_id}]),
+            insert_one=AsyncMock(),
+            count_documents=AsyncMock(side_effect=[2, 2]),
+        ),
     )
-    assert third.status_code == 200
-    assert third.json()["status"] == "already_reported"
+    monkeypatch.setattr(segments_router, "get_db", lambda: db)
+
+    first = app_client.post(
+        f"/api/segments/{segment_id}/report-unblocked",
+        json={"note": "Road has reopened"},
+        headers=user_auth_headers(),
+    )
+    assert first.status_code == 200
+    assert first.json()["status"] == "reported"
+    assert first.json()["action"] == "unblocked"
+    assert first.json()["blocked"] is True
+
+    second = app_client.post(
+        f"/api/segments/{segment_id}/report-unblocked",
+        json={},
+        headers=user_auth_headers(),
+    )
+    assert second.status_code == 200
+    assert second.json()["status"] == "already_reported"
+    assert second.json()["action"] == "unblocked"
+
+
+@pytest.mark.integration
+def test_report_endpoints_reject_wrong_segment_state(monkeypatch, app_client):
+    import routers.segments as segments_router
+
+    blocked_segment_id = ObjectId()
+    free_segment_id = ObjectId()
+    db = SimpleNamespace(
+        segments=SimpleNamespace(
+            find_one=AsyncMock(
+                side_effect=[
+                    {"_id": blocked_segment_id, "blocked": True},
+                    {"_id": free_segment_id, "blocked": False},
+                ]
+            ),
+        ),
+        segment_block_reports=SimpleNamespace(
+            find_one=AsyncMock(),
+            insert_one=AsyncMock(),
+            count_documents=AsyncMock(),
+        ),
+    )
+    monkeypatch.setattr(segments_router, "get_db", lambda: db)
+
+    blocked_res = app_client.post(
+        f"/api/segments/{blocked_segment_id}/report-blocked",
+        json={},
+        headers=user_auth_headers(),
+    )
+    assert blocked_res.status_code == 409
+
+    free_res = app_client.post(
+        f"/api/segments/{free_segment_id}/report-unblocked",
+        json={},
+        headers=user_auth_headers(),
+    )
+    assert free_res.status_code == 409
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("path", ["report-blocked", "report-unblocked"])
+def test_report_endpoints_reject_too_long_note(app_client, path):
+    segment_id = ObjectId()
+    note = "x" * (SEGMENT_REPORT_NOTE_MAX_LENGTH + 1)
+
+    res = app_client.post(
+        f"/api/segments/{segment_id}/{path}",
+        json={"note": note},
+        headers=user_auth_headers(),
+    )
+
+    assert res.status_code == 422
+
+
+@pytest.mark.integration
+def test_my_report_status_returns_has_reported_for_current_state(monkeypatch, app_client):
+    import routers.segments as segments_router
+
+    segment_id = ObjectId()
+    actor_id = actor_id_from_strava_id(12345)
+    db = SimpleNamespace(
+        segments=SimpleNamespace(find_one=AsyncMock(return_value={"_id": segment_id, "blocked": False})),
+        segment_block_reports=SimpleNamespace(
+            find_one=AsyncMock(return_value={"action": "blocked", "reported_at": "2026-03-05T10:00:00+00:00", "note": "Works"})
+        ),
+    )
+    monkeypatch.setattr(segments_router, "get_db", lambda: db)
+
+    res = app_client.get(f"/api/segments/{segment_id}/my-report-status", headers=user_auth_headers())
+    assert res.status_code == 200
+    assert res.json()["has_reported"] is True
+    assert res.json()["expected_action"] == "blocked"
+    db.segment_block_reports.find_one.assert_awaited_once_with(
+        {"segment_id": segment_id, "reported_by_actor_id": actor_id, "action": "blocked"},
+        {"_id": 0, "action": 1, "reported_at": 1, "note": 1},
+    )
 
 
 @pytest.mark.integration
@@ -237,11 +345,13 @@ def test_admin_segment_state_mutations_and_report_listing(monkeypatch, app_clien
                         {
                             "reported_by_actor_id": "actor-1",
                             "reported_at": "2026-03-05T10:00:00+00:00",
-                            "blocked_until": "2026-03-07T10:00:00+00:00",
+                            "action": "blocked",
+                            "note": "Temporary construction",
                         }
                     ]
                 )
-            )
+            ),
+            delete_many=AsyncMock(),
         ),
     )
     monkeypatch.setattr(admin_router, "get_db", lambda: db)
@@ -252,7 +362,6 @@ def test_admin_segment_state_mutations_and_report_listing(monkeypatch, app_clien
 
     block = app_client.patch(
         f"/api/admin/segments/{segment_id}/block",
-        json={"blocked_until": "2026-03-07T10:00:00+00:00"},
         headers=admin_auth_headers(),
     )
     assert block.status_code == 200
@@ -261,11 +370,15 @@ def test_admin_segment_state_mutations_and_report_listing(monkeypatch, app_clien
     unblock = app_client.patch(f"/api/admin/segments/{segment_id}/unblock", headers=admin_auth_headers())
     assert unblock.status_code == 200
     assert unblock.json() == {"status": "unblocked"}
+    assert db.segment_block_reports.delete_many.await_count == 2
+    db.segment_block_reports.delete_many.assert_any_await({"segment_id": segment_id})
 
     reports = app_client.get(f"/api/admin/segments/{segment_id}/blocked-reports", headers=admin_auth_headers())
     assert reports.status_code == 200
     assert reports.json()["reports_count"] == 1
     assert reports.json()["reports"][0]["reported_by_actor_id"] == "actor-1"
+    assert reports.json()["reports"][0]["action"] == "blocked"
+    assert reports.json()["reports"][0]["note"] == "Temporary construction"
 
 
 @pytest.mark.integration
@@ -296,7 +409,6 @@ def test_list_segments_and_admin_lists_include_report_counts(monkeypatch, app_cl
     monkeypatch.setattr(admin_router, "get_db", lambda: admin_db)
     monkeypatch.setattr(segments_router, "get_block_report_counts", AsyncMock(return_value={str(pub_id): 2}))
     monkeypatch.setattr(admin_router, "get_block_report_counts", AsyncMock(return_value={str(admin_id): 1}))
-    monkeypatch.setattr(segments_router, "auto_unblock_if_needed", AsyncMock())
     monkeypatch.setattr(admin_router, "enrich_admin_segment_users", AsyncMock())
 
     segments_res = app_client.get("/api/segments")

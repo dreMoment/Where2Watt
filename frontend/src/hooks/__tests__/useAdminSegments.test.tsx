@@ -110,11 +110,10 @@ describe("useAdminSegments", () => {
     });
     expect(approveSegment).toHaveBeenCalledWith("s1", "token-1");
 
-    act(() => result.current.setBlockUntilDate("2026-03-10"));
     await act(async () => {
       await result.current.handleBlock("s1");
     });
-    expect(blockSegment).toHaveBeenCalled();
+    expect(blockSegment).toHaveBeenCalledWith("s1", "token-1");
 
     await act(async () => {
       await result.current.handleUnblock("s1");

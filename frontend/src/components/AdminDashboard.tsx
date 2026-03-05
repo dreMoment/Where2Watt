@@ -40,13 +40,8 @@ export default function AdminDashboard({ token, onLogout }: AdminDashboardProps)
     handleRefresh,
     handleDelete,
     handleApprove,
-    blockingSegmentId,
-    blockUntilDate,
-    setBlockUntilDate,
     handleBlock,
     handleUnblock,
-    startBlocking,
-    cancelBlocking,
   } = useAdminSegments({ token, onLogout });
 
   return (
@@ -148,15 +143,10 @@ export default function AdminDashboard({ token, onLogout }: AdminDashboardProps)
             currentError={currentError}
             currentSegments={currentSegments}
             filteredSegments={filteredSegments}
-            blockingSegmentId={blockingSegmentId}
-            blockUntilDate={blockUntilDate}
-            onBlockUntilDateChange={setBlockUntilDate}
             onDelete={handleDelete}
             onApprove={handleApprove}
             onBlock={handleBlock}
             onUnblock={handleUnblock}
-            onStartBlock={startBlocking}
-            onCancelBlock={cancelBlocking}
           />
         </div>
       </main>

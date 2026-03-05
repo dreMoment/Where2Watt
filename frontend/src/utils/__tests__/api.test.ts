@@ -1,6 +1,8 @@
 import {
+  fetchMySegmentReportStatus,
   fetchCurrentUser,
   reportSegmentBlocked,
+  reportSegmentUnblocked,
   stravaLoginCallback,
   verifyAdminAccess,
 } from "@/utils/api";
@@ -40,14 +42,37 @@ describe("api utils", () => {
     await expect(verifyAdminAccess("token-1")).resolves.toBe(false);
   });
 
-  it("reportSegmentBlocked forwards optional blocked_until", async () => {
-    (request as jest.Mock).mockResolvedValue({ status: "reported", blocked: false, blocked_reports_count: 1, threshold: 2 });
-    await reportSegmentBlocked("seg-1", "token-1", "2026-03-07T10:00:00+00:00");
+  it("reportSegmentBlocked forwards optional note", async () => {
+    (request as jest.Mock).mockResolvedValue({ status: "reported", action: "blocked", blocked: false, blocked_reports_count: 1 });
+    await reportSegmentBlocked("seg-1", "token-1", "Roadworks");
     expect(request).toHaveBeenCalledWith(
       "/segments/seg-1/report-blocked",
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({ blocked_until: "2026-03-07T10:00:00+00:00" }),
+        body: JSON.stringify({ note: "Roadworks" }),
+      })
+    );
+  });
+
+  it("reportSegmentUnblocked forwards optional note", async () => {
+    (request as jest.Mock).mockResolvedValue({ status: "reported", action: "unblocked", blocked: true, blocked_reports_count: 2 });
+    await reportSegmentUnblocked("seg-1", "token-1", "Looks open now");
+    expect(request).toHaveBeenCalledWith(
+      "/segments/seg-1/report-unblocked",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ note: "Looks open now" }),
+      })
+    );
+  });
+
+  it("fetchMySegmentReportStatus calls expected endpoint", async () => {
+    (request as jest.Mock).mockResolvedValue({ segment_id: "seg-1", expected_action: "blocked", has_reported: true });
+    await fetchMySegmentReportStatus("seg-1", "token-1");
+    expect(request).toHaveBeenCalledWith(
+      "/segments/seg-1/my-report-status",
+      expect.objectContaining({
+        method: "GET",
       })
     );
   });
