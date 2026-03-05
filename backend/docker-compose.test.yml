@@ -1,0 +1,28 @@
+services:
+  mongodb-test:
+    image: mongo:latest
+    container_name: findmyintervals-mongodb-test
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand({ ping: 1 })"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: findmyintervals-backend-test
+    depends_on:
+      mongodb-test:
+        condition: service_healthy
+    environment:
+      - MONGODB_URI=mongodb://mongodb-test:27017
+      - MONGODB_DB_NAME=findmyintervals_test
+      - JWT_SECRET=test-jwt-secret-with-at-least-32-bytes
+      - ADMIN_STRAVA_IDS=987654
+      - CORS_ORIGIN=http://localhost:3000
+      - STRAVA_CLIENT_ID=test-client-id
+      - STRAVA_CLIENT_SECRET=test-client-secret
+      - STRAVA_REFRESH_TOKEN=test-refresh-token
+    command: pytest -m "unit or integration" -q
