@@ -96,10 +96,17 @@ export default function Home() {
     });
   }, [segments, isFiltered, filterPowerStr, filterTimeStr, weightStr, bikeWeightStr]);
 
-  const handleSegmentBlocked = useCallback((segmentId: string, blockedUntil?: string) => {
+  const handleSegmentBlocked = useCallback((segmentId: string, report: { blocked: boolean; blockedReportsCount: number; blockedUntil?: string }) => {
     setSegments((prev) =>
       prev.map((s) =>
-        s.id === segmentId ? { ...s, blocked: true, blocked_until: blockedUntil } : s
+        s.id === segmentId
+          ? {
+            ...s,
+            blocked: report.blocked,
+            blocked_until: report.blockedUntil,
+            blocked_report_count: report.blockedReportsCount
+          }
+          : s
       )
     );
   }, []);

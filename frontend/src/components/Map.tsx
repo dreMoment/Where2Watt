@@ -15,7 +15,7 @@ interface MapProps {
   isFiltered?: boolean;
   filterPower?: string;
   filterTime?: string;
-  onSegmentBlocked?: (segmentId: string, blockedUntil?: string) => void;
+  onSegmentBlocked?: (segmentId: string, report: { blocked: boolean; blockedReportsCount: number; blockedUntil?: string }) => void;
 }
 
 /**

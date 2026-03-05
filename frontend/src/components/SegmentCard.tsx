@@ -12,7 +12,7 @@ interface Props {
     riderWeight?: string;
     bikeWeight?: string;
     clickedCoordinate?: [number, number] | null;
-    onSegmentBlocked?: (segmentId: string, blockedUntil?: string) => void;
+    onSegmentBlocked?: (segmentId: string, report: { blocked: boolean; blockedReportsCount: number; blockedUntil?: string }) => void;
 }
 
 function formatTime(seconds: number): string {
@@ -63,8 +63,12 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
         try {
             setIsReporting(true);
             const blockedUntil = reportUntilDate ? new Date(reportUntilDate).toISOString() : undefined;
-            await reportSegmentBlocked(segment.id, token!, blockedUntil);
-            onSegmentBlocked?.(segment.id, blockedUntil);
+            const report = await reportSegmentBlocked(segment.id, token!, blockedUntil);
+            onSegmentBlocked?.(segment.id, {
+                blocked: report.blocked,
+                blockedReportsCount: report.blocked_reports_count,
+                blockedUntil,
+            });
             setShowReportForm(false);
             setReportUntilDate("");
         } catch {

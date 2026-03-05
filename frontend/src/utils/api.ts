@@ -183,7 +183,14 @@ export async function unblockSegment(id: string, password: string): Promise<void
     }
 }
 
-export async function reportSegmentBlocked(id: string, token: string, blockedUntil?: string): Promise<void> {
+export interface ReportBlockedResponse {
+    status: "reported" | "already_reported";
+    blocked: boolean;
+    blocked_reports_count: number;
+    threshold: number;
+}
+
+export async function reportSegmentBlocked(id: string, token: string, blockedUntil?: string): Promise<ReportBlockedResponse> {
     const body: Record<string, string> = {};
     if (blockedUntil) {
         body.blocked_until = blockedUntil;
@@ -199,4 +206,5 @@ export async function reportSegmentBlocked(id: string, token: string, blockedUnt
     if (!res.ok) {
         throw new Error("Failed to report segment as blocked");
     }
+    return res.json();
 }

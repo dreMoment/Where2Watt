@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Header, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo.errors import DuplicateKeyError
 from pydantic import BaseModel, ConfigDict
 from typing import List, Annotated, Optional
 from bson import ObjectId
@@ -13,6 +14,9 @@ import jwt
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+
+# Reporting config
+BLOCK_REPORT_THRESHOLD = 2
 
 # MongoDB Connection Parameters
 MONGODB_URI = os.getenv("MONGODB_URI")
@@ -51,6 +55,12 @@ async def lifespan(app: FastAPI):
     # Startup
     print(f"Connecting to MongoDB at {MONGODB_URI}")
     db_client = AsyncIOMotorClient(MONGODB_URI)
+    db = db_client[MONGODB_DB_NAME]
+    await db.segment_block_reports.create_index(
+        [("segment_id", 1), ("reported_by_strava_id", 1)],
+        unique=True
+    )
+    await db.segment_block_reports.create_index([("segment_id", 1), ("reported_at", -1)])
     yield
     # Shutdown
     print("Disconnecting from MongoDB")
@@ -98,7 +108,9 @@ class BlockSchema(BaseModel):
 
 class SegmentResponseSchema(SegmentSchema):
     id: str
+    added_by_strava_id: int | None = None
     submitted_by_strava_id: int | None = None
+    blocked_report_count: int | None = 0
 
 class StravaCallbackSchema(BaseModel):
     code: str
@@ -110,6 +122,18 @@ class UserResponseSchema(BaseModel):
     firstname: str | None = None
     lastname: str | None = None
     profile_pic: str | None = None
+
+
+async def get_block_report_counts(db, segment_object_ids: list[ObjectId]) -> dict[str, int]:
+    if not segment_object_ids:
+        return {}
+
+    pipeline = [
+        {"$match": {"segment_id": {"$in": segment_object_ids}}},
+        {"$group": {"_id": "$segment_id", "count": {"$sum": 1}}}
+    ]
+    grouped = await db.segment_block_reports.aggregate(pipeline).to_list(length=None)
+    return {str(item["_id"]): item["count"] for item in grouped}
     
 @app.get("/health")
 async def health_check():
@@ -281,6 +305,7 @@ async def create_segment(request: Request, segment: SegmentSchema, strava_id: in
     segment_dict = segment.model_dump()
     segment_dict["created_at"] = datetime.utcnow().replace(tzinfo=timezone.utc).isoformat()
     segment_dict["approved"] = False # Force explicit false
+    segment_dict["added_by_strava_id"] = strava_id
     segment_dict["submitted_by_strava_id"] = strava_id
 
     
@@ -321,6 +346,7 @@ async def list_segments():
     segments = await db.segments.find({
         "$or": [{"approved": True}, {"approved": {"$exists": False}}]
     }).to_list(100)
+    report_counts = await get_block_report_counts(db, [segment["_id"] for segment in segments])
     now = datetime.now(timezone.utc)
     for segment in segments:
         # Auto-unblock segments whose blocked_until has passed
@@ -336,6 +362,7 @@ async def list_segments():
                     segment["blocked_until"] = None
             except (ValueError, TypeError):
                 pass
+        segment["blocked_report_count"] = report_counts.get(str(segment["_id"]), 0)
         segment["id"] = str(segment["_id"])
         del segment["_id"]
     return segments
@@ -348,25 +375,68 @@ async def report_segment_blocked(request: Request, segment_id: str, data: BlockS
         obj_id = ObjectId(segment_id)
     except:
         raise HTTPException(status_code=400, detail="Invalid segment ID format")
-    
-    update = {"blocked": True, "reported_by_strava_id": strava_id}
-    if data.blocked_until:
-        update["blocked_until"] = data.blocked_until
-    
-    result = await db.segments.update_one(
+
+    segment = await db.segments.find_one({"_id": obj_id})
+    if not segment:
+        raise HTTPException(status_code=404, detail="Segment not found")
+
+    report_doc = {
+        "segment_id": obj_id,
+        "reported_by_strava_id": strava_id,
+        "reported_at": datetime.now(timezone.utc).isoformat(),
+        "blocked_until": data.blocked_until
+    }
+
+    existing_report = await db.segment_block_reports.find_one({
+        "segment_id": obj_id,
+        "reported_by_strava_id": strava_id
+    })
+    if existing_report:
+        reports_count = await db.segment_block_reports.count_documents({"segment_id": obj_id})
+        return {
+            "status": "already_reported",
+            "blocked": bool(segment.get("blocked", False)),
+            "blocked_reports_count": reports_count,
+            "threshold": BLOCK_REPORT_THRESHOLD
+        }
+
+    try:
+        await db.segment_block_reports.insert_one(report_doc)
+    except DuplicateKeyError:
+        reports_count = await db.segment_block_reports.count_documents({"segment_id": obj_id})
+        return {
+            "status": "already_reported",
+            "blocked": bool(segment.get("blocked", False)),
+            "blocked_reports_count": reports_count,
+            "threshold": BLOCK_REPORT_THRESHOLD
+        }
+    reports_count = await db.segment_block_reports.count_documents({"segment_id": obj_id})
+
+    update: dict[str, object] = {"blocked_report_count": reports_count}
+    if reports_count >= BLOCK_REPORT_THRESHOLD:
+        update["blocked"] = True
+        if data.blocked_until:
+            update["blocked_until"] = data.blocked_until
+
+    await db.segments.update_one(
         {"_id": obj_id},
         {"$set": update}
     )
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Segment not found")
-    
-    return {"status": "reported"}
+
+    return {
+        "status": "reported",
+        "blocked": reports_count >= BLOCK_REPORT_THRESHOLD or bool(segment.get("blocked", False)),
+        "blocked_reports_count": reports_count,
+        "threshold": BLOCK_REPORT_THRESHOLD
+    }
 
 @app.get("/api/admin/segments/unapproved", response_model=List[SegmentResponseSchema])
 async def list_unapproved_segments(is_admin: bool = Depends(verify_admin)):
     db = db_client[MONGODB_DB_NAME]
     segments = await db.segments.find({"approved": False}).sort("created_at", -1).to_list(100)
+    report_counts = await get_block_report_counts(db, [segment["_id"] for segment in segments])
     for segment in segments:
+        segment["blocked_report_count"] = report_counts.get(str(segment["_id"]), 0)
         segment["id"] = str(segment["_id"])
         del segment["_id"]
     return segments
@@ -375,10 +445,40 @@ async def list_unapproved_segments(is_admin: bool = Depends(verify_admin)):
 async def list_all_segments(is_admin: bool = Depends(verify_admin)):
     db = db_client[MONGODB_DB_NAME]
     segments = await db.segments.find().sort("created_at", -1).to_list(500)
+    report_counts = await get_block_report_counts(db, [segment["_id"] for segment in segments])
     for segment in segments:
+        segment["blocked_report_count"] = report_counts.get(str(segment["_id"]), 0)
         segment["id"] = str(segment["_id"])
         del segment["_id"]
     return segments
+
+
+@app.get("/api/admin/segments/{segment_id}/blocked-reports")
+async def list_block_reports_for_segment(segment_id: str, is_admin: bool = Depends(verify_admin)):
+    db = db_client[MONGODB_DB_NAME]
+    try:
+        obj_id = ObjectId(segment_id)
+    except:
+        raise HTTPException(status_code=400, detail="Invalid segment ID format")
+
+    segment = await db.segments.find_one({"_id": obj_id})
+    if not segment:
+        raise HTTPException(status_code=404, detail="Segment not found")
+
+    reports = await db.segment_block_reports.find({"segment_id": obj_id}).sort("reported_at", -1).to_list(200)
+    return {
+        "segment_id": segment_id,
+        "reports_count": len(reports),
+        "threshold": BLOCK_REPORT_THRESHOLD,
+        "reports": [
+            {
+                "reported_by_strava_id": report["reported_by_strava_id"],
+                "reported_at": report["reported_at"],
+                "blocked_until": report.get("blocked_until")
+            }
+            for report in reports
+        ]
+    }
 
 @app.post("/api/admin/segments/{segment_id}/approve")
 async def approve_segment(segment_id: str, is_admin: bool = Depends(verify_admin)):
@@ -448,6 +548,7 @@ async def delete_segment(segment_id: str, is_admin: bool = Depends(verify_admin)
     result = await db.segments.delete_one({"_id": obj_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Segment not found")
+    await db.segment_block_reports.delete_many({"segment_id": obj_id})
     
     return {"status": "deleted"}
 
@@ -484,6 +585,7 @@ async def quick_add_segment(data: QuickAddSchema, is_admin: bool = Depends(verif
         "distance_km": details.get("distance_km"),
         "gradient_pct": details.get("gradient_pct"),
         "approved": True,
+        "added_by_strava_id": None,
         "created_at": datetime.utcnow().replace(tzinfo=timezone.utc).isoformat()
     }
     

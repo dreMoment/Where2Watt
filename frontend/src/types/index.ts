@@ -13,6 +13,9 @@ export type Segment = {
   approved: boolean;
   polyline?: string;
   created_at?: string;
+  added_by_strava_id?: number;
+  submitted_by_strava_id?: number;
   blocked?: boolean;
   blocked_until?: string;
+  blocked_report_count?: number;
 };
