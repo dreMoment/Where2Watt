@@ -16,6 +16,7 @@ STRAVA_REFRESH_TOKEN = os.getenv("STRAVA_REFRESH_TOKEN")
 JWT_SECRET = os.getenv("JWT_SECRET")
 if not JWT_SECRET:
     raise RuntimeError("JWT_SECRET environment variable must be set")
+ACTOR_ID_SECRET = os.getenv("ACTOR_ID_SECRET", JWT_SECRET)
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24 * 30  # 30 days
 

@@ -1,26 +1,29 @@
 import pytest
 from fastapi import HTTPException
 
-from dependencies import create_jwt, verify_admin, verify_user
+from dependencies import ActorIdentity, actor_id_from_strava_id, create_jwt, verify_admin, verify_user
 
 
 @pytest.mark.unit
 def test_verify_admin_accepts_admin_strava_id():
-    assert verify_admin(987654) is True
+    identity = ActorIdentity(actor_id=actor_id_from_strava_id(987654), is_admin=True)
+    assert verify_admin(identity) is True
 
 
 @pytest.mark.unit
 def test_verify_admin_rejects_non_admin_strava_id():
     with pytest.raises(HTTPException) as exc:
-        verify_admin(12345)
+        verify_admin(ActorIdentity(actor_id=actor_id_from_strava_id(12345), is_admin=False))
     assert exc.value.status_code == 403
 
 
 @pytest.mark.unit
 def test_verify_user_roundtrip_with_created_jwt():
-    token = create_jwt(12345)
-    strava_id = verify_user(f"Bearer {token}")
-    assert strava_id == 12345
+    actor_id = actor_id_from_strava_id(12345)
+    token = create_jwt(actor_id=actor_id, is_admin=False)
+    identity = verify_user(f"Bearer {token}")
+    assert identity.actor_id == actor_id
+    assert identity.is_admin is False
 
 
 @pytest.mark.unit

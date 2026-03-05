@@ -153,7 +153,7 @@ export function useAdminSegments({ token, onLogout }: UseAdminSegmentsParams) {
     const query = searchQuery.trim().toLowerCase();
 
     return currentSegments.filter((segment) => {
-      const reportCount = segment.blocked_report_count ?? segment.reported_by_strava_ids?.length ?? 0;
+      const reportCount = segment.blocked_report_count ?? segment.reported_by_actor_ids?.length ?? 0;
 
       if (approvalFilter !== "all") {
         const isApproved = !!segment.approved;
@@ -174,10 +174,8 @@ export function useAdminSegments({ token, onLogout }: UseAdminSegmentsParams) {
 
       if (!query) return true;
 
-      const reportedIds = (segment.reported_by_strava_ids || []).join(" ");
-      const reportedNames = (segment.reported_by_users || [])
-        .map((u) => `${u.firstname || ""} ${u.lastname || ""} ${u.username || ""} ${u.strava_id}`)
-        .join(" ");
+      const reportedIds = (segment.reported_by_actor_ids || []).join(" ");
+      const reportedNames = (segment.reported_by_users || []).map((u) => u.actor_id).join(" ");
 
       const searchCorpus = [
         segment.id,
@@ -185,10 +183,8 @@ export function useAdminSegments({ token, onLogout }: UseAdminSegmentsParams) {
         segment.strava_id,
         segment.strava_url,
         segment.created_at,
-        segment.submitted_by_strava_id,
-        segment.submitted_by_user?.firstname,
-        segment.submitted_by_user?.lastname,
-        segment.submitted_by_user?.username,
+        segment.submitted_by_actor_id,
+        segment.submitted_by_user?.actor_id,
         reportedIds,
         reportedNames,
       ]
@@ -205,7 +201,7 @@ export function useAdminSegments({ token, onLogout }: UseAdminSegmentsParams) {
     const approved = currentSegments.filter((s) => s.approved).length;
     const pending = currentSegments.filter((s) => !s.approved).length;
     const blocked = currentSegments.filter((s) => s.blocked).length;
-    const reported = currentSegments.filter((s) => (s.blocked_report_count ?? s.reported_by_strava_ids?.length ?? 0) > 0).length;
+    const reported = currentSegments.filter((s) => (s.blocked_report_count ?? s.reported_by_actor_ids?.length ?? 0) > 0).length;
     return { total, approved, pending, blocked, reported };
   }, [currentSegments]);
 

@@ -1,8 +1,5 @@
 export type UserSummary = {
-  strava_id: number;
-  username?: string | null;
-  firstname?: string | null;
-  lastname?: string | null;
+  actor_id: string;
 };
 
 export type Segment = {
@@ -20,11 +17,11 @@ export type Segment = {
   approved: boolean;
   polyline?: string;
   created_at?: string;
-  submitted_by_strava_id?: number;
+  submitted_by_actor_id?: string;
   blocked?: boolean;
   blocked_until?: string;
   blocked_report_count?: number;
-  reported_by_strava_ids?: number[];
+  reported_by_actor_ids?: string[];
   submitted_by_user?: UserSummary | null;
   reported_by_users?: UserSummary[];
 };

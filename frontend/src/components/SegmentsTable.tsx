@@ -32,14 +32,15 @@ function formatDate(dateString?: string): string {
   return date.toLocaleString();
 }
 
-function getUserLabel(user?: UserSummary | null, fallbackId?: number): string {
+function shortAgentId(actorId: string): string {
+  return actorId.slice(0, 8);
+}
+
+function getUserLabel(user?: UserSummary | null, fallbackId?: string): string {
   if (user) {
-    const fullName = `${user.firstname || ""} ${user.lastname || ""}`.trim();
-    if (fullName) return `${fullName} (#${user.strava_id})`;
-    if (user.username) return `@${user.username} (#${user.strava_id})`;
-    return `Strava #${user.strava_id}`;
+    return `Agent ${shortAgentId(user.actor_id)}`;
   }
-  if (typeof fallbackId === "number") return `Strava #${fallbackId}`;
+  if (typeof fallbackId === "string" && fallbackId.length > 0) return `Agent ${shortAgentId(fallbackId)}`;
   return "Unknown";
 }
 
@@ -141,14 +142,15 @@ export default function SegmentsTable({
         </thead>
         <tbody className="divide-y divide-gray-800">
           {filteredSegments.map((segment) => {
-            const reportCount = segment.blocked_report_count ?? segment.reported_by_strava_ids?.length ?? 0;
+            const reportCount = segment.blocked_report_count ?? segment.reported_by_actor_ids?.length ?? 0;
             const reportedUsers = segment.reported_by_users || [];
-            const reporterLabels =
+            const reporterEntries =
               reportedUsers.length > 0
-                ? reportedUsers.map((u) => getUserLabel(u))
-                : segment.reported_by_strava_ids && segment.reported_by_strava_ids.length > 0
-                  ? segment.reported_by_strava_ids.map((id) => `Strava #${id}`)
+                ? reportedUsers.map((u) => ({ label: getUserLabel(u), fullId: u.actor_id }))
+                : segment.reported_by_actor_ids && segment.reported_by_actor_ids.length > 0
+                  ? segment.reported_by_actor_ids.map((id) => ({ label: getUserLabel(undefined, id), fullId: id }))
                   : [];
+            const submittedByFullId = segment.submitted_by_user?.actor_id || segment.submitted_by_actor_id;
 
             return (
               <tr key={segment.id} className="hover:bg-gray-800/50 transition-colors group">
@@ -203,14 +205,17 @@ export default function SegmentsTable({
                     <span className="text-gray-600 text-sm">N/A</span>
                   )}
                 </td>
-                <td className="p-5 text-sm text-gray-300">{getUserLabel(segment.submitted_by_user, segment.submitted_by_strava_id)}</td>
+                <td className="p-5 text-sm text-gray-300" title={submittedByFullId}>
+                  {getUserLabel(segment.submitted_by_user, segment.submitted_by_actor_id)}
+                </td>
                 <td className="p-5 text-sm text-gray-300 max-w-[420px] whitespace-normal">
-                  {reporterLabels.length > 0 ? (
+                  {reporterEntries.length > 0 ? (
                     <div className="flex flex-wrap gap-1.5">
-                      {reporterLabels.map((label) => (
+                      {reporterEntries.map(({ label, fullId }) => (
                         <span
-                          key={`${segment.id}-${label}`}
+                          key={`${segment.id}-${fullId}`}
                           className="inline-flex items-center px-2 py-1 rounded-md bg-gray-800 text-gray-200 text-xs border border-gray-700"
+                          title={fullId}
                         >
                           {label}
                         </span>

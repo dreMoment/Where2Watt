@@ -1,12 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 import httpx
-from config import STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET
-from database import get_db
-from dependencies import create_jwt, verify_user
+from config import ADMIN_STRAVA_IDS, STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET
+from dependencies import ActorIdentity, actor_id_from_strava_id, create_jwt, verify_user
 from rate_limiter import limiter
 from schemas import StravaCallbackSchema, UserResponseSchema
-from services.segments import now_iso
 
 router = APIRouter()
 
@@ -35,46 +33,24 @@ async def strava_auth_callback(request: Request, data: StravaCallbackSchema):
     if not strava_id:
         raise HTTPException(status_code=400, detail="No athlete data received from Strava")
 
-    db = get_db()
-    now = now_iso()
-    user_doc = {
-        "strava_id": strava_id,
-        "username": athlete.get("username"),
-        "firstname": athlete.get("firstname"),
-        "lastname": athlete.get("lastname"),
-        "profile_pic": athlete.get("profile"),
-        "last_login": now,
-    }
-    await db.users.update_one(
-        {"strava_id": strava_id},
-        {"$set": user_doc, "$setOnInsert": {"created_at": now}},
-        upsert=True,
-    )
+    actor_id = actor_id_from_strava_id(strava_id)
+    is_admin = strava_id in ADMIN_STRAVA_IDS
 
-    token = create_jwt(strava_id)
+    token = create_jwt(actor_id=actor_id, is_admin=is_admin)
 
     return {
         "token": token,
         "user": {
-            "strava_id": strava_id,
-            "username": athlete.get("username"),
-            "firstname": athlete.get("firstname"),
-            "lastname": athlete.get("lastname"),
-            "profile_pic": athlete.get("profile"),
+            "actor_id": actor_id,
+            "is_admin": is_admin,
         },
     }
 
 
 @router.get("/api/auth/me", response_model=UserResponseSchema)
-async def get_current_user(strava_id: int = Depends(verify_user)):
-    db = get_db()
-    user = await db.users.find_one({"strava_id": strava_id})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+@limiter.limit("60/minute")
+async def get_current_user(request: Request, identity: ActorIdentity = Depends(verify_user)):
     return {
-        "strava_id": user["strava_id"],
-        "username": user.get("username"),
-        "firstname": user.get("firstname"),
-        "lastname": user.get("lastname"),
-        "profile_pic": user.get("profile_pic"),
+        "actor_id": identity.actor_id,
+        "is_admin": identity.is_admin,
     }

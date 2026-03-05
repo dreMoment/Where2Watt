@@ -1,6 +1,6 @@
 import pytest
 
-from dependencies import create_jwt
+from dependencies import actor_id_from_strava_id, create_jwt
 
 
 @pytest.mark.integration
@@ -20,34 +20,21 @@ def test_auth_me_requires_token(app_client):
 
 
 @pytest.mark.integration
-def test_auth_me_returns_user_for_valid_token(app_client, mongo_client, test_db_name):
-    users = mongo_client[test_db_name]["users"]
-    users.insert_one(
-        {
-            "strava_id": 987654,
-            "username": "tester",
-            "firstname": "Test",
-            "lastname": "User",
-            "profile_pic": "https://example.com/pic.png",
-        }
-    )
-
-    token = create_jwt(987654)
+def test_auth_me_returns_user_for_valid_token(app_client):
+    actor_id = actor_id_from_strava_id(987654)
+    token = create_jwt(actor_id=actor_id, is_admin=True)
     response = app_client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
 
     assert response.status_code == 200
     assert response.json() == {
-        "strava_id": 987654,
-        "username": "tester",
-        "firstname": "Test",
-        "lastname": "User",
-        "profile_pic": "https://example.com/pic.png",
+        "actor_id": actor_id,
+        "is_admin": True,
     }
 
 
 @pytest.mark.integration
 def test_admin_verify_with_admin_user_token(app_client):
-    token = create_jwt(987654)
+    token = create_jwt(actor_id=actor_id_from_strava_id(987654), is_admin=True)
     response = app_client.post("/api/admin/verify", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
@@ -55,7 +42,7 @@ def test_admin_verify_with_admin_user_token(app_client):
 
 @pytest.mark.integration
 def test_admin_verify_rejects_non_admin_user(app_client):
-    token = create_jwt(555555)
+    token = create_jwt(actor_id=actor_id_from_strava_id(555555), is_admin=False)
     response = app_client.post("/api/admin/verify", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 403
     assert response.json()["detail"] == "Admin access required"

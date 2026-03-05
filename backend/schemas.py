@@ -25,17 +25,14 @@ class BlockSchema(BaseModel):
 
 
 class UserSummarySchema(BaseModel):
-    strava_id: int
-    username: str | None = None
-    firstname: str | None = None
-    lastname: str | None = None
+    actor_id: str
 
 
 class SegmentResponseSchema(SegmentSchema):
     id: str
-    submitted_by_strava_id: int | None = None
+    submitted_by_actor_id: str | None = None
     blocked_report_count: int | None = 0
-    reported_by_strava_ids: list[int] = Field(default_factory=list)
+    reported_by_actor_ids: list[str] = Field(default_factory=list)
     submitted_by_user: UserSummarySchema | None = None
     reported_by_users: list[UserSummarySchema] = Field(default_factory=list)
 
@@ -46,8 +43,5 @@ class StravaCallbackSchema(BaseModel):
 
 
 class UserResponseSchema(BaseModel):
-    strava_id: int
-    username: str | None = None
-    firstname: str | None = None
-    lastname: str | None = None
-    profile_pic: str | None = None
+    actor_id: str
+    is_admin: bool

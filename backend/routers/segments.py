@@ -6,7 +6,7 @@ from pymongo.errors import DuplicateKeyError
 
 from config import BLOCK_REPORT_THRESHOLD
 from database import get_db
-from dependencies import verify_admin, verify_user
+from dependencies import ActorIdentity, verify_admin, verify_user
 from rate_limiter import limiter
 from schemas import BlockSchema, SegmentResponseSchema, SegmentSchema
 from services.segments import (
@@ -24,12 +24,12 @@ router = APIRouter()
 
 @router.post("/api/segments", response_model=SegmentResponseSchema, status_code=201)
 @limiter.limit("10/minute")
-async def create_segment(request: Request, segment: SegmentSchema, strava_id: int = Depends(verify_user)):
+async def create_segment(request: Request, segment: SegmentSchema, identity: ActorIdentity = Depends(verify_user)):
     db = get_db()
     segment_dict = segment.model_dump()
     segment_dict["created_at"] = now_iso()
     segment_dict["approved"] = False
-    segment_dict["submitted_by_strava_id"] = strava_id
+    segment_dict["submitted_by_actor_id"] = identity.actor_id
 
     strava_url = segment_dict.get("strava_url")
     if strava_url:
@@ -59,7 +59,8 @@ async def create_segment(request: Request, segment: SegmentSchema, strava_id: in
 
 
 @router.get("/api/segments", response_model=List[SegmentResponseSchema])
-async def list_segments():
+@limiter.limit("120/minute")
+async def list_segments(request: Request):
     db = get_db()
     segments = await db.segments.find({"$or": [{"approved": True}, {"approved": {"$exists": False}}]}).to_list(100)
     report_counts = await get_block_report_counts(db, [segment["_id"] for segment in segments])
@@ -76,7 +77,7 @@ async def report_segment_blocked(
     request: Request,
     segment_id: str,
     data: BlockSchema = BlockSchema(),
-    strava_id: int = Depends(verify_user),
+    identity: ActorIdentity = Depends(verify_user),
 ):
     db = get_db()
     obj_id = parse_object_id(segment_id)
@@ -87,13 +88,13 @@ async def report_segment_blocked(
 
     report_doc = {
         "segment_id": obj_id,
-        "reported_by_strava_id": strava_id,
+        "reported_by_actor_id": identity.actor_id,
         "reported_at": now_iso(),
         "blocked_until": data.blocked_until,
     }
 
     existing_report = await db.segment_block_reports.find_one(
-        {"segment_id": obj_id, "reported_by_strava_id": strava_id}
+        {"segment_id": obj_id, "reported_by_actor_id": identity.actor_id}
     )
     if existing_report:
         reports_count = await db.segment_block_reports.count_documents({"segment_id": obj_id})
@@ -134,7 +135,8 @@ async def report_segment_blocked(
 
 
 @router.delete("/api/segments/{segment_id}")
-async def delete_segment(segment_id: str, is_admin: bool = Depends(verify_admin)):
+@limiter.limit("30/minute")
+async def delete_segment(request: Request, segment_id: str, is_admin: bool = Depends(verify_admin)):
     db = get_db()
     obj_id = parse_object_id(segment_id)
 
