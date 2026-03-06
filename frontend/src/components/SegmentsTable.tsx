@@ -26,7 +26,7 @@ function timeAgo(dateString?: string): string {
   return `${years} year${years !== 1 ? "s" : ""} ago`;
 }
 
-function formatDate(dateString?: string): string {
+function formatDate(dateString?: string | null): string {
   if (!dateString) return "-";
   const date = new Date(dateString);
   if (Number.isNaN(date.getTime())) return "-";
@@ -37,7 +37,7 @@ function shortAgentId(actorId: string): string {
   return actorId.slice(0, 8);
 }
 
-function getUserLabel(user?: UserSummary | null, fallbackId?: string): string {
+function getUserLabel(user?: UserSummary | null, fallbackId?: string | null): string {
   if (user) {
     return `a_${shortAgentId(user.actor_id)}`;
   }
@@ -45,7 +45,7 @@ function getUserLabel(user?: UserSummary | null, fallbackId?: string): string {
   return "Unknown";
 }
 
-function formatReportSentAt(dateString?: string): string {
+function formatReportSentAt(dateString?: string | null): string {
   const formatted = formatDate(dateString);
   return formatted === "-" ? "Unknown date" : formatted;
 }
