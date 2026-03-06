@@ -1,8 +1,12 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ExternalLink, Ruler, Mountain, Timer, MapPin, Flag } from "lucide-react";
 import type { Segment } from "@/types";
 import { decodePolyline } from "@/utils/polyline";
-import { fetchMySegmentReportStatus, reportSegmentBlocked, reportSegmentUnblocked } from "@/utils/api";
+import {
+    fetchMySegmentReportStatus,
+    reportSegmentBlocked,
+    reportSegmentUnblocked,
+} from "@/utils/api";
 import { useAuth } from "@/components/AuthContext";
 import { useUiFeedback } from "@/components/ui/UiFeedbackProvider";
 import { createIntervalProfile, estimateSegmentDurationSeconds, formatDuration } from "@/utils/intervals";
@@ -18,7 +22,14 @@ interface Props {
 
 const REPORT_NOTE_MAX_LENGTH = 500;
 
-export default function SegmentCard({ segment, riderPower = "250", riderWeight = "75", bikeWeight = "9", clickedCoordinate = null, onSegmentBlocked }: Props) {
+export default function SegmentCard({
+    segment,
+    riderPower = "250",
+    riderWeight = "75",
+    bikeWeight = "9",
+    clickedCoordinate = null,
+    onSegmentBlocked,
+}: Props) {
     const { isLoggedIn, token, login } = useAuth();
     const { showToast } = useUiFeedback();
     const profile = useMemo(
@@ -37,7 +48,7 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
         if (!segment.polyline) return null;
         const coords = decodePolyline(segment.polyline);
         if (coords.length === 0) return null;
-        return coords[0]; // [longitude, latitude]
+        return coords[0];
     }, [segment.polyline]);
 
     const effectiveCoordinates = clickedCoordinate || startCoordinates;
@@ -87,7 +98,7 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
             setShowReportForm(false);
             setReportNote("");
             showToast(
-                    "Thanks! Your report has been submitted and will be reviewed shortly.",
+                "Thanks! Your report has been submitted and will be reviewed shortly.",
                 { type: "info" }
             );
         } catch {
@@ -101,13 +112,13 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
         <div className="flex flex-col gap-4 min-w-[280px] font-sans">
             {segment.blocked && (
                 <div className="bg-red-50 border border-red-200 rounded-xl px-3.5 py-2.5 flex items-start gap-2">
-                    <span className="text-red-500 text-base leading-none mt-0.5">⚠️</span>
+                    <span className="text-red-500 text-base leading-none mt-0.5">!</span>
                     <div className="flex flex-col gap-0.5">
                         <span className="text-red-700 font-semibold text-sm">This segment is currently blocked</span>
                     </div>
                 </div>
             )}
-            <div className="flex items-start justify-between border-b border-neutral-100/80 pb-3">
+            <div className="flex items-start justify-between border-b border-neutral-100/80 pb-3 gap-2">
                 <h3 className="font-bold text-lg text-neutral-800 leading-tight pr-2">
                     {segment.name}
                 </h3>
@@ -148,7 +159,7 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
                     <div className="flex flex-col gap-1">
                         <span className="text-blue-800 font-semibold text-xs">Login Required</span>
                         <p className="text-blue-700 text-[11px] leading-relaxed">
-                            You need to log in with Strava to report blocked or free segments and help the community.
+                            You need to log in with Strava to rate segments and report blocked or free roads.
                         </p>
                     </div>
                     <div className="flex gap-2">
@@ -226,7 +237,7 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
                 </div>
             </div>
 
-            <div className="bg-gradient-to-br from-neutral-50 to-neutral-100/50 p-3.5 rounded-xl border border-neutral-200/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] mt-3">
+            <div className="bg-gradient-to-br from-neutral-50 to-neutral-100/50 p-3.5 rounded-xl border border-neutral-200/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] mt-1">
                 <div className="flex items-center gap-1.5 mb-2">
                     <div className="bg-white p-1 rounded-md shadow-sm">
                         <Timer className="w-3.5 h-3.5 text-neutral-600" />
@@ -262,10 +273,10 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
                                 <iframe
                                     style={{
                                         border: 0,
-                                        width: '150%',
-                                        height: '150%',
-                                        transform: 'scale(0.6666)',
-                                        transformOrigin: 'top left'
+                                        width: "150%",
+                                        height: "150%",
+                                        transform: "scale(0.6666)",
+                                        transformOrigin: "top left"
                                     }}
                                     loading="lazy"
                                     allowFullScreen

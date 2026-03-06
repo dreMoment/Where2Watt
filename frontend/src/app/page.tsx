@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { Plus, Compass, Activity, LogIn, LogOut, PanelLeft, X } from "lucide-react";
-import type { Segment } from "@/types";
+import type { Segment, SegmentAverageRatings } from "@/types";
 import { useAuth } from "@/components/AuthContext";
 import SubmissionForm from "@/components/SubmissionForm";
 import InputField from "@/components/InputField";
@@ -95,6 +95,23 @@ export default function Home() {
       )
     );
   }, []);
+
+  const handleSegmentRated = useCallback(
+    (segmentId: string, rating: { ratings_count: number; average_ratings: SegmentAverageRatings }) => {
+      setSegments((prev) =>
+        prev.map((s) =>
+          s.id === segmentId
+            ? {
+              ...s,
+              ratings_count: rating.ratings_count,
+              average_ratings: rating.average_ratings,
+            }
+            : s
+        )
+      );
+    },
+    []
+  );
 
 
   return (
@@ -270,7 +287,17 @@ export default function Home() {
           )}
 
           <div className="w-full h-full overflow-hidden bg-white">
-            <Map segments={filteredSegments} riderPower={filterPowerStr} riderWeight={weightStr} bikeWeight={bikeWeightStr} isFiltered={isFiltered} filterPower={filterPowerStr} filterTime={filterTimeStr} onSegmentBlocked={handleSegmentBlocked} />
+            <Map
+              segments={filteredSegments}
+              riderPower={filterPowerStr}
+              riderWeight={weightStr}
+              bikeWeight={bikeWeightStr}
+              isFiltered={isFiltered}
+              filterPower={filterPowerStr}
+              filterTime={filterTimeStr}
+              onSegmentBlocked={handleSegmentBlocked}
+              onSegmentRated={handleSegmentRated}
+            />
           </div>
 
           {/* Floating Modal Overlay for Form */}

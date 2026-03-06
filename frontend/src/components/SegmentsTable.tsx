@@ -1,4 +1,5 @@
-import type { Segment, UserSummary } from "@/types";
+import { Fragment } from "react";
+import type { Segment, SegmentAdminRating, UserSummary } from "@/types";
 import type { Tab } from "@/hooks/useAdminSegments";
 
 function timeAgo(dateString?: string): string {
@@ -55,10 +56,16 @@ interface SegmentsTableProps {
   currentError: string;
   currentSegments: Segment[];
   filteredSegments: Segment[];
+  expandedRatingsSegmentId: string | null;
+  segmentRatingsById: Record<string, SegmentAdminRating[]>;
+  segmentRatingsLoadingById: Record<string, boolean>;
+  segmentRatingsErrorById: Record<string, string>;
   onDelete: (id: string, name: string) => void;
   onApprove: (id: string) => void;
   onBlock: (id: string) => void;
   onUnblock: (id: string) => void;
+  onToggleRatings: (segmentId: string) => void;
+  onDeleteRating: (segmentId: string, ratingId: string) => void;
 }
 
 export default function SegmentsTable({
@@ -67,10 +74,16 @@ export default function SegmentsTable({
   currentError,
   currentSegments,
   filteredSegments,
+  expandedRatingsSegmentId,
+  segmentRatingsById,
+  segmentRatingsLoadingById,
+  segmentRatingsErrorById,
   onDelete,
   onApprove,
   onBlock,
   onUnblock,
+  onToggleRatings,
+  onDeleteRating,
 }: SegmentsTableProps) {
   if (currentLoading) {
     return (
@@ -131,6 +144,7 @@ export default function SegmentsTable({
             <th className="p-5">Submitted By</th>
             <th className="p-5">Reported By</th>
             <th className="p-5">Created</th>
+            <th className="p-5">Ratings</th>
             <th className="p-5 pr-6 text-right">Actions</th>
           </tr>
         </thead>
@@ -145,139 +159,201 @@ export default function SegmentsTable({
                   ? segment.reported_by_actor_ids.map((id) => ({ label: getUserLabel(undefined, id), fullId: id }))
                   : [];
             const submittedByFullId = segment.submitted_by_user?.actor_id || segment.submitted_by_actor_id;
+            const segmentId = segment.id;
+            const ratingsCount = segment.ratings_count ?? 0;
+            const isRatingsExpanded = !!segmentId && expandedRatingsSegmentId === segmentId;
+            const ratings = segmentId ? segmentRatingsById[segmentId] || [] : [];
+            const ratingsLoading = segmentId ? !!segmentRatingsLoadingById[segmentId] : false;
+            const ratingsError = segmentId ? segmentRatingsErrorById[segmentId] || "" : "";
 
             return (
-              <tr key={segment.id} className="hover:bg-gray-800/50 transition-colors group">
-                <td className="p-5 pl-6">
-                  <div className="font-medium text-white">{segment.name || "Unnamed Segment"}</div>
-                  <div className="text-xs text-gray-500 mt-1 flex flex-col gap-0.5">
-                    <span>ID: {segment.id}</span>
-                  </div>
-                </td>
-                <td className="p-5">
-                  <div className="inline-flex items-center px-2.5 py-1 rounded bg-gray-800 text-blue-400 font-medium text-sm">{segment.distance_km ?? "-"} km</div>
-                </td>
-                <td className="p-5">
-                  <div className="inline-flex items-center px-2.5 py-1 rounded bg-gray-800 text-emerald-400 font-medium text-sm">{segment.gradient_pct ?? "-"}%</div>
-                </td>
-                <td className="p-5">
-                  <div className="flex flex-col gap-1.5">
-                    {segment.approved ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-semibold border border-emerald-500/20">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                        Approved
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 text-xs font-semibold border border-amber-500/20">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                        Pending
-                      </span>
-                    )}
-                    {segment.blocked && (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/10 text-red-400 text-xs font-semibold border border-red-500/20">
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-400"></span>
-                        Blocked
-                      </span>
-                    )}
-                  </div>
-                </td>
-                <td className="p-5">
-                  {segment.strava_id ? (
-                    <a
-                      href={`https://www.strava.com/segments/${segment.strava_id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-gray-400 hover:text-orange-400 flex items-center gap-1.5 transition-colors text-sm"
-                    >
-                      {segment.strava_id}
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                    </a>
-                  ) : (
-                    <span className="text-gray-600 text-sm">N/A</span>
-                  )}
-                </td>
-                <td className="p-5 text-sm text-gray-300" title={submittedByFullId}>
-                  {getUserLabel(segment.submitted_by_user, segment.submitted_by_actor_id)}
-                </td>
-                <td className="p-5 text-sm text-gray-300 max-w-[420px] whitespace-normal">
-                  {reportQueueEntries.length > 0 ? (
-                    <div className="space-y-1.5">
-                      {reportQueueEntries.slice(0, 3).map((entry, index) => (
-                        <div key={`${segment.id}-${entry.reported_by_actor_id}-${entry.reported_at}-${index}`} className="rounded-md bg-gray-800 border border-gray-700 p-2">
-                          <div className="text-xs text-gray-200 font-medium">
-                            {getUserLabel(undefined, entry.reported_by_actor_id)} · {formatReportSentAt(entry.reported_at)}
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            {entry.note && entry.note.trim().length > 0 ? entry.note : "No note"}
-                          </div>
-                        </div>
-                      ))}
-                      {reportQueueEntries.length > 3 && (
-                        <div className="text-xs text-gray-500">+{reportQueueEntries.length - 3} more</div>
+              <Fragment key={segment.id || segment.strava_id || segment.name}>
+                <tr className="hover:bg-gray-800/50 transition-colors group">
+                  <td className="p-5 pl-6">
+                    <div className="font-medium text-white">{segment.name || "Unnamed Segment"}</div>
+                    <div className="text-xs text-gray-500 mt-1 flex flex-col gap-0.5">
+                      <span>ID: {segment.id}</span>
+                    </div>
+                  </td>
+                  <td className="p-5">
+                    <div className="inline-flex items-center px-2.5 py-1 rounded bg-gray-800 text-blue-400 font-medium text-sm">{segment.distance_km ?? "-"} km</div>
+                  </td>
+                  <td className="p-5">
+                    <div className="inline-flex items-center px-2.5 py-1 rounded bg-gray-800 text-emerald-400 font-medium text-sm">{segment.gradient_pct ?? "-"}%</div>
+                  </td>
+                  <td className="p-5">
+                    <div className="flex flex-col gap-1.5">
+                      {segment.approved ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-semibold border border-emerald-500/20">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                          Approved
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 text-xs font-semibold border border-amber-500/20">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                          Pending
+                        </span>
+                      )}
+                      {segment.blocked && (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/10 text-red-400 text-xs font-semibold border border-red-500/20">
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+                          Blocked
+                        </span>
                       )}
                     </div>
-                  ) : (
-                    reporterEntries.length > 0 ? (
-                      <div className="flex flex-wrap gap-1.5">
-                        {reporterEntries.map(({ label, fullId }) => (
-                          <span
-                            key={`${segment.id}-${fullId}`}
-                            className="inline-flex items-center px-2 py-1 rounded-md bg-gray-800 text-gray-200 text-xs border border-gray-700"
-                            title={fullId}
-                          >
-                            {label}
-                          </span>
+                  </td>
+                  <td className="p-5">
+                    {segment.strava_id ? (
+                      <a
+                        href={`https://www.strava.com/segments/${segment.strava_id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-gray-400 hover:text-orange-400 flex items-center gap-1.5 transition-colors text-sm"
+                      >
+                        {segment.strava_id}
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                      </a>
+                    ) : (
+                      <span className="text-gray-600 text-sm">N/A</span>
+                    )}
+                  </td>
+                  <td className="p-5 text-sm text-gray-300" title={submittedByFullId}>
+                    {getUserLabel(segment.submitted_by_user, segment.submitted_by_actor_id)}
+                  </td>
+                  <td className="p-5 text-sm text-gray-300 max-w-[420px] whitespace-normal">
+                    {reportQueueEntries.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {reportQueueEntries.slice(0, 3).map((entry, index) => (
+                          <div key={`${segment.id}-${entry.reported_by_actor_id}-${entry.reported_at}-${index}`} className="rounded-md bg-gray-800 border border-gray-700 p-2">
+                            <div className="text-xs text-gray-200 font-medium">
+                              {getUserLabel(undefined, entry.reported_by_actor_id)} · {formatReportSentAt(entry.reported_at)}
+                            </div>
+                            <div className="text-xs text-gray-400">
+                              {entry.note && entry.note.trim().length > 0 ? entry.note : "No note"}
+                            </div>
+                          </div>
                         ))}
+                        {reportQueueEntries.length > 3 && (
+                          <div className="text-xs text-gray-500">+{reportQueueEntries.length - 3} more</div>
+                        )}
                       </div>
                     ) : (
-                      <span className="text-gray-500">-</span>
-                    )
-                  )}
-                </td>
-                <td className="p-5 text-sm text-gray-400">
-                  <div>{formatDate(segment.created_at)}</div>
-                  <div className="text-xs text-gray-500">{timeAgo(segment.created_at)}</div>
-                </td>
-                <td className="p-5 pr-6 text-right">
-                  <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {segment.blocked ? (
-                      <button
-                        onClick={() => segment.id && onUnblock(segment.id)}
-                        className="inline-flex items-center px-4 py-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-lg text-sm font-semibold transition-all shadow-sm focus:opacity-100"
-                      >
-                        <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" /></svg>
-                        Unblock
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => segment.id && onBlock(segment.id)}
-                        className="inline-flex items-center px-4 py-2 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white rounded-lg text-sm font-semibold transition-all shadow-sm focus:opacity-100"
-                      >
-                        <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                        Block
-                      </button>
+                      reporterEntries.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {reporterEntries.map(({ label, fullId }) => (
+                            <span
+                              key={`${segment.id}-${fullId}`}
+                              className="inline-flex items-center px-2 py-1 rounded-md bg-gray-800 text-gray-200 text-xs border border-gray-700"
+                              title={fullId}
+                            >
+                              {label}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-gray-500">-</span>
+                      )
                     )}
-                    <button
-                      onClick={() =>
-                        segment.id && onDelete(segment.id, segment.name || segment.strava_id || segment.id || "Unknown Segment")
-                      }
-                      className="inline-flex items-center px-4 py-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg text-sm font-semibold transition-all shadow-sm focus:opacity-100"
-                    >
-                      <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                      Delete
-                    </button>
-                    {activeTab === "pending" && (
+                  </td>
+                  <td className="p-5 text-sm text-gray-400">
+                    <div>{formatDate(segment.created_at)}</div>
+                    <div className="text-xs text-gray-500">{timeAgo(segment.created_at)}</div>
+                  </td>
+                  <td className="p-5">
+                    <div className="space-y-2">
+                      <div className="text-xs text-gray-300">
+                        {ratingsCount} {ratingsCount === 1 ? "rating" : "ratings"}
+                      </div>
+                      {segmentId ? (
+                        <button
+                          onClick={() => onToggleRatings(segmentId)}
+                          className="inline-flex items-center px-2.5 py-1 rounded-md border border-blue-500/30 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 transition-colors text-xs font-semibold"
+                        >
+                          {isRatingsExpanded ? "Hide" : "Moderate"}
+                        </button>
+                      ) : (
+                        <span className="text-xs text-gray-500">N/A</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="p-5 pr-6 text-right">
+                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {segment.blocked ? (
+                        <button
+                          onClick={() => segment.id && onUnblock(segment.id)}
+                          className="inline-flex items-center px-4 py-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-lg text-sm font-semibold transition-all shadow-sm focus:opacity-100"
+                        >
+                          <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" /></svg>
+                          Unblock
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => segment.id && onBlock(segment.id)}
+                          className="inline-flex items-center px-4 py-2 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white rounded-lg text-sm font-semibold transition-all shadow-sm focus:opacity-100"
+                        >
+                          <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                          Block
+                        </button>
+                      )}
                       <button
-                        onClick={() => segment.id && onApprove(segment.id)}
-                        className="inline-flex items-center px-4 py-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-lg text-sm font-semibold transition-all shadow-sm focus:opacity-100"
+                        onClick={() =>
+                          segment.id && onDelete(segment.id, segment.name || segment.strava_id || segment.id || "Unknown Segment")
+                        }
+                        className="inline-flex items-center px-4 py-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg text-sm font-semibold transition-all shadow-sm focus:opacity-100"
                       >
-                        <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                        Approve
+                        <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        Delete
                       </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
+                      {activeTab === "pending" && (
+                        <button
+                          onClick={() => segment.id && onApprove(segment.id)}
+                          className="inline-flex items-center px-4 py-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-lg text-sm font-semibold transition-all shadow-sm focus:opacity-100"
+                        >
+                          <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                          Approve
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+                {isRatingsExpanded && segmentId && (
+                  <tr className="bg-gray-900/60">
+                    <td colSpan={10} className="px-6 py-4">
+                      {ratingsLoading ? (
+                        <div className="text-sm text-gray-400">Loading ratings...</div>
+                      ) : ratingsError ? (
+                        <div className="text-sm text-red-400">{ratingsError}</div>
+                      ) : ratings.length === 0 ? (
+                        <div className="text-sm text-gray-500">No ratings for this segment.</div>
+                      ) : (
+                        <div className="space-y-2">
+                          {ratings.map((rating) => (
+                            <div key={rating.id} className="rounded-md border border-gray-700 bg-gray-800/80 p-3">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="text-xs text-gray-200 font-medium">
+                                  {getUserLabel(undefined, rating.rated_by_actor_id)} · {formatReportSentAt(rating.rated_at)}
+                                </div>
+                                <button
+                                  onClick={() => onDeleteRating(segmentId, rating.id)}
+                                  className="inline-flex items-center px-2.5 py-1 rounded-md border border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20 transition-colors text-xs font-semibold"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                              <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-gray-300">
+                                <span>Traffic: {rating.ratings.traffic}</span>
+                                <span>Steady Gradient: {rating.ratings.steady_gradient}</span>
+                                <span>Sketchy Left Turns: {rating.ratings.sketchy_left_turns}</span>
+                                <span>Downhills: {rating.ratings.downhills}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             );
           })}
         </tbody>

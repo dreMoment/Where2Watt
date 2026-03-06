@@ -1,12 +1,26 @@
 import { render, screen } from '@testing-library/react';
 import SegmentCard from '../SegmentCard';
+import { fetchMySegmentReportStatus } from '@/utils/api';
+
+const authState = {
+    isLoggedIn: false,
+    token: null as string | null,
+};
+
+const mockLogin = jest.fn();
 
 jest.mock('@/components/AuthContext', () => ({
     useAuth: () => ({
-        isLoggedIn: false,
-        token: null,
-        login: jest.fn(),
+        isLoggedIn: authState.isLoggedIn,
+        token: authState.token,
+        login: mockLogin,
     }),
+}));
+
+jest.mock('@/utils/api', () => ({
+    fetchMySegmentReportStatus: jest.fn(),
+    reportSegmentBlocked: jest.fn(),
+    reportSegmentUnblocked: jest.fn(),
 }));
 
 jest.mock('@/components/ui/UiFeedbackProvider', () => ({
@@ -30,6 +44,16 @@ const mockSegment: import('@/types').Segment = {
 describe('SegmentCard', () => {
     beforeEach(() => {
         localStorage.clear();
+        jest.clearAllMocks();
+        authState.isLoggedIn = false;
+        authState.token = null;
+
+        (fetchMySegmentReportStatus as jest.Mock).mockResolvedValue({
+            segment_id: '1',
+            expected_action: 'blocked',
+            has_reported: false,
+            report: null,
+        });
     });
 
     it('renders segment data correctly', () => {
@@ -43,4 +67,5 @@ describe('SegmentCard', () => {
         render(<SegmentCard segment={mockSegment} riderPower="300" riderWeight="70" />);
         expect(screen.queryByText("--:--")).not.toBeInTheDocument();
     });
+
 });

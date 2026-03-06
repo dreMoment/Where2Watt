@@ -22,6 +22,8 @@ async def lifespan(app: FastAPI):
         unique=True,
     )
     await db.segment_block_reports.create_index([("segment_id", 1), ("reported_at", -1)])
+    await db.segment_ratings.create_index([("segment_id", 1), ("rated_by_actor_id", 1)], unique=True)
+    await db.segment_ratings.create_index([("segment_id", 1), ("rated_at", -1)])
     yield
     logger.info("Disconnecting from MongoDB")
     db_client.close()

@@ -36,12 +36,18 @@ export default function AdminDashboard({ token, onLogout }: AdminDashboardProps)
     setQuickAddUrl,
     isQuickAdding,
     quickAddMessage,
+    expandedRatingsSegmentId,
+    segmentRatingsById,
+    segmentRatingsLoadingById,
+    segmentRatingsErrorById,
     handleQuickAdd,
     handleRefresh,
     handleDelete,
     handleApprove,
     handleBlock,
     handleUnblock,
+    handleToggleRatings,
+    handleDeleteRating,
   } = useAdminSegments({ token, onLogout });
 
   return (
@@ -147,6 +153,12 @@ export default function AdminDashboard({ token, onLogout }: AdminDashboardProps)
             onApprove={handleApprove}
             onBlock={handleBlock}
             onUnblock={handleUnblock}
+            expandedRatingsSegmentId={expandedRatingsSegmentId}
+            segmentRatingsById={segmentRatingsById}
+            segmentRatingsLoadingById={segmentRatingsLoadingById}
+            segmentRatingsErrorById={segmentRatingsErrorById}
+            onToggleRatings={handleToggleRatings}
+            onDeleteRating={handleDeleteRating}
           />
         </div>
       </main>

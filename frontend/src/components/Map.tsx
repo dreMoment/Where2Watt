@@ -3,8 +3,9 @@
 import React, { useState, useMemo } from "react";
 import Map, { Popup, Source, Layer, NavigationControl } from "react-map-gl/maplibre";
 import SegmentCard from "./SegmentCard";
+import CommunityRatingsPanel from "./CommunityRatingsPanel";
 import { decodePolyline } from "@/utils/polyline";
-import type { Segment } from "@/types";
+import type { Segment, SegmentAverageRatings } from "@/types";
 import { createIntervalProfile, getIntervalMarginRatio, parseIntervalMinutes } from "@/utils/intervals";
 
 interface MapProps {
@@ -16,6 +17,7 @@ interface MapProps {
   filterPower?: string;
   filterTime?: string;
   onSegmentBlocked?: (segmentId: string, report: { blocked: boolean }) => void;
+  onSegmentRated?: (segmentId: string, rating: { ratings_count: number; average_ratings: SegmentAverageRatings }) => void;
 }
 
 /**
@@ -35,7 +37,7 @@ function getMarginColor(ratio: number): string {
   return `hsl(${hue}, 65%, 45%)`;
 }
 
-export default function InteractiveMap({ segments, riderPower, riderWeight, bikeWeight, isFiltered, filterPower, filterTime, onSegmentBlocked }: MapProps) {
+export default function InteractiveMap({ segments, riderPower, riderWeight, bikeWeight, isFiltered, filterPower, filterTime, onSegmentBlocked, onSegmentRated }: MapProps) {
   const [selectedSegment, setSelectedSegment] = useState<Segment | null>(null);
   const [clickedCoordinate, setClickedCoordinate] = useState<[number, number] | null>(null);
   const [cursor, setCursor] = useState("grab");
@@ -202,13 +204,37 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
                   riderWeight={riderWeight}
                   bikeWeight={bikeWeight}
                   clickedCoordinate={clickedCoordinate}
-                  onSegmentBlocked={onSegmentBlocked}
+                  onSegmentBlocked={(segmentId, report) => {
+                    onSegmentBlocked?.(segmentId, report);
+                    setSelectedSegment((prev) => {
+                      if (!prev || prev.id !== segmentId) return prev;
+                      return { ...prev, blocked: report.blocked };
+                    });
+                  }}
                 />
               </div>
             </Popup>
           );
         })()}
       </Map>
+      {selectedSegment && (
+        <div className="pointer-events-auto absolute right-4 top-4 z-20">
+          <CommunityRatingsPanel
+            segment={selectedSegment}
+            onSegmentRated={(segmentId, rating) => {
+              onSegmentRated?.(segmentId, rating);
+              setSelectedSegment((prev) => {
+                if (!prev || prev.id !== segmentId) return prev;
+                return {
+                  ...prev,
+                  ratings_count: rating.ratings_count,
+                  average_ratings: rating.average_ratings,
+                };
+              });
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

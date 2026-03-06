@@ -6,9 +6,16 @@ from pymongo.errors import DuplicateKeyError
 from database import get_db
 from dependencies import ActorIdentity, verify_admin, verify_user
 from rate_limiter import limiter
-from schemas import SegmentReportSchema, SegmentResponseSchema, SegmentSchema
+from schemas import (
+    SegmentCategoryRatingSchema,
+    SegmentCreateSchema,
+    SegmentRatingResponseSchema,
+    SegmentReportSchema,
+    SegmentResponseSchema,
+)
 from services.segments import (
     extract_strava_id,
+    initial_segment_rating_stats,
     now_iso,
     parse_object_id,
     serialize_segment,
@@ -20,12 +27,14 @@ router = APIRouter()
 
 @router.post("/api/segments", response_model=SegmentResponseSchema, status_code=201)
 @limiter.limit("10/minute")
-async def create_segment(request: Request, segment: SegmentSchema, identity: ActorIdentity = Depends(verify_user)):
+async def create_segment(request: Request, segment: SegmentCreateSchema, identity: ActorIdentity = Depends(verify_user)):
     db = get_db()
     segment_dict = segment.model_dump()
+    submitted_ratings = segment_dict.pop("ratings")
     segment_dict["created_at"] = now_iso()
     segment_dict["approved"] = False
     segment_dict["submitted_by_actor_id"] = identity.actor_id
+    segment_dict.update(initial_segment_rating_stats(submitted_ratings))
 
     strava_url = segment_dict.get("strava_url")
     if strava_url:
@@ -50,6 +59,14 @@ async def create_segment(request: Request, segment: SegmentSchema, identity: Act
                         segment_dict[key] = details.get(key)
 
     result = await db.segments.insert_one(segment_dict)
+    await db.segment_ratings.insert_one(
+        {
+            "segment_id": result.inserted_id,
+            "rated_by_actor_id": identity.actor_id,
+            "ratings": submitted_ratings,
+            "rated_at": now_iso(),
+        }
+    )
     created_segment = await db.segments.find_one({"_id": result.inserted_id})
     return serialize_segment(created_segment)
 
@@ -62,6 +79,67 @@ async def list_segments(request: Request):
     for segment in segments:
         serialize_segment(segment)
     return segments
+
+
+@router.post("/api/segments/{segment_id}/ratings", response_model=SegmentRatingResponseSchema)
+@limiter.limit("20/minute")
+async def rate_segment(
+    request: Request,
+    segment_id: str,
+    rating: SegmentCategoryRatingSchema,
+    identity: ActorIdentity = Depends(verify_user),
+):
+    db = get_db()
+    obj_id = parse_object_id(segment_id)
+    segment = await db.segments.find_one({"_id": obj_id})
+    if not segment:
+        raise HTTPException(status_code=404, detail="Segment not found")
+
+    rating_values = rating.model_dump()
+    rating_doc = {
+        "segment_id": obj_id,
+        "rated_by_actor_id": identity.actor_id,
+        "ratings": rating_values,
+        "rated_at": now_iso(),
+    }
+
+    try:
+        await db.segment_ratings.insert_one(rating_doc)
+    except DuplicateKeyError:
+        raise HTTPException(status_code=409, detail="You already rated this segment")
+
+    await db.segments.update_one(
+        {"_id": obj_id},
+        {"$inc": {"ratings_count": 1, **{f"rating_totals.{field}": value for field, value in rating_values.items()}}},
+    )
+    updated_segment = await db.segments.find_one({"_id": obj_id})
+    serialize_segment(updated_segment)
+    return {
+        "status": "rated",
+        "ratings_count": updated_segment["ratings_count"],
+        "average_ratings": updated_segment["average_ratings"],
+    }
+
+
+@router.get("/api/segments/{segment_id}/my-rating-status")
+@limiter.limit("30/minute")
+async def get_my_rating_status(request: Request, segment_id: str, identity: ActorIdentity = Depends(verify_user)):
+    db = get_db()
+    obj_id = parse_object_id(segment_id)
+    segment = await db.segments.find_one({"_id": obj_id})
+    if not segment:
+        raise HTTPException(status_code=404, detail="Segment not found")
+
+    existing_rating = await db.segment_ratings.find_one(
+        {"segment_id": obj_id, "rated_by_actor_id": identity.actor_id},
+        {"_id": 0, "ratings": 1, "rated_at": 1},
+    )
+    return {
+        "segment_id": segment_id,
+        "has_rated": bool(existing_rating),
+        "rating": existing_rating.get("ratings") if existing_rating else None,
+        "rated_at": existing_rating.get("rated_at") if existing_rating else None,
+    }
 
 
 @router.post("/api/segments/{segment_id}/report-blocked")
@@ -198,5 +276,6 @@ async def delete_segment(request: Request, segment_id: str, is_admin: bool = Dep
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Segment not found")
     await db.segment_block_reports.delete_many({"segment_id": obj_id})
+    await db.segment_ratings.delete_many({"segment_id": obj_id})
 
     return {"status": "deleted"}

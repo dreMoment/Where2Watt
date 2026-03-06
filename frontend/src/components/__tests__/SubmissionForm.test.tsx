@@ -54,6 +54,12 @@ describe('SubmissionForm', () => {
         expect(submitSegment).toHaveBeenCalledWith({
             strava_url: 'https://www.strava.com/segments/123',
             safety_notes: 'Watch out',
+            ratings: {
+                traffic: 6,
+                steady_gradient: 6,
+                sketchy_left_turns: 6,
+                downhills: 6,
+            },
         }, 'mock-token');
 
         await waitFor(() => {

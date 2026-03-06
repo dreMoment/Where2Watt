@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 from bson import ObjectId
 from fastapi import HTTPException
 
+RATING_FIELDS = ("traffic", "steady_gradient", "sketchy_left_turns", "downhills")
+
 
 def extract_strava_id(strava_url: str) -> str | None:
     if not strava_url:
@@ -23,7 +25,53 @@ def to_user_summary(user_doc: dict) -> dict:
     return {"actor_id": user_doc["actor_id"]}
 
 
+def empty_segment_rating_stats() -> dict:
+    return {
+        "ratings_count": 0,
+        "rating_totals": {field: 0 for field in RATING_FIELDS},
+        "average_ratings": {field: None for field in RATING_FIELDS},
+    }
+
+
+def initial_segment_rating_stats(ratings: dict[str, int]) -> dict:
+    rating_totals = {field: int(ratings.get(field, 0)) for field in RATING_FIELDS}
+    return {
+        "ratings_count": 1,
+        "rating_totals": rating_totals,
+        "average_ratings": {field: float(rating_totals[field]) for field in RATING_FIELDS},
+    }
+
+
+def ensure_segment_rating_stats(segment: dict) -> None:
+    defaults = empty_segment_rating_stats()
+    count = segment.get("ratings_count")
+    if not isinstance(count, int) or count < 0:
+        count = defaults["ratings_count"]
+
+    raw_totals = segment.get("rating_totals")
+    rating_totals: dict[str, int] = {}
+    for field in RATING_FIELDS:
+        if isinstance(raw_totals, dict):
+            raw_value = raw_totals.get(field, 0)
+        else:
+            raw_value = 0
+        if isinstance(raw_value, (int, float)):
+            rating_totals[field] = int(raw_value)
+        else:
+            rating_totals[field] = 0
+
+    if count > 0:
+        average_ratings = {field: round(rating_totals[field] / count, 2) for field in RATING_FIELDS}
+    else:
+        average_ratings = defaults["average_ratings"]
+
+    segment["ratings_count"] = count
+    segment["rating_totals"] = rating_totals
+    segment["average_ratings"] = average_ratings
+
+
 def serialize_segment(segment: dict) -> dict:
+    ensure_segment_rating_stats(segment)
     segment["id"] = str(segment["_id"])
     del segment["_id"]
     return segment

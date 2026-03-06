@@ -1,4 +1,6 @@
 import {
+  deleteAdminSegmentRating,
+  fetchAdminSegmentRatings,
   fetchMySegmentReportStatus,
   fetchCurrentUser,
   reportSegmentBlocked,
@@ -73,6 +75,28 @@ describe("api utils", () => {
       "/segments/seg-1/my-report-status",
       expect.objectContaining({
         method: "GET",
+      })
+    );
+  });
+
+  it("fetchAdminSegmentRatings calls expected endpoint", async () => {
+    (request as jest.Mock).mockResolvedValue([]);
+    await fetchAdminSegmentRatings("seg-1", "token-1");
+    expect(request).toHaveBeenCalledWith(
+      "/admin/segments/seg-1/ratings",
+      expect.objectContaining({
+        errorMessage: "Failed to fetch segment ratings",
+      })
+    );
+  });
+
+  it("deleteAdminSegmentRating calls expected endpoint", async () => {
+    (request as jest.Mock).mockResolvedValue({ status: "deleted" });
+    await deleteAdminSegmentRating("seg-1", "rating-1", "token-1");
+    expect(request).toHaveBeenCalledWith(
+      "/admin/segments/seg-1/ratings/rating-1",
+      expect.objectContaining({
+        method: "DELETE",
       })
     );
   });

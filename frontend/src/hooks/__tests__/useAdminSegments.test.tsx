@@ -4,7 +4,9 @@ import { useAdminSegments } from "@/hooks/useAdminSegments";
 import {
   approveSegment,
   blockSegment,
+  deleteAdminSegmentRating,
   deleteSegment,
+  fetchAdminSegmentRatings,
   fetchAllSegments,
   fetchUnapprovedSegments,
   quickAddSegment,
@@ -17,6 +19,8 @@ const showToastMock = jest.fn();
 jest.mock("@/utils/api", () => ({
   fetchUnapprovedSegments: jest.fn(),
   fetchAllSegments: jest.fn(),
+  fetchAdminSegmentRatings: jest.fn(),
+  deleteAdminSegmentRating: jest.fn(),
   deleteSegment: jest.fn(),
   approveSegment: jest.fn(),
   blockSegment: jest.fn(),
@@ -46,6 +50,7 @@ describe("useAdminSegments", () => {
     jest.clearAllMocks();
     (fetchUnapprovedSegments as jest.Mock).mockResolvedValue([sampleSegment]);
     (fetchAllSegments as jest.Mock).mockResolvedValue([sampleSegment]);
+    (fetchAdminSegmentRatings as jest.Mock).mockResolvedValue([]);
   });
 
   it("loads pending segments on mount", async () => {
@@ -119,5 +124,38 @@ describe("useAdminSegments", () => {
       await result.current.handleUnblock("s1");
     });
     expect(unblockSegment).toHaveBeenCalledWith("s1", "token-1");
+  });
+
+  it("loads and deletes ratings from moderation panel", async () => {
+    (fetchAdminSegmentRatings as jest.Mock).mockResolvedValue([
+      {
+        id: "r1",
+        segment_id: "s1",
+        rated_by_actor_id: "actor-1",
+        ratings: { traffic: 6, steady_gradient: 7, sketchy_left_turns: 5, downhills: 8 },
+      },
+    ]);
+    confirmMock.mockResolvedValue(true);
+    (deleteAdminSegmentRating as jest.Mock).mockResolvedValue({
+      status: "deleted",
+      ratings_count: 0,
+      average_ratings: { traffic: null, steady_gradient: null, sketchy_left_turns: null, downhills: null },
+    });
+
+    const { result } = renderHook(() => useAdminSegments({ token: "token-1", onLogout: jest.fn() }));
+    await waitFor(() => expect(result.current.currentLoading).toBe(false));
+
+    await act(async () => {
+      result.current.handleToggleRatings("s1");
+    });
+    await waitFor(() => expect(fetchAdminSegmentRatings).toHaveBeenCalledWith("s1", "token-1"));
+    expect(result.current.expandedRatingsSegmentId).toBe("s1");
+    expect(result.current.segmentRatingsById.s1).toHaveLength(1);
+
+    await act(async () => {
+      await result.current.handleDeleteRating("s1", "r1");
+    });
+    expect(deleteAdminSegmentRating).toHaveBeenCalledWith("s1", "r1", "token-1");
+    expect(result.current.segmentRatingsById.s1).toHaveLength(0);
   });
 });

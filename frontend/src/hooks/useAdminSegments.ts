@@ -1,14 +1,16 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
+  deleteAdminSegmentRating,
   fetchUnapprovedSegments,
   fetchAllSegments,
+  fetchAdminSegmentRatings,
   deleteSegment,
   approveSegment,
   blockSegment,
   unblockSegment,
   quickAddSegment,
 } from "@/utils/api";
-import type { Segment } from "@/types";
+import type { Segment, SegmentAdminRating } from "@/types";
 import { useUiFeedback } from "@/components/ui/UiFeedbackProvider";
 
 function getErrorMessage(err: unknown, fallback: string): string {
@@ -51,6 +53,10 @@ export function useAdminSegments({ token, onLogout }: UseAdminSegmentsParams) {
   const [quickAddUrl, setQuickAddUrl] = useState("");
   const [isQuickAdding, setIsQuickAdding] = useState(false);
   const [quickAddMessage, setQuickAddMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [expandedRatingsSegmentId, setExpandedRatingsSegmentId] = useState<string | null>(null);
+  const [segmentRatingsById, setSegmentRatingsById] = useState<Record<string, SegmentAdminRating[]>>({});
+  const [segmentRatingsLoadingById, setSegmentRatingsLoadingById] = useState<Record<string, boolean>>({});
+  const [segmentRatingsErrorById, setSegmentRatingsErrorById] = useState<Record<string, string>>({});
 
   const loadPendingSegments = useCallback(async () => {
     try {
@@ -79,6 +85,29 @@ export function useAdminSegments({ token, onLogout }: UseAdminSegmentsParams) {
     }
   }, [token]);
 
+  const loadSegmentRatings = useCallback(
+    async (segmentId: string, force = false) => {
+      if (!force && segmentRatingsById[segmentId]) {
+        return;
+      }
+      try {
+        setSegmentRatingsLoadingById((prev) => ({ ...prev, [segmentId]: true }));
+        setSegmentRatingsErrorById((prev) => ({ ...prev, [segmentId]: "" }));
+        const ratings = await fetchAdminSegmentRatings(segmentId, token);
+        setSegmentRatingsById((prev) => ({ ...prev, [segmentId]: ratings }));
+      } catch (err: unknown) {
+        const message = getErrorMessage(err, "Failed to load ratings");
+        setSegmentRatingsErrorById((prev) => ({ ...prev, [segmentId]: message }));
+        if (isAuthFailure(message)) {
+          onLogout();
+        }
+      } finally {
+        setSegmentRatingsLoadingById((prev) => ({ ...prev, [segmentId]: false }));
+      }
+    },
+    [onLogout, segmentRatingsById, token]
+  );
+
   useEffect(() => {
     loadPendingSegments();
   }, [loadPendingSegments]);
@@ -88,6 +117,28 @@ export function useAdminSegments({ token, onLogout }: UseAdminSegmentsParams) {
       loadAllSegments();
     }
   }, [activeTab, allLoaded, loadAllSegments]);
+
+  const updateSegmentRatingStats = useCallback((id: string, ratingsCount: number, averageRatings: Segment["average_ratings"]) => {
+    const updater = (segment: Segment) =>
+      segment.id === id
+        ? { ...segment, ratings_count: ratingsCount, average_ratings: averageRatings }
+        : segment;
+
+    setPendingSegments((prev) => prev.map(updater));
+    setAllSegments((prev) => prev.map(updater));
+  }, []);
+
+  const handleToggleRatings = useCallback(
+    (id: string) => {
+      if (expandedRatingsSegmentId === id) {
+        setExpandedRatingsSegmentId(null);
+        return;
+      }
+      setExpandedRatingsSegmentId(id);
+      loadSegmentRatings(id);
+    },
+    [expandedRatingsSegmentId, loadSegmentRatings]
+  );
 
   const handleDelete = useCallback(
     async (id: string, name: string) => {
@@ -269,6 +320,38 @@ export function useAdminSegments({ token, onLogout }: UseAdminSegmentsParams) {
     [showToast, token]
   );
 
+  const handleDeleteRating = useCallback(
+    async (segmentId: string, ratingId: string) => {
+      const confirmed = await confirm({
+        title: "Remove rating?",
+        description: "This rating will be permanently deleted and segment averages will be recalculated.",
+        confirmLabel: "Remove",
+        cancelLabel: "Cancel",
+        tone: "danger",
+      });
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        const result = await deleteAdminSegmentRating(segmentId, ratingId, token);
+        setSegmentRatingsById((prev) => ({
+          ...prev,
+          [segmentId]: (prev[segmentId] || []).filter((rating) => rating.id !== ratingId),
+        }));
+        updateSegmentRatingStats(segmentId, result.ratings_count, result.average_ratings);
+        showToast("Rating removed", { type: "info" });
+      } catch (err: unknown) {
+        const message = getErrorMessage(err, "Failed to delete rating");
+        showToast(message, { type: "error" });
+        if (isAuthFailure(message)) {
+          onLogout();
+        }
+      }
+    },
+    [confirm, onLogout, showToast, token, updateSegmentRatingStats]
+  );
+
   return {
     activeTab,
     setActiveTab,
@@ -293,11 +376,17 @@ export function useAdminSegments({ token, onLogout }: UseAdminSegmentsParams) {
     setQuickAddUrl,
     isQuickAdding,
     quickAddMessage,
+    expandedRatingsSegmentId,
+    segmentRatingsById,
+    segmentRatingsLoadingById,
+    segmentRatingsErrorById,
     handleQuickAdd,
     handleRefresh,
     handleDelete,
     handleApprove,
     handleBlock,
     handleUnblock,
+    handleToggleRatings,
+    handleDeleteRating,
   };
 }

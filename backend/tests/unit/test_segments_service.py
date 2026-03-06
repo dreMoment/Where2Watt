@@ -2,7 +2,7 @@ import pytest
 from bson import ObjectId
 from fastapi import HTTPException
 
-from services.segments import extract_strava_id, parse_object_id, serialize_segment
+from services.segments import empty_segment_rating_stats, extract_strava_id, parse_object_id, serialize_segment
 
 
 @pytest.mark.unit
@@ -42,3 +42,31 @@ def test_serialize_segment_maps_id_and_preserves_fields():
     assert result["id"] == str(obj_id)
     assert "_id" not in result
     assert result["name"] == "Test Segment"
+
+
+@pytest.mark.unit
+def test_serialize_segment_includes_default_rating_stats():
+    obj_id = ObjectId()
+    segment = {"_id": obj_id, "name": "No Ratings Yet"}
+
+    result = serialize_segment(segment)
+
+    assert result["ratings_count"] == 0
+    assert result["rating_totals"] == empty_segment_rating_stats()["rating_totals"]
+    assert result["average_ratings"]["traffic"] is None
+
+
+@pytest.mark.unit
+def test_serialize_segment_calculates_average_ratings_from_totals():
+    obj_id = ObjectId()
+    segment = {
+        "_id": obj_id,
+        "name": "Rated Segment",
+        "ratings_count": 2,
+        "rating_totals": {"traffic": 7, "steady_gradient": 9, "sketchy_left_turns": 5, "downhills": 8},
+    }
+
+    result = serialize_segment(segment)
+
+    assert result["average_ratings"]["traffic"] == 3.5
+    assert result["average_ratings"]["steady_gradient"] == 4.5

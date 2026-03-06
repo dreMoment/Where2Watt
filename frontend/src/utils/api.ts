@@ -1,4 +1,4 @@
-import type { Segment } from "@/types";
+import type { Segment, SegmentAdminRating, SegmentAverageRatings, SegmentRatingValues } from "@/types";
 import { request, withBearerAuth } from "@/utils/apiClient";
 export { API_BASE_URL } from "@/utils/apiClient";
 
@@ -37,6 +37,7 @@ export async function fetchSegments(): Promise<Segment[]> {
 export interface SubmissionData {
     strava_url: string;
     safety_notes: string;
+    ratings: SegmentRatingValues;
 }
 
 export async function submitSegment(data: SubmissionData, token: string): Promise<void> {
@@ -86,11 +87,36 @@ export async function fetchAllSegments(token: string): Promise<Segment[]> {
     });
 }
 
+export async function fetchAdminSegmentRatings(id: string, token: string): Promise<SegmentAdminRating[]> {
+    return request<SegmentAdminRating[]>(`/admin/segments/${id}/ratings`, {
+        headers: withBearerAuth(token),
+        errorMessage: "Failed to fetch segment ratings",
+    });
+}
+
 export async function approveSegment(id: string, token: string): Promise<void> {
     await request(`/admin/segments/${id}/approve`, {
         method: "POST",
         headers: withBearerAuth(token),
         errorMessage: "Failed to approve segment",
+    });
+}
+
+export interface AdminDeleteSegmentRatingResponse {
+    status: "deleted";
+    ratings_count: number;
+    average_ratings: SegmentAverageRatings;
+}
+
+export async function deleteAdminSegmentRating(
+    segmentId: string,
+    ratingId: string,
+    token: string
+): Promise<AdminDeleteSegmentRatingResponse> {
+    return request<AdminDeleteSegmentRatingResponse>(`/admin/segments/${segmentId}/ratings/${ratingId}`, {
+        method: "DELETE",
+        headers: withBearerAuth(token),
+        errorMessage: "Failed to delete rating",
     });
 }
 
@@ -124,6 +150,19 @@ export interface ReportBlockedResponse {
     status: "reported" | "already_reported";
     action: "blocked" | "unblocked";
     blocked: boolean;
+}
+
+export interface RateSegmentResponse {
+    status: "rated";
+    ratings_count: number;
+    average_ratings: SegmentAverageRatings;
+}
+
+export interface MySegmentRatingStatusResponse {
+    segment_id: string;
+    has_rated: boolean;
+    rating?: SegmentRatingValues | null;
+    rated_at?: string | null;
 }
 
 export interface MySegmentReportStatusResponse {
@@ -174,5 +213,22 @@ export async function fetchMySegmentReportStatus(id: string, token: string): Pro
         method: "GET",
         headers: withBearerAuth(token),
         errorMessage: "Failed to fetch report status",
+    });
+}
+
+export async function rateSegment(id: string, token: string, ratings: SegmentRatingValues): Promise<RateSegmentResponse> {
+    return request<RateSegmentResponse>(`/segments/${id}/ratings`, {
+        method: "POST",
+        headers: withBearerAuth(token, { "Content-Type": "application/json" }),
+        body: JSON.stringify(ratings),
+        errorMessage: "Failed to submit rating",
+    });
+}
+
+export async function fetchMySegmentRatingStatus(id: string, token: string): Promise<MySegmentRatingStatusResponse> {
+    return request<MySegmentRatingStatusResponse>(`/segments/${id}/my-rating-status`, {
+        method: "GET",
+        headers: withBearerAuth(token),
+        errorMessage: "Failed to fetch rating status",
     });
 }

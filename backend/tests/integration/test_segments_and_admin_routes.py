@@ -1,5 +1,5 @@
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import ANY, AsyncMock, Mock
 
 import pytest
 from bson import ObjectId
@@ -7,6 +7,13 @@ from pymongo.errors import DuplicateKeyError
 
 from dependencies import actor_id_from_strava_id, create_jwt
 from schemas import SEGMENT_REPORT_NOTE_MAX_LENGTH
+
+DEFAULT_RATINGS = {
+    "traffic": 6,
+    "steady_gradient": 8,
+    "sketchy_left_turns": 4,
+    "downhills": 7,
+}
 
 
 class FindCursor:
@@ -46,16 +53,24 @@ def test_create_segment_enriches_with_strava_details(monkeypatch, app_client):
     import routers.segments as segments_router
 
     created_id = ObjectId()
+    actor_id = actor_id_from_strava_id(12345)
     db = SimpleNamespace(
         segments=SimpleNamespace(
             find_one=AsyncMock(
                 side_effect=[
                     None,
-                    {"_id": created_id, "strava_url": "https://www.strava.com/segments/123", "approved": False},
+                    {
+                        "_id": created_id,
+                        "strava_url": "https://www.strava.com/segments/123",
+                        "approved": False,
+                        "ratings_count": 1,
+                        "rating_totals": DEFAULT_RATINGS,
+                    },
                 ]
             ),
             insert_one=AsyncMock(return_value=SimpleNamespace(inserted_id=created_id)),
-        )
+        ),
+        segment_ratings=SimpleNamespace(insert_one=AsyncMock()),
     )
     monkeypatch.setattr(segments_router, "get_db", lambda: db)
     monkeypatch.setattr(
@@ -73,7 +88,7 @@ def test_create_segment_enriches_with_strava_details(monkeypatch, app_client):
 
     response = app_client.post(
         "/api/segments",
-        json={"strava_url": "https://www.strava.com/segments/123"},
+        json={"strava_url": "https://www.strava.com/segments/123", "ratings": DEFAULT_RATINGS},
         headers=user_auth_headers(),
     )
 
@@ -85,6 +100,16 @@ def test_create_segment_enriches_with_strava_details(monkeypatch, app_client):
     assert inserted_doc["strava_id"] == "123"
     assert inserted_doc["name"] == "Segment Name"
     assert inserted_doc["approved"] is False
+    assert inserted_doc["ratings_count"] == 1
+    assert inserted_doc["rating_totals"] == DEFAULT_RATINGS
+    db.segment_ratings.insert_one.assert_awaited_once_with(
+        {
+            "segment_id": created_id,
+            "rated_by_actor_id": actor_id,
+            "ratings": DEFAULT_RATINGS,
+            "rated_at": ANY,
+        }
+    )
 
 
 @pytest.mark.integration
@@ -97,12 +122,92 @@ def test_create_segment_rejects_duplicate(monkeypatch, app_client):
 
     response = app_client.post(
         "/api/segments",
-        json={"strava_url": "https://www.strava.com/segments/123"},
+        json={"strava_url": "https://www.strava.com/segments/123", "ratings": DEFAULT_RATINGS},
         headers=user_auth_headers(),
     )
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Segment already exists"
+
+
+@pytest.mark.integration
+def test_create_segment_requires_ratings(app_client):
+    response = app_client.post(
+        "/api/segments",
+        json={"strava_url": "https://www.strava.com/segments/123"},
+        headers=user_auth_headers(),
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.integration
+def test_rate_segment_accepts_first_rating_and_rejects_duplicate(monkeypatch, app_client):
+    import routers.segments as segments_router
+
+    segment_id = ObjectId()
+    actor_id = actor_id_from_strava_id(12345)
+    db = SimpleNamespace(
+        segments=SimpleNamespace(
+            find_one=AsyncMock(
+                side_effect=[
+                    {"_id": segment_id, "ratings_count": 0, "rating_totals": {field: 0 for field in DEFAULT_RATINGS}},
+                    {"_id": segment_id, "ratings_count": 1, "rating_totals": DEFAULT_RATINGS},
+                    {"_id": segment_id, "ratings_count": 1, "rating_totals": DEFAULT_RATINGS},
+                    {"_id": segment_id, "ratings_count": 1, "rating_totals": DEFAULT_RATINGS},
+                ]
+            ),
+            update_one=AsyncMock(return_value=SimpleNamespace(matched_count=1)),
+        ),
+        segment_ratings=SimpleNamespace(
+            insert_one=AsyncMock(side_effect=[None, DuplicateKeyError("dup")]),
+            find_one=AsyncMock(return_value={"ratings": DEFAULT_RATINGS, "rated_at": "2026-03-06T10:00:00+00:00"}),
+        ),
+    )
+    monkeypatch.setattr(segments_router, "get_db", lambda: db)
+
+    first = app_client.post(
+        f"/api/segments/{segment_id}/ratings",
+        json=DEFAULT_RATINGS,
+        headers=user_auth_headers(),
+    )
+    assert first.status_code == 200
+    assert first.json()["status"] == "rated"
+    assert first.json()["ratings_count"] == 1
+    assert first.json()["average_ratings"]["traffic"] == 6.0
+    db.segment_ratings.insert_one.assert_awaited_once_with(
+        {
+            "segment_id": segment_id,
+            "rated_by_actor_id": actor_id,
+            "ratings": DEFAULT_RATINGS,
+            "rated_at": ANY,
+        }
+    )
+    db.segments.update_one.assert_awaited_once_with(
+        {"_id": segment_id},
+        {
+            "$inc": {
+                "ratings_count": 1,
+                "rating_totals.traffic": DEFAULT_RATINGS["traffic"],
+                "rating_totals.steady_gradient": DEFAULT_RATINGS["steady_gradient"],
+                "rating_totals.sketchy_left_turns": DEFAULT_RATINGS["sketchy_left_turns"],
+                "rating_totals.downhills": DEFAULT_RATINGS["downhills"],
+            }
+        },
+    )
+
+    second = app_client.post(
+        f"/api/segments/{segment_id}/ratings",
+        json=DEFAULT_RATINGS,
+        headers=user_auth_headers(),
+    )
+    assert second.status_code == 409
+    assert second.json()["detail"] == "You already rated this segment"
+
+    my_status = app_client.get(f"/api/segments/{segment_id}/my-rating-status", headers=user_auth_headers())
+    assert my_status.status_code == 200
+    assert my_status.json()["has_rated"] is True
+    assert my_status.json()["rating"] == DEFAULT_RATINGS
 
 
 @pytest.mark.integration
@@ -265,6 +370,7 @@ def test_delete_segment_success_and_not_found(monkeypatch, app_client):
     db = SimpleNamespace(
         segments=SimpleNamespace(delete_one=AsyncMock(side_effect=[SimpleNamespace(deleted_count=1), SimpleNamespace(deleted_count=0)])),
         segment_block_reports=SimpleNamespace(delete_many=AsyncMock()),
+        segment_ratings=SimpleNamespace(delete_many=AsyncMock()),
     )
     monkeypatch.setattr(segments_router, "get_db", lambda: db)
 
@@ -272,6 +378,7 @@ def test_delete_segment_success_and_not_found(monkeypatch, app_client):
     assert ok.status_code == 200
     assert ok.json() == {"status": "deleted"}
     db.segment_block_reports.delete_many.assert_awaited_once_with({"segment_id": segment_id})
+    db.segment_ratings.delete_many.assert_awaited_once_with({"segment_id": segment_id})
 
     missing = app_client.delete(f"/api/segments/{segment_id}", headers=admin_auth_headers())
     assert missing.status_code == 404
@@ -326,6 +433,8 @@ def test_admin_quickadd_invalid_url_existing_and_success(monkeypatch, app_client
     assert success.status_code == 201
     assert success.json()["id"] == str(created_id)
     assert db.segments.insert_one.await_count == 1
+    inserted_doc = db.segments.insert_one.await_args.args[0]
+    assert inserted_doc["ratings_count"] == 0
 
 
 @pytest.mark.integration
@@ -380,3 +489,86 @@ def test_admin_segment_state_mutations_and_report_listing(monkeypatch, app_clien
     assert reports.json()["reports"][0]["action"] == "blocked"
     assert reports.json()["reports"][0]["note"] == "Temporary construction"
 
+
+@pytest.mark.integration
+def test_admin_can_list_and_delete_segment_ratings(monkeypatch, app_client):
+    import routers.admin as admin_router
+
+    segment_id = ObjectId()
+    rating_id = ObjectId()
+    db = SimpleNamespace(
+        segments=SimpleNamespace(
+            find_one=AsyncMock(side_effect=[{"_id": segment_id}, {"_id": segment_id}]),
+            update_one=AsyncMock(return_value=SimpleNamespace(matched_count=1)),
+        ),
+        segment_ratings=SimpleNamespace(
+            find=Mock(
+                return_value=FindCursor(
+                    [
+                        {
+                            "_id": rating_id,
+                            "segment_id": segment_id,
+                            "rated_by_actor_id": "actor-1",
+                            "rated_at": "2026-03-05T10:00:00+00:00",
+                            "ratings": DEFAULT_RATINGS,
+                        }
+                    ]
+                )
+            ),
+            find_one=AsyncMock(return_value={"_id": rating_id, "segment_id": segment_id}),
+            delete_one=AsyncMock(return_value=SimpleNamespace(deleted_count=1)),
+            aggregate=Mock(
+                return_value=FindCursor(
+                    [
+                        {
+                            "ratings_count": 2,
+                            "traffic_total": 12,
+                            "steady_gradient_total": 14,
+                            "sketchy_left_turns_total": 10,
+                            "downhills_total": 16,
+                        }
+                    ]
+                )
+            ),
+        ),
+    )
+    monkeypatch.setattr(admin_router, "get_db", lambda: db)
+
+    listed = app_client.get(f"/api/admin/segments/{segment_id}/ratings", headers=admin_auth_headers())
+    assert listed.status_code == 200
+    assert len(listed.json()) == 1
+    assert listed.json()[0]["id"] == str(rating_id)
+    assert listed.json()[0]["rated_by_actor_id"] == "actor-1"
+    assert listed.json()[0]["ratings"] == DEFAULT_RATINGS
+
+    deleted = app_client.delete(f"/api/admin/segments/{segment_id}/ratings/{rating_id}", headers=admin_auth_headers())
+    assert deleted.status_code == 200
+    assert deleted.json()["status"] == "deleted"
+    assert deleted.json()["ratings_count"] == 2
+    assert deleted.json()["average_ratings"] == {
+        "traffic": 6.0,
+        "steady_gradient": 7.0,
+        "sketchy_left_turns": 5.0,
+        "downhills": 8.0,
+    }
+    db.segment_ratings.delete_one.assert_awaited_once_with({"_id": rating_id, "segment_id": segment_id})
+    db.segments.update_one.assert_awaited_once_with(
+        {"_id": segment_id},
+        {
+            "$set": {
+                "ratings_count": 2,
+                "rating_totals": {
+                    "traffic": 12,
+                    "steady_gradient": 14,
+                    "sketchy_left_turns": 10,
+                    "downhills": 16,
+                },
+                "average_ratings": {
+                    "traffic": 6.0,
+                    "steady_gradient": 7.0,
+                    "sketchy_left_turns": 5.0,
+                    "downhills": 8.0,
+                },
+            }
+        },
+    )
