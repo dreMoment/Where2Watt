@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Send, Loader2, LogIn } from "lucide-react";
+import { X, Send, Loader2, LogIn, MapPin } from "lucide-react";
 import { submitSegment, type SubmissionData } from "@/utils/api";
 import { useAuth } from "@/components/AuthContext";
 import { useUiFeedback } from "@/components/ui/UiFeedbackProvider";
@@ -19,6 +19,7 @@ export default function SubmissionForm({ onClose }: Props) {
     });
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
+    const [alreadyExists, setAlreadyExists] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -43,7 +44,9 @@ export default function SubmissionForm({ onClose }: Props) {
             }, 2000);
         } catch (err) {
             console.error(err);
-            if (err instanceof Error) {
+            if (err instanceof Error && err.message === "Segment already exists") {
+                setAlreadyExists(true);
+            } else if (err instanceof Error) {
                 showToast(err.message, { type: "error" });
             } else {
                 showToast("Error submitting segment. Check backend is running.", { type: "error" });
@@ -52,6 +55,32 @@ export default function SubmissionForm({ onClose }: Props) {
             setLoading(false);
         }
     };
+
+    if (alreadyExists) {
+        return (
+            <div className="relative bg-white/90 backdrop-blur-xl p-8 rounded-3xl shadow-2xl w-full max-w-md text-center border border-blue-100/50 transform transition-all animate-in fade-in zoom-in duration-300">
+                <button
+                    onClick={onClose}
+                    className="absolute top-5 right-5 text-neutral-400 hover:text-neutral-900 bg-neutral-100/50 hover:bg-neutral-100 p-2 rounded-full transition-all"
+                >
+                    <X className="w-5 h-5" />
+                </button>
+                <div className="w-20 h-20 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-blue-100">
+                    <MapPin className="w-10 h-10" />
+                </div>
+                <h2 className="text-3xl font-black text-neutral-900 mb-3 tracking-tight">Already Here!</h2>
+                <p className="text-neutral-500 font-medium leading-relaxed">
+                    This segment is already in our database — it may be live on the map or currently under review and appearing soon.
+                </p>
+                <button
+                    onClick={onClose}
+                    className="mt-6 w-full bg-neutral-900 hover:bg-neutral-800 text-white py-3.5 rounded-xl font-bold transition-all shadow-md"
+                >
+                    Got it
+                </button>
+            </div>
+        );
+    }
 
     if (success) {
         return (
