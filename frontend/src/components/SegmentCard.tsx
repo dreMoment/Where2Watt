@@ -127,11 +127,15 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
                     title={segment.blocked ? "Report as unblocked/free" : "Report as blocked"}
                     className={`shrink-0 p-1.5 rounded-lg transition-colors ${
                         hasReportedCurrentState
-                            ? "text-white bg-red-500 hover:bg-red-600"
-                            : "text-neutral-400 hover:text-red-500 hover:bg-red-50"
+                            ? segment.blocked
+                                ? "text-white bg-green-500 hover:bg-green-600"
+                                : "text-white bg-red-500 hover:bg-red-600"
+                            : segment.blocked
+                                ? "text-white bg-green-500 hover:bg-green-600"
+                                : "text-neutral-400 hover:text-red-500 hover:bg-red-50"
                     }`}
                 >
-                    <Flag className={`w-4 h-4 ${hasReportedCurrentState ? "fill-current" : ""}`} />
+                    <Flag className={`w-4 h-4 ${hasReportedCurrentState || segment.blocked ? "fill-current" : ""}`} />
                 </button>
             </div>
 
@@ -161,25 +165,37 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
             )}
 
             {showReportForm && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5 flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
-                    <span className="text-amber-800 font-semibold text-xs">
+                <div className={`rounded-xl px-3.5 py-2.5 flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-200 ${
+                    segment.blocked
+                        ? "bg-green-50 border border-green-200"
+                        : "bg-red-50 border border-red-200"
+                }`}>
+                    <span className={`font-semibold text-xs ${segment.blocked ? "text-green-800" : "text-red-800"}`}>
                         {segment.blocked ? "Report this segment as unblocked" : "Report this segment as blocked"}
                     </span>
                     <textarea
                         value={reportNote}
                         onChange={(e) => setReportNote(e.target.value)}
                         maxLength={REPORT_NOTE_MAX_LENGTH}
-                        className="w-full bg-white border border-amber-300 rounded-lg px-2.5 py-1.5 text-xs text-neutral-700 focus:outline-none focus:ring-1 focus:ring-amber-500 min-h-16 resize-y"
+                        className={`w-full bg-white rounded-lg px-2.5 py-1.5 text-xs text-neutral-700 focus:outline-none focus:ring-1 min-h-16 resize-y ${
+                            segment.blocked
+                                ? "border border-green-300 focus:ring-green-500"
+                                : "border border-red-300 focus:ring-red-500"
+                        }`}
                         placeholder={segment.blocked ? "Optional note for review..." : "Optional note (e.g. expected duration or unusual block)..."}
                     />
-                    <div className="text-[11px] text-amber-800 text-right">
+                    <div className={`text-[11px] text-right ${segment.blocked ? "text-green-700" : "text-red-700"}`}>
                         {reportNote.length}/{REPORT_NOTE_MAX_LENGTH}
                     </div>
                     <div className="flex gap-2">
                         <button
                             onClick={handleReport}
                             disabled={isReporting}
-                            className="flex-1 bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white py-1.5 rounded-lg font-semibold text-xs transition-colors"
+                            className={`flex-1 text-white py-1.5 rounded-lg font-semibold text-xs transition-colors ${
+                                segment.blocked
+                                    ? "bg-green-500 hover:bg-green-600 disabled:bg-green-300"
+                                    : "bg-red-500 hover:bg-red-600 disabled:bg-red-300"
+                            }`}
                         >
                             {isReporting ? "Reporting..." : "Confirm Report"}
                         </button>
