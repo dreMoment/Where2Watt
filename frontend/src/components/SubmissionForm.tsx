@@ -18,15 +18,57 @@ const RATING_FIELDS: Array<{ key: keyof SegmentRatingValues; label: string }> = 
     { key: "downhills", label: "Downhills" },
 ];
 
-function StarPreview({ value }: { value: number }) {
-    const widthPercent = Math.max(0, Math.min(100, (value / 10) * 100));
+function getStarFillPercent(valueOutOf10: number, starNumber: number): number {
+    const fullValue = starNumber * 2;
+    if (valueOutOf10 >= fullValue) return 100;
+    if (valueOutOf10 === fullValue - 1) return 50;
+    return 0;
+}
+
+interface RatingStarsInputProps {
+    fieldKey: keyof SegmentRatingValues;
+    label: string;
+    valueOutOf10: number;
+    onChange: (valueOutOf10: number) => void;
+}
+
+function RatingStarsInput({ fieldKey, label, valueOutOf10, onChange }: RatingStarsInputProps) {
     return (
-        <span className="relative inline-block text-lg leading-none text-neutral-200" aria-hidden="true">
-            <span>★★★★★</span>
-            <span className="absolute left-0 top-0 overflow-hidden text-amber-500" style={{ width: `${widthPercent}%` }}>
-                ★★★★★
-            </span>
-        </span>
+        <div className="flex flex-col gap-2">
+            <div className="text-sm">
+                <span id={`rating-${fieldKey}-label`} className="font-semibold text-neutral-700">
+                    {label}
+                </span>
+            </div>
+            <div className="flex items-center gap-1" role="group" aria-labelledby={`rating-${fieldKey}-label`}>
+                {[1, 2, 3, 4, 5].map((starNumber) => {
+                    const fullValue = starNumber * 2;
+                    const fillPercent = getStarFillPercent(valueOutOf10, starNumber);
+                    return (
+                        <button
+                            key={`${fieldKey}-${starNumber}`}
+                            type="button"
+                            aria-label={`${label} star ${starNumber}`}
+                            onClick={() => {
+                                const nextValue = valueOutOf10 === fullValue ? fullValue - 1 : fullValue;
+                                onChange(nextValue);
+                            }}
+                            className="rounded p-0.5 transition-colors hover:bg-amber-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#fc4c02]"
+                        >
+                            <span className="relative inline-block text-xl leading-none text-neutral-200" aria-hidden="true">
+                                <span>★</span>
+                                <span
+                                    className="absolute left-0 top-0 overflow-hidden text-amber-500"
+                                    style={{ width: `${fillPercent}%` }}
+                                >
+                                    ★
+                                </span>
+                            </span>
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
     );
 }
 
@@ -84,7 +126,7 @@ export default function SubmissionForm({ onClose }: Props) {
 
     if (alreadyExists) {
         return (
-            <div className="relative bg-white/90 backdrop-blur-xl p-8 rounded-3xl shadow-2xl w-full max-w-md text-center border border-blue-100/50 transform transition-all animate-in fade-in zoom-in duration-300">
+            <div className="contribution-popup relative bg-white/90 backdrop-blur-xl p-8 rounded-3xl shadow-2xl text-center border border-blue-100/50 transform transition-all animate-in fade-in zoom-in duration-300">
                 <button
                     onClick={onClose}
                     className="absolute top-5 right-5 text-neutral-400 hover:text-neutral-900 bg-neutral-100/50 hover:bg-neutral-100 p-2 rounded-full transition-all"
@@ -110,7 +152,7 @@ export default function SubmissionForm({ onClose }: Props) {
 
     if (success) {
         return (
-            <div className="bg-white/90 backdrop-blur-xl p-8 rounded-3xl shadow-2xl w-full max-w-md text-center border border-emerald-100/50 transform transition-all animate-in fade-in zoom-in duration-300">
+            <div className="contribution-popup bg-white/90 backdrop-blur-xl p-8 rounded-3xl shadow-2xl text-center border border-emerald-100/50 transform transition-all animate-in fade-in zoom-in duration-300">
                 <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-emerald-100 relative">
                     <div className="absolute inset-0 rounded-full bg-emerald-400/20 animate-ping"></div>
                     <Send className="w-10 h-10 relative z-10" />
@@ -125,7 +167,7 @@ export default function SubmissionForm({ onClose }: Props) {
 
     if (!isLoggedIn) {
         return (
-            <div className="bg-white/95 backdrop-blur-2xl p-8 rounded-3xl shadow-2xl w-full max-w-md relative border border-white/50 transform transition-all animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="contribution-popup bg-white/95 backdrop-blur-2xl p-8 rounded-3xl shadow-2xl relative border border-white/50 transform transition-all animate-in fade-in slide-in-from-bottom-4 duration-300">
                 <button
                     onClick={onClose}
                     className="absolute top-5 right-5 text-neutral-400 hover:text-neutral-900 bg-neutral-100/50 hover:bg-neutral-100 p-2 rounded-full transition-all"
@@ -154,7 +196,7 @@ export default function SubmissionForm({ onClose }: Props) {
     }
 
     return (
-        <div className="bg-white/95 backdrop-blur-2xl p-8 rounded-3xl shadow-2xl w-full max-w-md relative border border-white/50 transform transition-all animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="contribution-popup bg-white/95 backdrop-blur-2xl p-8 rounded-3xl shadow-2xl relative border border-white/50 transform transition-all animate-in fade-in slide-in-from-bottom-4 duration-300 flex flex-col">
             <button
                 onClick={onClose}
                 className="absolute top-5 right-5 text-neutral-400 hover:text-neutral-900 bg-neutral-100/50 hover:bg-neutral-100 p-2 rounded-full transition-all"
@@ -169,95 +211,71 @@ export default function SubmissionForm({ onClose }: Props) {
                 </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-                <div className="group">
-                    <label htmlFor="strava_url" className="block text-xs font-bold text-neutral-400 uppercase tracking-widest mb-2 group-focus-within:text-neutral-900 transition-colors">
-                        Strava Segment URL
-                    </label>
-                    <input
-                        id="strava_url"
-                        type="url"
-                        required
-                        placeholder="https://www.strava.com/segments/12345"
-                        className="w-full px-4 py-3.5 rounded-xl border border-neutral-200 bg-neutral-50/50 focus:bg-white focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900 outline-none transition-all text-neutral-900 font-medium placeholder:text-neutral-400 placeholder:font-normal shadow-sm"
-                        value={formData.strava_url}
-                        onChange={(e) =>
-                            setFormData({ ...formData, strava_url: e.target.value })
-                        }
-                    />
-                </div>
-
-                <div className="rounded-xl border border-neutral-200 bg-neutral-50/60 p-4 flex flex-col gap-4">
-                    <div>
-                        <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Required Ratings</h3>
-                        <p className="text-xs text-neutral-500 mt-1">Set each category from 0.5 to 5.0 stars.</p>
+            <form onSubmit={handleSubmit} className="flex flex-1 flex-col min-h-0">
+                <div className="contribution-popup-form flex flex-1 flex-col gap-5 overflow-y-auto pr-1 min-h-0">
+                    <div className="group">
+                        <label htmlFor="strava_url" className="block text-xs font-bold text-neutral-400 uppercase tracking-widest mb-2 group-focus-within:text-neutral-900 transition-colors">
+                            Strava Segment URL
+                        </label>
+                        <input
+                            id="strava_url"
+                            type="url"
+                            required
+                            placeholder="https://www.strava.com/segments/12345"
+                            className="w-full px-4 py-3.5 rounded-xl border border-neutral-200 bg-neutral-50/50 focus:bg-white focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900 outline-none transition-all text-neutral-900 font-medium placeholder:text-neutral-400 placeholder:font-normal shadow-sm"
+                            value={formData.strava_url}
+                            onChange={(e) =>
+                                setFormData({ ...formData, strava_url: e.target.value })
+                            }
+                        />
                     </div>
-                    {RATING_FIELDS.map((field) => {
-                        const value = formData.ratings[field.key];
-                        return (
-                            <div key={field.key} className="flex flex-col gap-2">
-                                <div className="flex items-center justify-between gap-3">
-                                    <label htmlFor={`rating-${field.key}`} className="text-sm font-semibold text-neutral-700">
-                                        {field.label}
-                                    </label>
-                                    <div className="flex items-center gap-2">
-                                        <StarPreview value={value} />
-                                        <span className="text-xs font-semibold text-neutral-600 min-w-[46px] text-right">{(value / 2).toFixed(1)}/5</span>
-                                    </div>
-                                </div>
-                                <input
-                                    id={`rating-${field.key}`}
-                                    type="range"
-                                    min={1}
-                                    max={10}
-                                    step={1}
-                                    value={value}
-                                    onChange={(e) =>
-                                        setFormData({
-                                            ...formData,
-                                            ratings: {
-                                                ...formData.ratings,
-                                                [field.key]: Number(e.target.value),
-                                            },
-                                        })
-                                    }
-                                    className="accent-[#fc4c02]"
-                                />
-                            </div>
-                        );
-                    })}
+
+                    <div className="rounded-xl border border-neutral-200 bg-neutral-50/60 p-4 flex flex-col gap-4">
+                        <div>
+                            <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Required Ratings</h3>
+                            <p className="text-sm text-neutral-600 mt-1">Click a star once for full, click it again for half.</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            {RATING_FIELDS.map((field) => {
+                                const value = formData.ratings[field.key];
+                                return (
+                                    <RatingStarsInput
+                                        key={field.key}
+                                        fieldKey={field.key}
+                                        label={field.label}
+                                        valueOutOf10={value}
+                                        onChange={(nextValue) =>
+                                            setFormData({
+                                                ...formData,
+                                                ratings: {
+                                                    ...formData.ratings,
+                                                    [field.key]: nextValue,
+                                                },
+                                            })
+                                        }
+                                    />
+                                );
+                            })}
+                        </div>
+                    </div>
                 </div>
 
-                <div className="group">
-                    <label htmlFor="safety_notes" className="block text-xs font-bold text-neutral-400 uppercase tracking-widest mb-2 group-focus-within:text-neutral-900 transition-colors">
-                        Safety Notes
-                    </label>
-                    <textarea
-                        id="safety_notes"
-                        rows={3}
-                        placeholder="Watch out for the blind corner at the top..."
-                        className="w-full px-4 py-3.5 rounded-xl border border-neutral-200 bg-neutral-50/50 focus:bg-white focus:ring-2 focus:ring-neutral-900 outline-none resize-none text-neutral-900 font-medium placeholder:text-neutral-400 placeholder:font-normal shadow-sm"
-                        value={formData.safety_notes}
-                        onChange={(e) =>
-                            setFormData({ ...formData, safety_notes: e.target.value })
-                        }
-                    />
+                <div className="mt-4 shrink-0 border-t border-neutral-200/90 pt-4 bg-white/95">
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full bg-neutral-900 hover:bg-neutral-800 text-white py-4 rounded-xl font-bold transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:hover:translate-y-0 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+                    >
+                        {loading ? (
+                            <>
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                                Submitting...
+                            </>
+                        ) : (
+                            "Submit Segment"
+                        )}
+                    </button>
                 </div>
-
-                <button
-                    type="submit"
-                    disabled={loading}
-                    className="mt-2 w-full bg-neutral-900 hover:bg-neutral-800 text-white py-4 rounded-xl font-bold transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:hover:translate-y-0 disabled:cursor-not-allowed flex justify-center items-center gap-2"
-                >
-                    {loading ? (
-                        <>
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                            Submitting...
-                        </>
-                    ) : (
-                        "Submit Segment"
-                    )}
-                </button>
             </form>
         </div>
     );

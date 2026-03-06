@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { Plus, Compass, LogIn, LogOut, PanelLeft, X, Info } from "lucide-react";
+import { Plus, Compass, LogIn, LogOut, PanelLeft, X } from "lucide-react";
 import type { Segment, SegmentAverageRatings } from "@/types";
 import { useAuth } from "@/components/AuthContext";
 import SubmissionForm from "@/components/SubmissionForm";
@@ -325,52 +325,57 @@ export default function Home() {
           )}
 
           {showInfoScreen && (
-            <div className="absolute inset-0 z-[9998] bg-neutral-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="absolute inset-0 z-[9998] bg-neutral-900/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-3 sm:p-4">
               <div
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="landing-info-title"
-                className="w-full max-w-xl rounded-2xl border border-neutral-200 bg-white shadow-2xl p-6 md:p-7"
+                className="w-full max-w-2xl rounded-2xl sm:rounded-3xl border border-neutral-200/90 bg-white shadow-2xl p-4 sm:p-6 md:p-8 max-h-[calc(100dvh-1.5rem)] sm:max-h-[90dvh] overflow-y-auto"
               >
-                <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-xl bg-blue-100 text-blue-700">
-                    <Info className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1">
-                    <h2 id="landing-info-title" className="text-xl font-bold text-neutral-900">
-                      Welcome to Where 2 Watt
+                <div className="flex items-start justify-between gap-3 sm:gap-4">
+                  <div className="min-w-0 max-w-[38rem]">
+                    <h2 id="landing-info-title" className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900">
+                      Welcome to Where2Watt
                     </h2>
-                    <p className="mt-2 text-sm text-neutral-600 leading-relaxed">
-                      This is a simple tool to help you find and share safe and suitable road segments for planning your outdoor training.
-                    </p>
-                    <p className="mt-2 text-sm text-neutral-600 leading-relaxed">
-                      You can adjust rider profile values to personalize your estimated segment completion times.
-                    </p>
-                    <p className="mt-2 text-sm text-neutral-600 leading-relaxed">
-                      You can apply a power and duration filter to see what intervals are best suited for your desired duration.
-                      apply power and duration filters, and submit new segments for the community.
-                    </p>
-                    <p className="mt-2 text-sm text-neutral-600 leading-relaxed">
-                      Login with Strava if you want to contribute to the collection or rate segments you have ridden.
+                    <p className="mt-2 sm:mt-3 text-sm md:text-base text-neutral-600 leading-relaxed">
+                      This tool helps you find and share safe road segments for your outdoor training.
                     </p>
                   </div>
+                  <Image
+                    src="/logo.svg"
+                    alt="Where2Watt logo"
+                    width={56}
+                    height={56}
+                    className="h-10 w-10 sm:h-12 sm:w-12 md:h-14 md:w-14 shrink-0"
+                  />
                 </div>
 
-                <label className="mt-6 flex items-center gap-3 text-sm text-neutral-700 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={hideInfoScreenNextTime}
-                    onChange={(e) => setHideInfoScreenNextTime(e.target.checked)}
-                    className="w-4 h-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-500"
-                  />
-                  Do not show this info screen again
-                </label>
+                <div className="mt-5 sm:mt-6 space-y-2.5 sm:space-y-3 text-sm md:text-base text-neutral-600 leading-relaxed">
+                  <p>
+                    Adjust your rider profile values to personalize estimated segment completion times.
+                  </p>
+                  <p>
+                    Apply power and duration filters to find segments that best match your target duration.
+                  </p>
+                  <p>
+                    Sign in with Strava if you want to contribute new segments or rate routes you have ridden.
+                  </p>
+                </div>
 
-                <div className="mt-6 flex justify-end">
+                <div className="mt-6 sm:mt-8 flex flex-col-reverse gap-3 sm:gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <label className="flex items-center gap-3 text-sm text-neutral-700 cursor-pointer select-none leading-tight">
+                    <input
+                      type="checkbox"
+                      checked={hideInfoScreenNextTime}
+                      onChange={(e) => setHideInfoScreenNextTime(e.target.checked)}
+                      className="w-4 h-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-500"
+                    />
+                    Do not show this info screen again
+                  </label>
                   <button
                     type="button"
                     onClick={closeInfoScreen}
-                    className="rounded-xl bg-neutral-900 hover:bg-neutral-800 px-4 py-2 text-sm font-semibold text-white transition-colors"
+                    className="w-full sm:w-auto self-stretch sm:self-end rounded-xl bg-neutral-900 hover:bg-neutral-800 px-5 py-3 sm:py-2.5 text-sm font-semibold text-white transition-colors"
                   >
                     Continue
                   </button>

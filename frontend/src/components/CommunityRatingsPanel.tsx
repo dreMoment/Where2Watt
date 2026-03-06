@@ -23,21 +23,29 @@ const DEFAULT_RATING_INPUT: SegmentRatingValues = {
     downhills: 6,
 };
 
-function StarPreview({ valueOutOf10 }: { valueOutOf10: number }) {
-    const widthPercent = Math.max(0, Math.min(100, (valueOutOf10 / 10) * 100));
+function roundToNearestHalfStar(valueOutOf10: number): number {
+    const clamped = Math.max(0, Math.min(10, valueOutOf10));
+    const starsOutOf5 = clamped / 2;
+    return Math.round(starsOutOf5 * 2) / 2;
+}
+
+function StarPreview({ valueOutOf10, label, fillTestId }: { valueOutOf10: number; label: string; fillTestId?: string }) {
+    const roundedStarsOutOf5 = roundToNearestHalfStar(valueOutOf10);
+    const widthPercent = (roundedStarsOutOf5 / 5) * 100;
     return (
-        <span className="relative inline-block text-sm leading-none text-neutral-200" aria-hidden="true">
-            <span>★★★★★</span>
-            <span className="absolute left-0 top-0 overflow-hidden text-amber-500" style={{ width: `${widthPercent}%` }}>
-                ★★★★★
+        <span aria-label={`${label} average stars`}>
+            <span className="relative inline-block text-sm leading-none text-neutral-200" aria-hidden="true">
+                <span>★★★★★</span>
+                <span
+                    className="absolute left-0 top-0 overflow-hidden text-amber-500"
+                    style={{ width: `${widthPercent}%` }}
+                    data-testid={fillTestId}
+                >
+                    ★★★★★
+                </span>
             </span>
         </span>
     );
-}
-
-function formatOutOfFive(valueOutOf10: number | null | undefined): string {
-    if (typeof valueOutOf10 !== "number") return "-";
-    return `${(valueOutOf10 / 2).toFixed(1)}/5`;
 }
 
 function getStarFillPercent(valueOutOf10: number, starNumber: number): number {
@@ -56,12 +64,11 @@ interface RatingStarsInputProps {
 
 function RatingStarsInput({ fieldKey, label, valueOutOf10, onChange }: RatingStarsInputProps) {
     return (
-        <div className="flex flex-col gap-1">
-            <div className="flex items-center justify-between gap-2 text-[11px]">
-                <span id={`segment-rating-${fieldKey}-label`} className="font-semibold text-neutral-600">
+        <div className="flex flex-col gap-2">
+            <div className="text-sm">
+                <span id={`segment-rating-${fieldKey}-label`} className="font-semibold text-neutral-700">
                     {label}
                 </span>
-                <span className="font-semibold text-neutral-700">{(valueOutOf10 / 2).toFixed(1)}/5</span>
             </div>
             <div className="flex items-center gap-1" role="group" aria-labelledby={`segment-rating-${fieldKey}-label`}>
                 {[1, 2, 3, 4, 5].map((starNumber) => {
@@ -171,24 +178,26 @@ export default function CommunityRatingsPanel({ segment, onSegmentRated }: Commu
                     <span className="text-xs font-bold text-neutral-600 uppercase tracking-wide">Scores</span>
                     <span className="text-[11px] font-semibold text-neutral-500">{ratingsCount} {ratingsCount === 1 ? "rating" : "ratings"}</span>
                 </div>
-                {ratingsCount > 0 && averageRatings ? (
-                    <div className="flex flex-col gap-2">
+                {!showRatingForm && ratingsCount > 0 && averageRatings ? (
+                    <div className="grid grid-cols-2 gap-3">
                         {RATING_FIELDS.map((field) => {
                             const value = averageRatings[field.key];
                             return (
-                                <div key={field.key} className="flex items-center justify-between gap-2 text-xs">
-                                    <span className="text-neutral-600 font-medium">{field.label}</span>
-                                    <div className="flex items-center gap-2">
-                                        <StarPreview valueOutOf10={typeof value === "number" ? value : 0} />
-                                        <span className="text-neutral-700 font-semibold min-w-[52px] text-right">{formatOutOfFive(value)}</span>
-                                    </div>
+                                <div key={field.key} className="rounded-lg border border-neutral-200 bg-white/80 px-2.5 py-2 flex flex-col gap-1.5">
+                                    <span className="text-[11px] font-semibold text-neutral-600">{field.label}</span>
+                                    <StarPreview
+                                        valueOutOf10={typeof value === "number" ? value : 0}
+                                        label={field.label}
+                                        fillTestId={`average-stars-fill-${field.key}`}
+                                    />
                                 </div>
                             );
                         })}
                     </div>
-                ) : (
+                ) : !showRatingForm ? (
                     <p className="text-xs text-neutral-500">No ratings yet. Be the first to rate this segment.</p>
-                )}
+                ) : null
+                }
 
                 <button
                     onClick={() => {
@@ -234,20 +243,22 @@ export default function CommunityRatingsPanel({ segment, onSegmentRated }: Commu
 
                 {showRatingForm && !hasRated && (
                     <div className="mt-1 rounded-lg border border-neutral-200 bg-white p-2.5 flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
-                        {RATING_FIELDS.map((field) => (
-                            <RatingStarsInput
-                                key={field.key}
-                                fieldKey={field.key}
-                                label={field.label}
-                                valueOutOf10={ratingDraft[field.key]}
-                                onChange={(nextValue) =>
-                                    setRatingDraft((prev) => ({
-                                        ...prev,
-                                        [field.key]: nextValue,
-                                    }))
-                                }
-                            />
-                        ))}
+                        <div className="grid grid-cols-2 gap-3">
+                            {RATING_FIELDS.map((field) => (
+                                <RatingStarsInput
+                                    key={field.key}
+                                    fieldKey={field.key}
+                                    label={field.label}
+                                    valueOutOf10={ratingDraft[field.key]}
+                                    onChange={(nextValue) =>
+                                        setRatingDraft((prev) => ({
+                                            ...prev,
+                                            [field.key]: nextValue,
+                                        }))
+                                    }
+                                />
+                            ))}
+                        </div>
                         <p className="text-[10px] text-neutral-500">Click a star once for full, click it again for half.</p>
                         <div className="flex gap-2 mt-1">
                             <button

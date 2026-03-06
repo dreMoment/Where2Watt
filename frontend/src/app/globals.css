@@ -33,3 +33,33 @@ body {
 .blocked-popup .maplibregl-popup-tip {
   border-top-color: #dc2626;
 }
+
+.contribution-popup {
+  width: min(92vw, 28rem);
+  max-height: min(92dvh, 50rem);
+}
+
+.contribution-popup-form {
+  scrollbar-gutter: stable;
+}
+
+@media (min-width: 1024px) {
+  .contribution-popup {
+    width: min(80vw, 32rem);
+    max-height: min(88dvh, 42rem);
+  }
+}
+
+@media (min-width: 1024px) and (min-aspect-ratio: 16/10) {
+  .contribution-popup {
+    width: min(74vw, 32rem);
+    max-height: min(84dvh, 40rem);
+  }
+}
+
+@media (min-width: 1024px) and (max-aspect-ratio: 4/3) {
+  .contribution-popup {
+    width: min(82vw, 32rem);
+    max-height: min(90dvh, 44rem);
+  }
+}

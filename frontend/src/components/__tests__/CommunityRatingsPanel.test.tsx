@@ -88,4 +88,50 @@ describe("CommunityRatingsPanel", () => {
             });
         });
     });
+
+    it("shows community average stars rounded to the nearest half when not rating", () => {
+        const segmentWithAverages: import("@/types").Segment = {
+            ...mockSegment,
+            ratings_count: 8,
+            average_ratings: {
+                traffic: 7.2,
+                steady_gradient: 8.1,
+                sketchy_left_turns: 6.9,
+                downhills: 5.4,
+            },
+        };
+
+        render(<CommunityRatingsPanel segment={segmentWithAverages} />);
+
+        expect(screen.getByLabelText("Traffic average stars")).toBeInTheDocument();
+        expect(screen.queryByText("7.2/10")).not.toBeInTheDocument();
+
+        const starsFill = screen.getByTestId("average-stars-fill-traffic");
+        expect(starsFill).toBeTruthy();
+        expect((starsFill as HTMLSpanElement).style.width).toBe("70%");
+    });
+
+    it("hides community average cards while rating form is open", () => {
+        authState.isLoggedIn = true;
+        authState.token = "mock-token";
+
+        const segmentWithAverages: import("@/types").Segment = {
+            ...mockSegment,
+            ratings_count: 4,
+            average_ratings: {
+                traffic: 8,
+                steady_gradient: 8,
+                sketchy_left_turns: 8,
+                downhills: 8,
+            },
+        };
+
+        render(<CommunityRatingsPanel segment={segmentWithAverages} />);
+        expect(screen.getByLabelText("Traffic average stars")).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("button", { name: /Rate this segment/i }));
+
+        expect(screen.queryByLabelText("Traffic average stars")).not.toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Traffic star 1" })).toBeInTheDocument();
+    });
 });
