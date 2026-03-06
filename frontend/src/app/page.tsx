@@ -82,14 +82,13 @@ export default function Home() {
     });
   }, [segments, isFiltered, filterPowerStr, filterTimeStr, weightStr, bikeWeightStr]);
 
-  const handleSegmentBlocked = useCallback((segmentId: string, report: { blocked: boolean; blockedReportsCount: number }) => {
+  const handleSegmentBlocked = useCallback((segmentId: string, report: { blocked: boolean }) => {
     setSegments((prev) =>
       prev.map((s) =>
         s.id === segmentId
           ? {
             ...s,
             blocked: report.blocked,
-            blocked_report_count: report.blockedReportsCount
           }
           : s
       )

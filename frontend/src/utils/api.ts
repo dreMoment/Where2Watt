@@ -124,7 +124,6 @@ export interface ReportBlockedResponse {
     status: "reported" | "already_reported";
     action: "blocked" | "unblocked";
     blocked: boolean;
-    blocked_reports_count: number;
 }
 
 export interface MySegmentReportStatusResponse {

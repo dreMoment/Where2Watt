@@ -150,7 +150,7 @@ export function useAdminSegments({ token, onLogout }: UseAdminSegmentsParams) {
     const query = searchQuery.trim().toLowerCase();
 
     return currentSegments.filter((segment) => {
-      const reportCount = segment.blocked_report_count ?? segment.reported_by_actor_ids?.length ?? 0;
+      const reportCount = segment.reported_by_actor_ids?.length ?? 0;
 
       if (approvalFilter !== "all") {
         const isApproved = !!segment.approved;
@@ -198,7 +198,7 @@ export function useAdminSegments({ token, onLogout }: UseAdminSegmentsParams) {
     const approved = currentSegments.filter((s) => s.approved).length;
     const pending = currentSegments.filter((s) => !s.approved).length;
     const blocked = currentSegments.filter((s) => s.blocked).length;
-    const reported = currentSegments.filter((s) => (s.blocked_report_count ?? s.reported_by_actor_ids?.length ?? 0) > 0).length;
+    const reported = currentSegments.filter((s) => (s.reported_by_actor_ids?.length ?? 0) > 0).length;
     return { total, approved, pending, blocked, reported };
   }, [currentSegments]);
 
@@ -239,7 +239,7 @@ export function useAdminSegments({ token, onLogout }: UseAdminSegmentsParams) {
         await blockSegment(id, token);
         const updateSegment = (s: Segment) =>
           s.id === id
-            ? { ...s, blocked: true, blocked_report_count: 0, reported_by_actor_ids: [], reported_by_users: [], block_reports: [] }
+            ? { ...s, blocked: true, reported_by_actor_ids: [], reported_by_users: [], block_reports: [] }
             : s;
 
         setPendingSegments((prev) => prev.map(updateSegment));
@@ -257,7 +257,7 @@ export function useAdminSegments({ token, onLogout }: UseAdminSegmentsParams) {
         await unblockSegment(id, token);
         const updateSegment = (s: Segment) =>
           s.id === id
-            ? { ...s, blocked: false, blocked_report_count: 0, reported_by_actor_ids: [], reported_by_users: [], block_reports: [] }
+            ? { ...s, blocked: false, reported_by_actor_ids: [], reported_by_users: [], block_reports: [] }
             : s;
 
         setPendingSegments((prev) => prev.map(updateSegment));

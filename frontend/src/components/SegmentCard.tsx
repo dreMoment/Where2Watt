@@ -13,7 +13,7 @@ interface Props {
     riderWeight?: string;
     bikeWeight?: string;
     clickedCoordinate?: [number, number] | null;
-    onSegmentBlocked?: (segmentId: string, report: { blocked: boolean; blockedReportsCount: number }) => void;
+    onSegmentBlocked?: (segmentId: string, report: { blocked: boolean }) => void;
 }
 
 const REPORT_NOTE_MAX_LENGTH = 500;
@@ -82,7 +82,6 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
                 : await reportSegmentBlocked(segment.id, token!, note);
             onSegmentBlocked?.(segment.id, {
                 blocked: report.blocked,
-                blockedReportsCount: report.blocked_reports_count,
             });
             setHasReportedCurrentState(true);
             setShowReportForm(false);

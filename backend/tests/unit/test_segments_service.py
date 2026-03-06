@@ -37,9 +37,8 @@ def test_serialize_segment_maps_id_and_preserves_fields():
     obj_id = ObjectId()
     segment = {"_id": obj_id, "name": "Test Segment", "approved": True}
 
-    result = serialize_segment(segment, blocked_report_count=2)
+    result = serialize_segment(segment)
 
     assert result["id"] == str(obj_id)
     assert "_id" not in result
     assert result["name"] == "Test Segment"
-    assert result["blocked_report_count"] == 2

@@ -130,14 +130,12 @@ export default function SegmentsTable({
             <th className="p-5">Strava ID</th>
             <th className="p-5">Submitted By</th>
             <th className="p-5">Reported By</th>
-            <th className="p-5">Reports</th>
             <th className="p-5">Created</th>
             <th className="p-5 pr-6 text-right">Actions</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-800">
           {filteredSegments.map((segment) => {
-            const reportCount = segment.blocked_report_count ?? segment.reported_by_actor_ids?.length ?? 0;
             const reportQueueEntries = segment.block_reports || [];
             const reportedUsers = segment.reported_by_users || [];
             const reporterEntries =
@@ -236,7 +234,6 @@ export default function SegmentsTable({
                     )
                   )}
                 </td>
-                <td className="p-5 text-sm text-blue-300 font-semibold">{reportCount}</td>
                 <td className="p-5 text-sm text-gray-400">
                   <div>{formatDate(segment.created_at)}</div>
                   <div className="text-xs text-gray-500">{timeAgo(segment.created_at)}</div>

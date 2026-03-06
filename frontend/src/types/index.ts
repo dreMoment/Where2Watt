@@ -26,7 +26,6 @@ export type Segment = {
   created_at?: string;
   submitted_by_actor_id?: string;
   blocked?: boolean;
-  blocked_report_count?: number;
   reported_by_actor_ids?: string[];
   submitted_by_user?: UserSummary | null;
   reported_by_users?: UserSummary[];

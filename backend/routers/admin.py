@@ -9,7 +9,6 @@ from schemas import QuickAddSchema, SegmentResponseSchema
 from services.segments import (
     enrich_admin_segment_users,
     extract_strava_id,
-    get_block_report_counts,
     now_iso,
     parse_object_id,
     serialize_segment,
@@ -30,10 +29,9 @@ async def verify_admin_password(request: Request, is_admin: bool = Depends(verif
 async def list_unapproved_segments(request: Request, is_admin: bool = Depends(verify_admin)):
     db = get_db()
     segments = await db.segments.find({"approved": False}).sort("created_at", -1).to_list(100)
-    report_counts = await get_block_report_counts(db, [segment["_id"] for segment in segments])
     await enrich_admin_segment_users(db, segments)
     for segment in segments:
-        serialize_segment(segment, report_counts.get(str(segment["_id"]), 0))
+        serialize_segment(segment)
     return segments
 
 
@@ -42,10 +40,9 @@ async def list_unapproved_segments(request: Request, is_admin: bool = Depends(ve
 async def list_all_segments(request: Request, is_admin: bool = Depends(verify_admin)):
     db = get_db()
     segments = await db.segments.find().sort("created_at", -1).to_list(500)
-    report_counts = await get_block_report_counts(db, [segment["_id"] for segment in segments])
     await enrich_admin_segment_users(db, segments)
     for segment in segments:
-        serialize_segment(segment, report_counts.get(str(segment["_id"]), 0))
+        serialize_segment(segment)
     return segments
 
 

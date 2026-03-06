@@ -39,7 +39,6 @@ class SegmentAdminReportSchema(BaseModel):
 class SegmentResponseSchema(SegmentSchema):
     id: str
     submitted_by_actor_id: str | None = None
-    blocked_report_count: int | None = 0
     reported_by_actor_ids: list[str] = Field(default_factory=list)
     submitted_by_user: UserSummarySchema | None = None
     reported_by_users: list[UserSummarySchema] = Field(default_factory=list)

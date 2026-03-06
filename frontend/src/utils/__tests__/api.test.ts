@@ -43,7 +43,7 @@ describe("api utils", () => {
   });
 
   it("reportSegmentBlocked forwards optional note", async () => {
-    (request as jest.Mock).mockResolvedValue({ status: "reported", action: "blocked", blocked: false, blocked_reports_count: 1 });
+    (request as jest.Mock).mockResolvedValue({ status: "reported", action: "blocked", blocked: false });
     await reportSegmentBlocked("seg-1", "token-1", "Roadworks");
     expect(request).toHaveBeenCalledWith(
       "/segments/seg-1/report-blocked",
@@ -55,7 +55,7 @@ describe("api utils", () => {
   });
 
   it("reportSegmentUnblocked forwards optional note", async () => {
-    (request as jest.Mock).mockResolvedValue({ status: "reported", action: "unblocked", blocked: true, blocked_reports_count: 2 });
+    (request as jest.Mock).mockResolvedValue({ status: "reported", action: "unblocked", blocked: true });
     await reportSegmentUnblocked("seg-1", "token-1", "Looks open now");
     expect(request).toHaveBeenCalledWith(
       "/segments/seg-1/report-unblocked",

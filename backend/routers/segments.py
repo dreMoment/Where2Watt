@@ -9,7 +9,6 @@ from rate_limiter import limiter
 from schemas import SegmentReportSchema, SegmentResponseSchema, SegmentSchema
 from services.segments import (
     extract_strava_id,
-    get_block_report_counts,
     now_iso,
     parse_object_id,
     serialize_segment,
@@ -60,9 +59,8 @@ async def create_segment(request: Request, segment: SegmentSchema, identity: Act
 async def list_segments(request: Request):
     db = get_db()
     segments = await db.segments.find({"$or": [{"approved": True}, {"approved": {"$exists": False}}]}).to_list(100)
-    report_counts = await get_block_report_counts(db, [segment["_id"] for segment in segments])
     for segment in segments:
-        serialize_segment(segment, report_counts.get(str(segment["_id"]), 0))
+        serialize_segment(segment)
     return segments
 
 
@@ -95,31 +93,25 @@ async def report_segment_blocked(
         {"segment_id": obj_id, "reported_by_actor_id": identity.actor_id, "action": "blocked"}
     )
     if existing_report:
-        reports_count = await db.segment_block_reports.count_documents({"segment_id": obj_id})
         return {
             "status": "already_reported",
             "action": "blocked",
             "blocked": bool(segment.get("blocked", False)),
-            "blocked_reports_count": reports_count,
         }
 
     try:
         await db.segment_block_reports.insert_one(report_doc)
     except DuplicateKeyError:
-        reports_count = await db.segment_block_reports.count_documents({"segment_id": obj_id})
         return {
             "status": "already_reported",
             "action": "blocked",
             "blocked": bool(segment.get("blocked", False)),
-            "blocked_reports_count": reports_count,
         }
 
-    reports_count = await db.segment_block_reports.count_documents({"segment_id": obj_id})
     return {
         "status": "reported",
         "action": "blocked",
         "blocked": bool(segment.get("blocked", False)),
-        "blocked_reports_count": reports_count,
     }
 
 
@@ -152,31 +144,25 @@ async def report_segment_unblocked(
         {"segment_id": obj_id, "reported_by_actor_id": identity.actor_id, "action": "unblocked"}
     )
     if existing_report:
-        reports_count = await db.segment_block_reports.count_documents({"segment_id": obj_id})
         return {
             "status": "already_reported",
             "action": "unblocked",
             "blocked": bool(segment.get("blocked", False)),
-            "blocked_reports_count": reports_count,
         }
 
     try:
         await db.segment_block_reports.insert_one(report_doc)
     except DuplicateKeyError:
-        reports_count = await db.segment_block_reports.count_documents({"segment_id": obj_id})
         return {
             "status": "already_reported",
             "action": "unblocked",
             "blocked": bool(segment.get("blocked", False)),
-            "blocked_reports_count": reports_count,
         }
 
-    reports_count = await db.segment_block_reports.count_documents({"segment_id": obj_id})
     return {
         "status": "reported",
         "action": "unblocked",
         "blocked": bool(segment.get("blocked", False)),
-        "blocked_reports_count": reports_count,
     }
 
 

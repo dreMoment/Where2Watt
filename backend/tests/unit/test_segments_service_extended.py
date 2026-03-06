@@ -4,15 +4,7 @@ from types import SimpleNamespace
 import pytest
 from bson import ObjectId
 
-from services.segments import enrich_admin_segment_users, get_block_report_counts
-
-
-class AggregateCursor:
-    def __init__(self, items):
-        self.items = items
-
-    async def to_list(self, length=None):
-        return self.items
+from services.segments import enrich_admin_segment_users
 
 
 class FindCursor:
@@ -24,28 +16,6 @@ class FindCursor:
 
     async def to_list(self, length=None):
         return self.items
-
-
-@pytest.mark.unit
-def test_get_block_report_counts_returns_empty_for_no_segment_ids():
-    def aggregate(*_args, **_kwargs):
-        raise AssertionError("aggregate should not be called when segment list is empty")
-
-    db = SimpleNamespace(segment_block_reports=SimpleNamespace(aggregate=aggregate))
-    counts = asyncio.run(get_block_report_counts(db, []))
-    assert counts == {}
-
-
-@pytest.mark.unit
-def test_get_block_report_counts_groups_by_segment_id():
-    segment_id = ObjectId()
-
-    def aggregate(*_args, **_kwargs):
-        return AggregateCursor([{"_id": segment_id, "count": 3}])
-
-    db = SimpleNamespace(segment_block_reports=SimpleNamespace(aggregate=aggregate))
-    counts = asyncio.run(get_block_report_counts(db, [segment_id]))
-    assert counts == {str(segment_id): 3}
 
 
 @pytest.mark.unit

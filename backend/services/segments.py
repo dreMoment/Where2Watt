@@ -23,24 +23,10 @@ def to_user_summary(user_doc: dict) -> dict:
     return {"actor_id": user_doc["actor_id"]}
 
 
-def serialize_segment(segment: dict, blocked_report_count: int | None = None) -> dict:
-    if blocked_report_count is not None:
-        segment["blocked_report_count"] = blocked_report_count
+def serialize_segment(segment: dict) -> dict:
     segment["id"] = str(segment["_id"])
     del segment["_id"]
     return segment
-
-
-async def get_block_report_counts(db, segment_object_ids: list[ObjectId]) -> dict[str, int]:
-    if not segment_object_ids:
-        return {}
-
-    pipeline = [
-        {"$match": {"segment_id": {"$in": segment_object_ids}}},
-        {"$group": {"_id": "$segment_id", "count": {"$sum": 1}}},
-    ]
-    grouped = await db.segment_block_reports.aggregate(pipeline).to_list(length=None)
-    return {str(item["_id"]): item["count"] for item in grouped}
 
 
 async def enrich_admin_segment_users(db, segments: list[dict]) -> None:
