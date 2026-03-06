@@ -5,11 +5,14 @@ import { X, Send, Loader2, LogIn, MapPin } from "lucide-react";
 import { submitSegment, type SubmissionData } from "@/utils/api";
 import type { SegmentRatingValues } from "@/types";
 import { useAuth } from "@/components/AuthContext";
-import { useUiFeedback } from "@/components/ui/UiFeedbackProvider";
 
 interface Props {
     onClose: () => void;
 }
+
+type NullableSegmentRatings = {
+    [K in keyof SegmentRatingValues]: number | null;
+};
 
 const RATING_FIELDS: Array<{ key: keyof SegmentRatingValues; label: string }> = [
     { key: "traffic", label: "Traffic" },
@@ -18,7 +21,8 @@ const RATING_FIELDS: Array<{ key: keyof SegmentRatingValues; label: string }> = 
     { key: "downhills", label: "Downhills" },
 ];
 
-function getStarFillPercent(valueOutOf10: number, starNumber: number): number {
+function getStarFillPercent(valueOutOf10: number | null, starNumber: number): number {
+    if (valueOutOf10 == null) return 0;
     const fullValue = starNumber * 2;
     if (valueOutOf10 >= fullValue) return 100;
     if (valueOutOf10 === fullValue - 1) return 50;
@@ -28,7 +32,7 @@ function getStarFillPercent(valueOutOf10: number, starNumber: number): number {
 interface RatingStarsInputProps {
     fieldKey: keyof SegmentRatingValues;
     label: string;
-    valueOutOf10: number;
+    valueOutOf10: number | null;
     onChange: (valueOutOf10: number) => void;
 }
 
@@ -74,38 +78,60 @@ function RatingStarsInput({ fieldKey, label, valueOutOf10, onChange }: RatingSta
 
 export default function SubmissionForm({ onClose }: Props) {
     const { isLoggedIn, login, token } = useAuth();
-    const { showToast } = useUiFeedback();
-    const [formData, setFormData] = useState<SubmissionData>({
+    const [formData, setFormData] = useState<{
+        strava_url: string;
+        safety_notes: string;
+        ratings: NullableSegmentRatings;
+    }>({
         strava_url: "",
         safety_notes: "",
         ratings: {
-            traffic: 6,
-            steady_gradient: 6,
-            sketchy_left_turns: 6,
-            downhills: 6,
+            traffic: null,
+            steady_gradient: null,
+            sketchy_left_turns: null,
+            downhills: null,
         },
     });
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
     const [alreadyExists, setAlreadyExists] = useState(false);
+    const [formError, setFormError] = useState<string | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!formData.strava_url.includes("strava.com/segments/")) {
-            showToast("Please enter a valid Strava segment URL", { type: "error" });
+            setFormError("Please enter a valid Strava segment URL.");
             return;
         }
 
         if (!token) {
-            showToast("You must be logged in to submit a segment.", { type: "error" });
+            setFormError("You must be logged in to submit a segment.");
             return;
         }
+
+        const hasMissingRatings = RATING_FIELDS.some(({ key }) => formData.ratings[key] == null);
+        if (hasMissingRatings) {
+            setFormError("Please rate all required fields before submitting.");
+            return;
+        }
+
+        setFormError(null);
+
+        const payload: SubmissionData = {
+            ...formData,
+            ratings: {
+                traffic: formData.ratings.traffic ?? 0,
+                steady_gradient: formData.ratings.steady_gradient ?? 0,
+                sketchy_left_turns: formData.ratings.sketchy_left_turns ?? 0,
+                downhills: formData.ratings.downhills ?? 0,
+            },
+        };
 
         setLoading(true);
 
         try {
-            await submitSegment(formData, token);
+            await submitSegment(payload, token);
             setSuccess(true);
             setTimeout(() => {
                 onClose();
@@ -115,9 +141,9 @@ export default function SubmissionForm({ onClose }: Props) {
             if (err instanceof Error && err.message === "Segment already exists") {
                 setAlreadyExists(true);
             } else if (err instanceof Error) {
-                showToast(err.message, { type: "error" });
+                setFormError(err.message);
             } else {
-                showToast("Error submitting segment. Check backend is running.", { type: "error" });
+                setFormError("Error submitting segment. Check backend is running.");
             }
         } finally {
             setLoading(false);
@@ -224,9 +250,10 @@ export default function SubmissionForm({ onClose }: Props) {
                             placeholder="https://www.strava.com/segments/12345"
                             className="w-full px-4 py-3.5 rounded-xl border border-neutral-200 bg-neutral-50/50 focus:bg-white focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900 outline-none transition-all text-neutral-900 font-medium placeholder:text-neutral-400 placeholder:font-normal shadow-sm"
                             value={formData.strava_url}
-                            onChange={(e) =>
-                                setFormData({ ...formData, strava_url: e.target.value })
-                            }
+                            onChange={(e) => {
+                                setFormError(null);
+                                setFormData({ ...formData, strava_url: e.target.value });
+                            }}
                         />
                     </div>
 
@@ -245,13 +272,16 @@ export default function SubmissionForm({ onClose }: Props) {
                                         label={field.label}
                                         valueOutOf10={value}
                                         onChange={(nextValue) =>
-                                            setFormData({
-                                                ...formData,
-                                                ratings: {
-                                                    ...formData.ratings,
-                                                    [field.key]: nextValue,
-                                                },
-                                            })
+                                            {
+                                                setFormError(null);
+                                                setFormData({
+                                                    ...formData,
+                                                    ratings: {
+                                                        ...formData.ratings,
+                                                        [field.key]: nextValue,
+                                                    },
+                                                });
+                                            }
                                         }
                                     />
                                 );
@@ -261,6 +291,11 @@ export default function SubmissionForm({ onClose }: Props) {
                 </div>
 
                 <div className="mt-4 shrink-0 border-t border-neutral-200/90 pt-4 bg-white/95">
+                    {formError ? (
+                        <div role="alert" className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+                            {formError}
+                        </div>
+                    ) : null}
                     <button
                         type="submit"
                         disabled={loading}

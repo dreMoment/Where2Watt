@@ -16,11 +16,15 @@ const RATING_FIELDS: Array<{ key: keyof SegmentRatingValues; label: string }> = 
     { key: "downhills", label: "Downhills" },
 ];
 
-const DEFAULT_RATING_INPUT: SegmentRatingValues = {
-    traffic: 6,
-    steady_gradient: 6,
-    sketchy_left_turns: 6,
-    downhills: 6,
+type NullableSegmentRatings = {
+    [K in keyof SegmentRatingValues]: number | null;
+};
+
+const DEFAULT_RATING_INPUT: NullableSegmentRatings = {
+    traffic: null,
+    steady_gradient: null,
+    sketchy_left_turns: null,
+    downhills: null,
 };
 
 function roundToNearestHalfStar(valueOutOf10: number): number {
@@ -48,7 +52,8 @@ function StarPreview({ valueOutOf10, label, fillTestId }: { valueOutOf10: number
     );
 }
 
-function getStarFillPercent(valueOutOf10: number, starNumber: number): number {
+function getStarFillPercent(valueOutOf10: number | null, starNumber: number): number {
+    if (valueOutOf10 == null) return 0;
     const fullValue = starNumber * 2;
     if (valueOutOf10 >= fullValue) return 100;
     if (valueOutOf10 === fullValue - 1) return 50;
@@ -58,7 +63,7 @@ function getStarFillPercent(valueOutOf10: number, starNumber: number): number {
 interface RatingStarsInputProps {
     fieldKey: keyof SegmentRatingValues;
     label: string;
-    valueOutOf10: number;
+    valueOutOf10: number | null;
     onChange: (valueOutOf10: number) => void;
 }
 
@@ -108,8 +113,9 @@ export default function CommunityRatingsPanel({ segment, onSegmentRated }: Commu
     const [showRatingForm, setShowRatingForm] = useState(false);
     const [isRating, setIsRating] = useState(false);
     const [hasRated, setHasRated] = useState(false);
-    const [ratingDraft, setRatingDraft] = useState<SegmentRatingValues>(DEFAULT_RATING_INPUT);
+    const [ratingDraft, setRatingDraft] = useState<NullableSegmentRatings>(DEFAULT_RATING_INPUT);
     const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+    const [formError, setFormError] = useState<string | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -123,7 +129,11 @@ export default function CommunityRatingsPanel({ segment, onSegmentRated }: Commu
                 const status = await fetchMySegmentRatingStatus(segment.id, token);
                 if (!cancelled) {
                     setHasRated(status.has_rated);
-                    if (status.rating) setRatingDraft(status.rating);
+                    if (status.rating) {
+                        setRatingDraft(status.rating);
+                    } else {
+                        setRatingDraft(DEFAULT_RATING_INPUT);
+                    }
                 }
             } catch {
                 if (!cancelled) setHasRated(false);
@@ -141,9 +151,23 @@ export default function CommunityRatingsPanel({ segment, onSegmentRated }: Commu
             return;
         }
 
+        const hasMissingRatings = RATING_FIELDS.some(({ key }) => ratingDraft[key] == null);
+        if (hasMissingRatings) {
+            setFormError("Please rate all required fields before submitting.");
+            return;
+        }
+
+        const payload: SegmentRatingValues = {
+            traffic: ratingDraft.traffic ?? 0,
+            steady_gradient: ratingDraft.steady_gradient ?? 0,
+            sketchy_left_turns: ratingDraft.sketchy_left_turns ?? 0,
+            downhills: ratingDraft.downhills ?? 0,
+        };
+
         try {
             setIsRating(true);
-            const result = await rateSegment(segment.id, token, ratingDraft);
+            setFormError(null);
+            const result = await rateSegment(segment.id, token, payload);
             setHasRated(true);
             setShowRatingForm(false);
             onSegmentRated?.(segment.id, {
@@ -209,6 +233,8 @@ export default function CommunityRatingsPanel({ segment, onSegmentRated }: Commu
                             showToast("You have already rated this segment.", { type: "info" });
                             return;
                         }
+                        setFormError(null);
+                        setRatingDraft(DEFAULT_RATING_INPUT);
                         setShowRatingForm((prev) => !prev);
                     }}
                     className={`mt-1 w-full py-1.5 rounded-lg text-xs font-semibold transition-colors ${
@@ -251,15 +277,23 @@ export default function CommunityRatingsPanel({ segment, onSegmentRated }: Commu
                                     label={field.label}
                                     valueOutOf10={ratingDraft[field.key]}
                                     onChange={(nextValue) =>
+                                        {
+                                        setFormError(null);
                                         setRatingDraft((prev) => ({
                                             ...prev,
                                             [field.key]: nextValue,
-                                        }))
+                                        }));
+                                        }
                                     }
                                 />
                             ))}
                         </div>
                         <p className="text-[10px] text-neutral-500">Click a star once for full, click it again for half.</p>
+                        {formError ? (
+                            <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-[11px] font-medium text-red-700">
+                                {formError}
+                            </div>
+                        ) : null}
                         <div className="flex gap-2 mt-1">
                             <button
                                 onClick={handleRate}
@@ -269,7 +303,10 @@ export default function CommunityRatingsPanel({ segment, onSegmentRated }: Commu
                                 {isRating ? "Submitting..." : "Submit Rating"}
                             </button>
                             <button
-                                onClick={() => setShowRatingForm(false)}
+                                onClick={() => {
+                                    setShowRatingForm(false);
+                                    setFormError(null);
+                                }}
                                 className="flex-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 py-1.5 rounded-lg font-semibold text-xs transition-colors"
                             >
                                 Cancel

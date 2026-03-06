@@ -159,10 +159,10 @@ export default function Home() {
         {/* Sidebar */}
         <aside
           className={`${
-            sidebarOpen ? "w-[300px]" : "w-0"
+            sidebarOpen ? "w-[350px]" : "w-0"
           } transition-all duration-300 ease-in-out bg-white shadow-[4px_0_20px_rgba(0,0,0,0.04)] z-20 flex flex-col shrink-0 overflow-hidden border-r border-neutral-100`}
         >
-          <div className="w-[300px] h-full flex flex-col overflow-y-auto pt-16">
+          <div className="w-[350px] h-full flex flex-col overflow-y-auto pt-16">
             {/* Rider Profile Configuration */}
             <SectionCard
               title="Rider Profile"

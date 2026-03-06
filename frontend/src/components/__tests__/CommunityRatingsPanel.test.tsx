@@ -74,6 +74,13 @@ describe("CommunityRatingsPanel", () => {
         fireEvent.click(screen.getByRole("button", { name: /Rate this segment/i }));
 
         const trafficStarOne = screen.getByRole("button", { name: "Traffic star 1" });
+        const steadyGradientStarThree = screen.getByRole("button", { name: "Steady Gradient star 3" });
+        const sketchyLeftTurnsStarThree = screen.getByRole("button", { name: "Sketchy Left Turns star 3" });
+        const downhillsStarThree = screen.getByRole("button", { name: "Downhills star 3" });
+
+        fireEvent.click(steadyGradientStarThree);
+        fireEvent.click(sketchyLeftTurnsStarThree);
+        fireEvent.click(downhillsStarThree);
         fireEvent.click(trafficStarOne);
         fireEvent.click(trafficStarOne);
 
@@ -87,6 +94,20 @@ describe("CommunityRatingsPanel", () => {
                 downhills: 6,
             });
         });
+    });
+
+    it("requires all ratings before submit and shows a warning in the popup", async () => {
+        authState.isLoggedIn = true;
+        authState.token = "mock-token";
+
+        render(<CommunityRatingsPanel segment={mockSegment} />);
+
+        fireEvent.click(screen.getByRole("button", { name: /Rate this segment/i }));
+        fireEvent.click(screen.getByRole("button", { name: "Traffic star 1" }));
+        fireEvent.click(screen.getByRole("button", { name: /Submit Rating/i }));
+
+        expect(screen.getByRole("alert")).toHaveTextContent("Please rate all required fields before submitting.");
+        expect(rateSegment).not.toHaveBeenCalled();
     });
 
     it("shows community average stars rounded to the nearest half when not rating", () => {

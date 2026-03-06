@@ -17,13 +17,6 @@ jest.mock('@/components/AuthContext', () => ({
     }),
 }));
 
-jest.mock('@/components/ui/UiFeedbackProvider', () => ({
-    useUiFeedback: () => ({
-        showToast: jest.fn(),
-        confirm: jest.fn(),
-    }),
-}));
-
 describe('SubmissionForm', () => {
     const mockOnClose = jest.fn();
 
@@ -38,8 +31,7 @@ describe('SubmissionForm', () => {
         expect(screen.queryByLabelText(/Safety Notes/i)).not.toBeInTheDocument();
     });
 
-    it('submits form data successfully', async () => {
-        (submitSegment as jest.Mock).mockResolvedValueOnce(undefined);
+    it('prevents submit when required ratings are missing', async () => {
         render(<SubmissionForm onClose={mockOnClose} />);
 
         fireEvent.change(screen.getByLabelText(/Strava Segment URL/i), {
@@ -47,14 +39,33 @@ describe('SubmissionForm', () => {
         });
         fireEvent.click(screen.getByRole('button', { name: /Submit Segment/i }));
 
+        await waitFor(() => {
+            expect(screen.getByRole('alert')).toHaveTextContent('Please rate all required fields before submitting.');
+        });
+        expect(submitSegment).not.toHaveBeenCalled();
+    });
+
+    it('submits form data successfully', async () => {
+        (submitSegment as jest.Mock).mockResolvedValueOnce(undefined);
+        render(<SubmissionForm onClose={mockOnClose} />);
+
+        fireEvent.change(screen.getByLabelText(/Strava Segment URL/i), {
+            target: { value: 'https://www.strava.com/segments/123' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: /Traffic star 1/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Steady Gradient star 1/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Sketchy Left Turns star 1/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Downhills star 1/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Submit Segment/i }));
+
         expect(submitSegment).toHaveBeenCalledWith({
             strava_url: 'https://www.strava.com/segments/123',
             safety_notes: '',
             ratings: {
-                traffic: 6,
-                steady_gradient: 6,
-                sketchy_left_turns: 6,
-                downhills: 6,
+                traffic: 2,
+                steady_gradient: 2,
+                sketchy_left_turns: 2,
+                downhills: 2,
             },
         }, 'mock-token');
 
