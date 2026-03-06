@@ -54,7 +54,11 @@ export default function Home() {
     if (w) setWeightStr(w);
     if (bw) setBikeWeightStr(bw);
     setHideInfoScreenNextTime(hideInfoScreen);
-    setShowInfoScreen(!hideInfoScreen);
+    const shouldShowInfoScreen = !hideInfoScreen;
+    setShowInfoScreen(shouldShowInfoScreen);
+    if (shouldShowInfoScreen) {
+      setSidebarOpen(false);
+    }
   }, []);
 
   const handleWeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -124,6 +128,12 @@ export default function Home() {
   const closeInfoScreen = () => {
     localStorage.setItem(HIDE_INFO_SCREEN_STORAGE_KEY, hideInfoScreenNextTime ? "true" : "false");
     setShowInfoScreen(false);
+    setSidebarOpen(true);
+  };
+
+  const openInfoScreen = () => {
+    setShowInfoScreen(true);
+    setSidebarOpen(false);
   };
 
   return (
@@ -139,7 +149,7 @@ export default function Home() {
 
       <button
         type="button"
-        onClick={() => setShowInfoScreen(true)}
+        onClick={openInfoScreen}
         className="absolute top-3 right-3 z-30 p-0 transition-opacity hover:opacity-90"
         title="Show onboarding info"
         aria-label="Show onboarding info"
