@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
-import { Plus, Compass, Activity, LogIn, LogOut, PanelLeft, X } from "lucide-react";
+import { Plus, Compass, Activity, LogIn, LogOut, PanelLeft, X, Info } from "lucide-react";
 import type { Segment, SegmentAverageRatings } from "@/types";
 import { useAuth } from "@/components/AuthContext";
 import SubmissionForm from "@/components/SubmissionForm";
@@ -22,10 +22,14 @@ const Map = dynamic(() => import("@/components/Map"), {
   ),
 });
 
+const HIDE_INFO_SCREEN_STORAGE_KEY = "hideLandingInfoScreen";
+
 export default function Home() {
   const { user, isLoggedIn, login, logout, isLoading: authLoading } = useAuth();
   const [segments, setSegments] = useState<Segment[]>([]);
   const [showSubmissionContent, setShowSubmissionContent] = useState(false);
+  const [showInfoScreen, setShowInfoScreen] = useState(false);
+  const [hideInfoScreenNextTime, setHideInfoScreenNextTime] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,11 +46,14 @@ export default function Home() {
     const p = localStorage.getItem("plannedPower");
     const w = localStorage.getItem("riderWeight");
     const bw = localStorage.getItem("bikeWeight");
+    const hideInfoScreen = localStorage.getItem(HIDE_INFO_SCREEN_STORAGE_KEY) === "true";
     if (p) {
       setFilterPowerStr(p);
     }
     if (w) setWeightStr(w);
     if (bw) setBikeWeightStr(bw);
+    setHideInfoScreenNextTime(hideInfoScreen);
+    setShowInfoScreen(!hideInfoScreen);
   }, []);
 
   const handleWeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -113,6 +120,10 @@ export default function Home() {
     []
   );
 
+  const closeInfoScreen = () => {
+    localStorage.setItem(HIDE_INFO_SCREEN_STORAGE_KEY, hideInfoScreenNextTime ? "true" : "false");
+    setShowInfoScreen(false);
+  };
 
   return (
     <main className="flex flex-col h-[100dvh] w-full bg-[#f9fafb] overflow-hidden">
@@ -129,8 +140,17 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Right: App icon */}
-        <div className="flex items-center">
+        {/* Right: info + app icon */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowInfoScreen(true)}
+            className="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-neutral-200 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 transition-colors"
+            title="Show app info"
+            aria-label="Show app info"
+          >
+            <Info className="w-4 h-4" />
+          </button>
           <div className="bg-gradient-to-br from-rose-400 to-rose-600 text-white p-1.5 rounded-lg shadow-md shadow-rose-500/20">
             <Activity className="w-5 h-5" />
           </div>
@@ -304,6 +324,61 @@ export default function Home() {
           {showSubmissionContent && (
             <div className="absolute inset-0 z-[9999] bg-neutral-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
               <SubmissionForm onClose={() => setShowSubmissionContent(false)} />
+            </div>
+          )}
+
+          {showInfoScreen && (
+            <div className="absolute inset-0 z-[9998] bg-neutral-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="landing-info-title"
+                className="w-full max-w-xl rounded-2xl border border-neutral-200 bg-white shadow-2xl p-6 md:p-7"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-xl bg-blue-100 text-blue-700">
+                    <Info className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <h2 id="landing-info-title" className="text-xl font-bold text-neutral-900">
+                      Welcome to Where 2 Watt
+                    </h2>
+                    <p className="mt-2 text-sm text-neutral-600 leading-relaxed">
+                      This is a simple tool to help you find and share safe and suitable road segments for planning your outdoor training.
+                    </p>
+                    <p className="mt-2 text-sm text-neutral-600 leading-relaxed">
+                      You can adjust rider profile values to personalize your estimated segment completion times.
+                    </p>
+                    <p className="mt-2 text-sm text-neutral-600 leading-relaxed">
+                      You can apply a power and duration filter to see what intervals are best suited for your desired duration.
+                      apply power and duration filters, and submit new segments for the community.
+                    </p>
+                    <p className="mt-2 text-sm text-neutral-600 leading-relaxed">
+                      Login with Strava if you want to contribute to the collection or rate segments you have ridden.
+                    </p>
+                  </div>
+                </div>
+
+                <label className="mt-6 flex items-center gap-3 text-sm text-neutral-700 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={hideInfoScreenNextTime}
+                    onChange={(e) => setHideInfoScreenNextTime(e.target.checked)}
+                    className="w-4 h-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-500"
+                  />
+                  Do not show this info screen again
+                </label>
+
+                <div className="mt-6 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={closeInfoScreen}
+                    className="rounded-xl bg-neutral-900 hover:bg-neutral-800 px-4 py-2 text-sm font-semibold text-white transition-colors"
+                  >
+                    Continue
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </section>

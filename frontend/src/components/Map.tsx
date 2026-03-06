@@ -131,8 +131,8 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
           const isSelected = selectedSegment?.id === segment.id;
           const segKey = segment.id || String(idx);
           const isBlocked = segment.blocked === true;
-          const defaultColor = (isFiltered && segmentColors[segKey]) ? segmentColors[segKey] : "#2563eb";
-          const lineColor = isSelected ? "#fc4c02" : defaultColor;
+          const defaultColor = (isFiltered && segmentColors[segKey]) ? segmentColors[segKey] : "#D81B60";
+          const lineColor = isSelected ? "#C2185B" : defaultColor;
           const lineWidth = isSelected ? 6 : 3;
           const lineOpacity = isBlocked ? 0.3 : 0.8;
 
