@@ -1,7 +1,7 @@
 services:
   mongodb-test:
     image: mongo:latest
-    container_name: findmyintervals-mongodb-test
+    container_name: where2watt-mongodb-test
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand({ ping: 1 })"]
       interval: 5s
@@ -12,13 +12,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: findmyintervals-backend-test
+    container_name: where2watt-backend-test
     depends_on:
       mongodb-test:
         condition: service_healthy
     environment:
       - MONGODB_URI=mongodb://mongodb-test:27017
-      - MONGODB_DB_NAME=findmyintervals_test
+      - MONGODB_DB_NAME=where2watt_test
       - JWT_SECRET=test-jwt-secret-with-at-least-32-bytes
       - ADMIN_STRAVA_IDS=987654
       - CORS_ORIGIN=http://localhost:3000

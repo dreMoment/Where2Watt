@@ -5,7 +5,7 @@ tags:
 ---
 ## 1. Executive Summary
 
-FindMyIntervals is a highly focused, web-based map application designed to help cyclists discover and evaluate the best Strava segments for structured interval training. By relying on moderated community submissions and an upvoting system, the platform curates a high-quality database of safe, uninterrupted roads (both flat and hilly). The tool exists purely for segment discovery; users can find the perfect training grounds here, and then use their preferred software (like Komoot or RideWithGPS) to build their actual routes.
+Where2Watt is a highly focused, web-based map application designed to help cyclists discover and evaluate the best Strava segments for structured interval training. By relying on moderated community submissions and an upvoting system, the platform curates a high-quality database of safe, uninterrupted roads (both flat and hilly). The tool exists purely for segment discovery; users can find the perfect training grounds here, and then use their preferred software (like Komoot or RideWithGPS) to build their actual routes.
 
 ## 2. Target Audience & Core Use Cases
 

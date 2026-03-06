@@ -146,7 +146,7 @@ export default function Home() {
       >
         <Image
           src="/logo.svg"
-          alt="FindMyIntervals logo"
+          alt="Where2Watt logo"
           width={64}
           height={64}
           priority

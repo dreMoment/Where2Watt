@@ -1,4 +1,4 @@
-# FindMyIntervals - Minimum Viable Product (MVP)
+# Where2Watt - Minimum Viable Product (MVP)
 
 ## 1. Objective of the MVP
 The goal of the MVP is to validate the core concept: cyclists need a curated map to quickly discover safe, uninterrupted road segments for structured interval training. The MVP focuses purely on **discovery** and **basic community submission**, stripping away complex API integrations and social features to ensure rapid development and deployment.

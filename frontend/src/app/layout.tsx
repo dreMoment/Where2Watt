@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FindMyIntervals",
-  description: "Find My Intervals",
+  title: "Where2Watt",
+  description: "Where 2 Watt",
   icons: {
     icon: "/logo_square.svg",
     shortcut: "/logo_square.svg",

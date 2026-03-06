@@ -3,14 +3,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: findmyintervals-backend
+    container_name: where2watt-backend
     depends_on:
       - mongodb
     env_file:
       - .env
     environment:
       - MONGODB_URI=${MONGODB_URI}
-      - MONGODB_DB_NAME=${MONGODB_DB_NAME:-findmyintervals}
+      - MONGODB_DB_NAME=${MONGODB_DB_NAME:-where2watt}
       - STRAVA_CLIENT_ID=${STRAVA_CLIENT_ID}
       - STRAVA_CLIENT_SECRET=${STRAVA_CLIENT_SECRET}
       - STRAVA_REFRESH_TOKEN=${STRAVA_REFRESH_TOKEN}
@@ -23,14 +23,14 @@ services:
 
   mongodb:
     image: mongo:latest
-    container_name: findmyintervals-mongodb
+    container_name: where2watt-mongodb
     restart: unless-stopped
     ports:
       - "27017:27017"
     environment:
       - MONGO_INITDB_ROOT_USERNAME=${MONGO_USERNAME}
       - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD}
-      - MONGO_INITDB_DATABASE=${MONGODB_DB_NAME:-findmyintervals_dev}
+      - MONGO_INITDB_DATABASE=${MONGODB_DB_NAME:-where2watt_dev}
     volumes:
       - mongodb_data:/data/db
 
