@@ -17,8 +17,10 @@ from schemas import (
 from services.segments import (
     RATING_FIELDS,
     empty_segment_rating_stats,
+    enrich_segments_with_rating_stats,
     enrich_admin_segment_users,
     extract_strava_id,
+    get_segment_rating_stats,
     now_iso,
     parse_object_id,
     serialize_segment,
@@ -29,31 +31,7 @@ router = APIRouter()
 
 
 async def recompute_segment_rating_stats(db, segment_id: ObjectId) -> dict:
-    aggregate_fields = {f"{field}_total": {"$sum": f"$ratings.{field}"} for field in RATING_FIELDS}
-    aggregated = (
-        await db.segment_ratings.aggregate(
-            [
-                {"$match": {"segment_id": segment_id}},
-                {"$group": {"_id": None, "ratings_count": {"$sum": 1}, **aggregate_fields}},
-            ]
-        ).to_list(length=1)
-    )
-
-    if aggregated:
-        payload = aggregated[0]
-        ratings_count = int(payload.get("ratings_count", 0) or 0)
-        rating_totals = {field: int(payload.get(f"{field}_total", 0) or 0) for field in RATING_FIELDS}
-    else:
-        defaults = empty_segment_rating_stats()
-        ratings_count = defaults["ratings_count"]
-        rating_totals = defaults["rating_totals"]
-
-    average_ratings = {field: (round(rating_totals[field] / ratings_count, 2) if ratings_count > 0 else None) for field in RATING_FIELDS}
-    await db.segments.update_one(
-        {"_id": segment_id},
-        {"$set": {"ratings_count": ratings_count, "rating_totals": rating_totals, "average_ratings": average_ratings}},
-    )
-    return {"ratings_count": ratings_count, "average_ratings": average_ratings}
+    return await get_segment_rating_stats(db, segment_id)
 
 
 @router.post("/api/admin/verify")
@@ -68,6 +46,7 @@ async def list_unapproved_segments(request: Request, is_admin: bool = Depends(ve
     db = get_db()
     segments = await db.segments.find({"approved": False}).sort("created_at", -1).to_list(100)
     await enrich_admin_segment_users(db, segments)
+    await enrich_segments_with_rating_stats(db, segments)
     for segment in segments:
         serialize_segment(segment)
     return segments
@@ -79,6 +58,7 @@ async def list_all_segments(request: Request, is_admin: bool = Depends(verify_ad
     db = get_db()
     segments = await db.segments.find().sort("created_at", -1).to_list(500)
     await enrich_admin_segment_users(db, segments)
+    await enrich_segments_with_rating_stats(db, segments)
     for segment in segments:
         serialize_segment(segment)
     return segments
@@ -255,8 +235,8 @@ async def quick_add_segment(request: Request, data: QuickAddSchema, is_admin: bo
         "approved": True,
         "created_at": now_iso(),
     }
-    segment_dict.update(empty_segment_rating_stats())
 
     result = await db.segments.insert_one(segment_dict)
     created_segment = await db.segments.find_one({"_id": result.inserted_id})
+    created_segment.update(empty_segment_rating_stats())
     return serialize_segment(created_segment)

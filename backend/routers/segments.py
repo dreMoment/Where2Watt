@@ -14,8 +14,9 @@ from schemas import (
     SegmentResponseSchema,
 )
 from services.segments import (
+    get_segment_rating_stats,
+    enrich_segments_with_rating_stats,
     extract_strava_id,
-    initial_segment_rating_stats,
     now_iso,
     parse_object_id,
     serialize_segment,
@@ -34,7 +35,6 @@ async def create_segment(request: Request, segment: SegmentCreateSchema, identit
     segment_dict["created_at"] = now_iso()
     segment_dict["approved"] = False
     segment_dict["submitted_by_actor_id"] = identity.actor_id
-    segment_dict.update(initial_segment_rating_stats(submitted_ratings))
 
     strava_url = segment_dict.get("strava_url")
     if strava_url:
@@ -68,6 +68,7 @@ async def create_segment(request: Request, segment: SegmentCreateSchema, identit
         }
     )
     created_segment = await db.segments.find_one({"_id": result.inserted_id})
+    created_segment.update(await get_segment_rating_stats(db, result.inserted_id))
     return serialize_segment(created_segment)
 
 
@@ -76,6 +77,7 @@ async def create_segment(request: Request, segment: SegmentCreateSchema, identit
 async def list_segments(request: Request):
     db = get_db()
     segments = await db.segments.find({"$or": [{"approved": True}, {"approved": {"$exists": False}}]}).to_list(100)
+    await enrich_segments_with_rating_stats(db, segments)
     for segment in segments:
         serialize_segment(segment)
     return segments
@@ -108,16 +110,11 @@ async def rate_segment(
     except DuplicateKeyError:
         raise HTTPException(status_code=409, detail="You already rated this segment")
 
-    await db.segments.update_one(
-        {"_id": obj_id},
-        {"$inc": {"ratings_count": 1, **{f"rating_totals.{field}": value for field, value in rating_values.items()}}},
-    )
-    updated_segment = await db.segments.find_one({"_id": obj_id})
-    serialize_segment(updated_segment)
+    stats = await get_segment_rating_stats(db, obj_id)
     return {
         "status": "rated",
-        "ratings_count": updated_segment["ratings_count"],
-        "average_ratings": updated_segment["average_ratings"],
+        "ratings_count": stats["ratings_count"],
+        "average_ratings": stats["average_ratings"],
     }
 
 

@@ -23,7 +23,7 @@ class FindCursor:
     def sort(self, *_args, **_kwargs):
         return self
 
-    async def to_list(self, _length=None):
+    async def to_list(self, _length=None, **_kwargs):
         return self.items
 
 
@@ -63,14 +63,27 @@ def test_create_segment_enriches_with_strava_details(monkeypatch, app_client):
                         "_id": created_id,
                         "strava_url": "https://www.strava.com/segments/123",
                         "approved": False,
-                        "ratings_count": 1,
-                        "rating_totals": DEFAULT_RATINGS,
                     },
                 ]
             ),
             insert_one=AsyncMock(return_value=SimpleNamespace(inserted_id=created_id)),
         ),
-        segment_ratings=SimpleNamespace(insert_one=AsyncMock()),
+        segment_ratings=SimpleNamespace(
+            insert_one=AsyncMock(),
+            aggregate=Mock(
+                return_value=FindCursor(
+                    [
+                        {
+                            "ratings_count": 1,
+                            "traffic_total": DEFAULT_RATINGS["traffic"],
+                            "steady_gradient_total": DEFAULT_RATINGS["steady_gradient"],
+                            "sketchy_left_turns_total": DEFAULT_RATINGS["sketchy_left_turns"],
+                            "downhills_total": DEFAULT_RATINGS["downhills"],
+                        }
+                    ]
+                )
+            ),
+        ),
     )
     monkeypatch.setattr(segments_router, "get_db", lambda: db)
     monkeypatch.setattr(
@@ -100,8 +113,8 @@ def test_create_segment_enriches_with_strava_details(monkeypatch, app_client):
     assert inserted_doc["strava_id"] == "123"
     assert inserted_doc["name"] == "Segment Name"
     assert inserted_doc["approved"] is False
-    assert inserted_doc["ratings_count"] == 1
-    assert inserted_doc["rating_totals"] == DEFAULT_RATINGS
+    assert "ratings_count" not in inserted_doc
+    assert "rating_totals" not in inserted_doc
     db.segment_ratings.insert_one.assert_awaited_once_with(
         {
             "segment_id": created_id,
@@ -151,16 +164,26 @@ def test_rate_segment_accepts_first_rating_and_rejects_duplicate(monkeypatch, ap
         segments=SimpleNamespace(
             find_one=AsyncMock(
                 side_effect=[
-                    {"_id": segment_id, "ratings_count": 0, "rating_totals": {field: 0 for field in DEFAULT_RATINGS}},
-                    {"_id": segment_id, "ratings_count": 1, "rating_totals": DEFAULT_RATINGS},
-                    {"_id": segment_id, "ratings_count": 1, "rating_totals": DEFAULT_RATINGS},
-                    {"_id": segment_id, "ratings_count": 1, "rating_totals": DEFAULT_RATINGS},
+                    {"_id": segment_id},
+                    {"_id": segment_id},
                 ]
             ),
-            update_one=AsyncMock(return_value=SimpleNamespace(matched_count=1)),
         ),
         segment_ratings=SimpleNamespace(
             insert_one=AsyncMock(side_effect=[None, DuplicateKeyError("dup")]),
+            aggregate=Mock(
+                return_value=FindCursor(
+                    [
+                        {
+                            "ratings_count": 1,
+                            "traffic_total": DEFAULT_RATINGS["traffic"],
+                            "steady_gradient_total": DEFAULT_RATINGS["steady_gradient"],
+                            "sketchy_left_turns_total": DEFAULT_RATINGS["sketchy_left_turns"],
+                            "downhills_total": DEFAULT_RATINGS["downhills"],
+                        }
+                    ]
+                )
+            ),
             find_one=AsyncMock(return_value={"ratings": DEFAULT_RATINGS, "rated_at": "2026-03-06T10:00:00+00:00"}),
         ),
     )
@@ -183,19 +206,6 @@ def test_rate_segment_accepts_first_rating_and_rejects_duplicate(monkeypatch, ap
             "rated_at": ANY,
         }
     )
-    db.segments.update_one.assert_awaited_once_with(
-        {"_id": segment_id},
-        {
-            "$inc": {
-                "ratings_count": 1,
-                "rating_totals.traffic": DEFAULT_RATINGS["traffic"],
-                "rating_totals.steady_gradient": DEFAULT_RATINGS["steady_gradient"],
-                "rating_totals.sketchy_left_turns": DEFAULT_RATINGS["sketchy_left_turns"],
-                "rating_totals.downhills": DEFAULT_RATINGS["downhills"],
-            }
-        },
-    )
-
     second = app_client.post(
         f"/api/segments/{segment_id}/ratings",
         json=DEFAULT_RATINGS,
@@ -434,7 +444,7 @@ def test_admin_quickadd_invalid_url_existing_and_success(monkeypatch, app_client
     assert success.json()["id"] == str(created_id)
     assert db.segments.insert_one.await_count == 1
     inserted_doc = db.segments.insert_one.await_args.args[0]
-    assert inserted_doc["ratings_count"] == 0
+    assert "ratings_count" not in inserted_doc
 
 
 @pytest.mark.integration
@@ -499,7 +509,6 @@ def test_admin_can_list_and_delete_segment_ratings(monkeypatch, app_client):
     db = SimpleNamespace(
         segments=SimpleNamespace(
             find_one=AsyncMock(side_effect=[{"_id": segment_id}, {"_id": segment_id}]),
-            update_one=AsyncMock(return_value=SimpleNamespace(matched_count=1)),
         ),
         segment_ratings=SimpleNamespace(
             find=Mock(
@@ -552,23 +561,3 @@ def test_admin_can_list_and_delete_segment_ratings(monkeypatch, app_client):
         "downhills": 8.0,
     }
     db.segment_ratings.delete_one.assert_awaited_once_with({"_id": rating_id, "segment_id": segment_id})
-    db.segments.update_one.assert_awaited_once_with(
-        {"_id": segment_id},
-        {
-            "$set": {
-                "ratings_count": 2,
-                "rating_totals": {
-                    "traffic": 12,
-                    "steady_gradient": 14,
-                    "sketchy_left_turns": 10,
-                    "downhills": 16,
-                },
-                "average_ratings": {
-                    "traffic": 6.0,
-                    "steady_gradient": 7.0,
-                    "sketchy_left_turns": 5.0,
-                    "downhills": 8.0,
-                },
-            }
-        },
-    )

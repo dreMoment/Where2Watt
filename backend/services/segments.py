@@ -28,18 +28,19 @@ def to_user_summary(user_doc: dict) -> dict:
 def empty_segment_rating_stats() -> dict:
     return {
         "ratings_count": 0,
-        "rating_totals": {field: 0 for field in RATING_FIELDS},
         "average_ratings": {field: None for field in RATING_FIELDS},
     }
 
 
-def initial_segment_rating_stats(ratings: dict[str, int]) -> dict:
-    rating_totals = {field: int(ratings.get(field, 0)) for field in RATING_FIELDS}
-    return {
-        "ratings_count": 1,
-        "rating_totals": rating_totals,
-        "average_ratings": {field: float(rating_totals[field]) for field in RATING_FIELDS},
-    }
+def _normalize_average_ratings(raw_average: dict | None) -> dict[str, float | None]:
+    normalized: dict[str, float | None] = {}
+    for field in RATING_FIELDS:
+        raw_value = raw_average.get(field) if isinstance(raw_average, dict) else None
+        if isinstance(raw_value, (int, float)):
+            normalized[field] = float(raw_value)
+        else:
+            normalized[field] = None
+    return normalized
 
 
 def ensure_segment_rating_stats(segment: dict) -> None:
@@ -48,26 +49,76 @@ def ensure_segment_rating_stats(segment: dict) -> None:
     if not isinstance(count, int) or count < 0:
         count = defaults["ratings_count"]
 
-    raw_totals = segment.get("rating_totals")
-    rating_totals: dict[str, int] = {}
-    for field in RATING_FIELDS:
-        if isinstance(raw_totals, dict):
-            raw_value = raw_totals.get(field, 0)
-        else:
-            raw_value = 0
-        if isinstance(raw_value, (int, float)):
-            rating_totals[field] = int(raw_value)
-        else:
-            rating_totals[field] = 0
+    average_ratings = _normalize_average_ratings(segment.get("average_ratings"))
 
-    if count > 0:
-        average_ratings = {field: round(rating_totals[field] / count, 2) for field in RATING_FIELDS}
-    else:
+    # Backward compatibility for legacy segment docs that still have rating_totals persisted.
+    if count > 0 and any(average_ratings[field] is None for field in RATING_FIELDS):
+        raw_totals = segment.get("rating_totals")
+        if isinstance(raw_totals, dict):
+            for field in RATING_FIELDS:
+                raw_value = raw_totals.get(field, 0)
+                if isinstance(raw_value, (int, float)):
+                    average_ratings[field] = round(float(raw_value) / count, 2)
+
+    if count == 0:
         average_ratings = defaults["average_ratings"]
 
     segment["ratings_count"] = count
-    segment["rating_totals"] = rating_totals
     segment["average_ratings"] = average_ratings
+    segment.pop("rating_totals", None)
+
+
+def _stats_from_aggregated_payload(payload: dict | None) -> dict:
+    if not payload:
+        return empty_segment_rating_stats()
+
+    ratings_count = int(payload.get("ratings_count", 0) or 0)
+    if ratings_count <= 0:
+        return empty_segment_rating_stats()
+
+    average_ratings = {}
+    for field in RATING_FIELDS:
+        total = int(payload.get(f"{field}_total", 0) or 0)
+        average_ratings[field] = round(total / ratings_count, 2)
+    return {"ratings_count": ratings_count, "average_ratings": average_ratings}
+
+
+async def get_segment_rating_stats(db, segment_id: ObjectId) -> dict:
+    aggregate_fields = {f"{field}_total": {"$sum": f"$ratings.{field}"} for field in RATING_FIELDS}
+    aggregated = (
+        await db.segment_ratings.aggregate(
+            [
+                {"$match": {"segment_id": segment_id}},
+                {"$group": {"_id": None, "ratings_count": {"$sum": 1}, **aggregate_fields}},
+            ]
+        ).to_list(length=1)
+    )
+    return _stats_from_aggregated_payload(aggregated[0] if aggregated else None)
+
+
+async def enrich_segments_with_rating_stats(db, segments: list[dict]) -> None:
+    if not segments:
+        return
+
+    segment_ids = [segment["_id"] for segment in segments]
+    aggregate_fields = {f"{field}_total": {"$sum": f"$ratings.{field}"} for field in RATING_FIELDS}
+    aggregates = (
+        await db.segment_ratings.aggregate(
+            [
+                {"$match": {"segment_id": {"$in": segment_ids}}},
+                {"$group": {"_id": "$segment_id", "ratings_count": {"$sum": 1}, **aggregate_fields}},
+            ]
+        ).to_list(length=None)
+    )
+    stats_by_segment_id = {
+        aggregate["_id"]: _stats_from_aggregated_payload(aggregate) for aggregate in aggregates if aggregate.get("_id") is not None
+    }
+    defaults = empty_segment_rating_stats()
+    for segment in segments:
+        stats = stats_by_segment_id.get(segment["_id"], defaults)
+        segment["ratings_count"] = stats["ratings_count"]
+        segment["average_ratings"] = stats["average_ratings"]
+        segment.pop("rating_totals", None)
 
 
 def serialize_segment(segment: dict) -> dict:
