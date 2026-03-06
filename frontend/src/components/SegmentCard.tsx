@@ -86,6 +86,10 @@ export default function SegmentCard({ segment, riderPower = "250", riderWeight =
             setHasReportedCurrentState(true);
             setShowReportForm(false);
             setReportNote("");
+            showToast(
+                    "Thanks! Your report has been submitted and will be reviewed shortly.",
+                { type: "info" }
+            );
         } catch {
             showToast("Failed to report segment. Please try again.", { type: "error" });
         } finally {
