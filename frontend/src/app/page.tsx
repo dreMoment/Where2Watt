@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
-import { Plus, Compass, Activity, LogIn, LogOut, PanelLeft, X, Info } from "lucide-react";
+import Image from "next/image";
+import { Plus, Compass, LogIn, LogOut, PanelLeft, X, Info } from "lucide-react";
 import type { Segment, SegmentAverageRatings } from "@/types";
 import { useAuth } from "@/components/AuthContext";
 import SubmissionForm from "@/components/SubmissionForm";
@@ -126,46 +127,42 @@ export default function Home() {
   };
 
   return (
-    <main className="flex flex-col h-[100dvh] w-full bg-[#f9fafb] overflow-hidden">
-      {/* Top Navigation Bar */}
-      <header className="h-14 bg-white border-b border-neutral-200/80 flex items-center justify-between px-4 shrink-0 z-30 shadow-sm">
-        {/* Left: sidebar toggle */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setSidebarOpen((v) => !v)}
-            className="p-2 rounded-lg text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition-colors"
-            title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
-          >
-            {sidebarOpen ? <X className="w-5 h-5" /> : <PanelLeft className="w-5 h-5" />}
-          </button>
-        </div>
+    <main className="relative flex h-[100dvh] w-full bg-[#f9fafb] overflow-hidden">
+      <button
+        onClick={() => setSidebarOpen((v) => !v)}
+        className="absolute top-3 left-3 z-30 p-2 rounded-lg border border-neutral-200/70 bg-white/90 text-neutral-500 backdrop-blur-sm hover:text-neutral-800 hover:bg-white transition-colors shadow-sm"
+        title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+        aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+      >
+        {sidebarOpen ? <X className="w-5 h-5" /> : <PanelLeft className="w-5 h-5" />}
+      </button>
 
-        {/* Right: info + app icon */}
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setShowInfoScreen(true)}
-            className="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-neutral-200 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 transition-colors"
-            title="Show app info"
-            aria-label="Show app info"
-          >
-            <Info className="w-4 h-4" />
-          </button>
-          <div className="bg-gradient-to-br from-rose-400 to-rose-600 text-white p-1.5 rounded-lg shadow-md shadow-rose-500/20">
-            <Activity className="w-5 h-5" />
-          </div>
-        </div>
-      </header>
+      <button
+        type="button"
+        onClick={() => setShowInfoScreen(true)}
+        className="absolute top-3 right-3 z-30 p-0 transition-opacity hover:opacity-90"
+        title="Show onboarding info"
+        aria-label="Show onboarding info"
+      >
+        <Image
+          src="/logo.svg"
+          alt="FindMyIntervals logo"
+          width={64}
+          height={64}
+          priority
+          className="h-[64px] w-[64px]"
+        />
+      </button>
 
       {/* Body: sidebar + map */}
-      <div className="flex flex-1 overflow-hidden relative">
+      <div className="flex h-full w-full overflow-hidden relative">
         {/* Sidebar */}
         <aside
           className={`${
             sidebarOpen ? "w-[300px]" : "w-0"
           } transition-all duration-300 ease-in-out bg-white shadow-[4px_0_20px_rgba(0,0,0,0.04)] z-20 flex flex-col shrink-0 overflow-hidden border-r border-neutral-100`}
         >
-          <div className="w-[300px] h-full flex flex-col overflow-y-auto">
+          <div className="w-[300px] h-full flex flex-col overflow-y-auto pt-16">
             {/* Rider Profile Configuration */}
             <SectionCard
               title="Rider Profile"

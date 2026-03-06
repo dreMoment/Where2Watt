@@ -17,6 +17,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "FindMyIntervals",
   description: "Find My Intervals",
+  icons: {
+    icon: "/logo_square.svg",
+    shortcut: "/logo_square.svg",
+    apple: "/logo_square.svg",
+  },
 };
 
 export default function RootLayout({

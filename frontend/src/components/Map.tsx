@@ -218,7 +218,7 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
         })()}
       </Map>
       {selectedSegment && (
-        <div className="pointer-events-auto absolute right-4 top-4 z-20">
+        <div className="pointer-events-auto absolute right-16 top-16 z-20">
           <CommunityRatingsPanel
             segment={selectedSegment}
             onSegmentRated={(segmentId, rating) => {
