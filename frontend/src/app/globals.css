@@ -35,8 +35,8 @@ body {
 }
 
 .contribution-popup {
-  width: min(94vw, 30rem);
-  max-height: min(92dvh, 50rem);
+  width: min(94vw, 32rem);
+  max-height: min(92dvh, 52rem);
 }
 
 .contribution-popup-form {
@@ -45,21 +45,21 @@ body {
 
 @media (min-width: 1024px) {
   .contribution-popup {
-    width: min(82vw, 34rem);
-    max-height: min(88dvh, 42rem);
+    width: min(82vw, 36rem);
+    max-height: min(88dvh, 44rem);
   }
 }
 
 @media (min-width: 1024px) and (min-aspect-ratio: 16/10) {
   .contribution-popup {
-    width: min(76vw, 34rem);
-    max-height: min(84dvh, 40rem);
+    width: min(76vw, 36rem);
+    max-height: min(84dvh, 42rem);
   }
 }
 
 @media (min-width: 1024px) and (max-aspect-ratio: 4/3) {
   .contribution-popup {
-    width: min(84vw, 34rem);
-    max-height: min(90dvh, 44rem);
+    width: min(84vw, 36rem);
+    max-height: min(90dvh, 46rem);
   }
 }
