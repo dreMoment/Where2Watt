@@ -84,14 +84,14 @@ function RatingChoiceInput({ fieldKey, label, value, options, onChange }: Rating
                     {label}
                 </span>
             </div>
-            <div className="grid grid-cols-3 gap-1.5" role="group" aria-labelledby={`rating-${fieldKey}-label`}>
+            <div className="grid grid-cols-3 gap-2" role="group" aria-labelledby={`rating-${fieldKey}-label`}>
                 {options.map((option) => (
                     <button
                         key={`${fieldKey}-${option.value}`}
                         type="button"
                         aria-label={`${label}: ${option.label}`}
                         onClick={() => onChange(option.value)}
-                        className={`rounded-lg border px-2.5 py-2 text-center text-xs font-medium transition-colors ${
+                        className={`min-h-10 rounded-lg border px-2 py-2.5 text-center text-[13px] font-medium leading-tight transition-colors sm:text-xs ${
                             value === option.value
                                 ? "border-[#fc4c02] bg-orange-50 text-[#fc4c02]"
                                 : "border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-100"
@@ -179,10 +179,10 @@ export default function SubmissionForm({ onClose }: Props) {
 
     if (alreadyExists) {
         return (
-            <div className="contribution-popup relative bg-white/90 backdrop-blur-xl p-8 rounded-3xl shadow-2xl text-center border border-blue-100/50 transform transition-all animate-in fade-in zoom-in duration-300">
+            <div className="contribution-popup relative rounded-2xl border border-blue-100/50 bg-white/90 p-5 text-center shadow-2xl backdrop-blur-xl transition-all animate-in fade-in zoom-in duration-300 sm:rounded-3xl sm:p-8">
                 <button
                     onClick={onClose}
-                    className="absolute top-5 right-5 text-neutral-400 hover:text-neutral-900 bg-neutral-100/50 hover:bg-neutral-100 p-2 rounded-full transition-all"
+                    className="absolute right-3 top-3 rounded-full bg-neutral-100/50 p-2 text-neutral-400 transition-all hover:bg-neutral-100 hover:text-neutral-900 sm:right-5 sm:top-5"
                 >
                     <X className="w-5 h-5" />
                 </button>
@@ -205,7 +205,7 @@ export default function SubmissionForm({ onClose }: Props) {
 
     if (success) {
         return (
-            <div className="contribution-popup bg-white/90 backdrop-blur-xl p-8 rounded-3xl shadow-2xl text-center border border-emerald-100/50 transform transition-all animate-in fade-in zoom-in duration-300">
+            <div className="contribution-popup rounded-2xl border border-emerald-100/50 bg-white/90 p-5 text-center shadow-2xl backdrop-blur-xl transition-all animate-in fade-in zoom-in duration-300 sm:rounded-3xl sm:p-8">
                 <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-emerald-100 relative">
                     <div className="absolute inset-0 rounded-full bg-emerald-400/20 animate-ping"></div>
                     <Send className="w-10 h-10 relative z-10" />
@@ -220,10 +220,10 @@ export default function SubmissionForm({ onClose }: Props) {
 
     if (!isLoggedIn) {
         return (
-            <div className="contribution-popup bg-white/95 backdrop-blur-2xl p-8 rounded-3xl shadow-2xl relative border border-white/50 transform transition-all animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="contribution-popup relative rounded-2xl border border-white/50 bg-white/95 p-5 shadow-2xl backdrop-blur-2xl transition-all animate-in fade-in slide-in-from-bottom-4 duration-300 sm:rounded-3xl sm:p-8">
                 <button
                     onClick={onClose}
-                    className="absolute top-5 right-5 text-neutral-400 hover:text-neutral-900 bg-neutral-100/50 hover:bg-neutral-100 p-2 rounded-full transition-all"
+                    className="absolute right-3 top-3 rounded-full bg-neutral-100/50 p-2 text-neutral-400 transition-all hover:bg-neutral-100 hover:text-neutral-900 sm:right-5 sm:top-5"
                 >
                     <X className="w-5 h-5" />
                 </button>
@@ -249,23 +249,23 @@ export default function SubmissionForm({ onClose }: Props) {
     }
 
     return (
-        <div className="contribution-popup bg-white/95 backdrop-blur-2xl p-8 rounded-3xl shadow-2xl relative border border-white/50 transform transition-all animate-in fade-in slide-in-from-bottom-4 duration-300 flex flex-col">
+        <div className="contribution-popup relative flex flex-col rounded-2xl border border-white/50 bg-white/95 p-5 shadow-2xl backdrop-blur-2xl transition-all animate-in fade-in slide-in-from-bottom-4 duration-300 sm:rounded-3xl sm:p-8">
             <button
                 onClick={onClose}
-                className="absolute top-5 right-5 text-neutral-400 hover:text-neutral-900 bg-neutral-100/50 hover:bg-neutral-100 p-2 rounded-full transition-all"
+                className="absolute right-3 top-3 rounded-full bg-neutral-100/50 p-2 text-neutral-400 transition-all hover:bg-neutral-100 hover:text-neutral-900 sm:right-5 sm:top-5"
             >
                 <X className="w-5 h-5" />
             </button>
 
-            <div className="mb-8">
+            <div className="mb-6 pr-8 sm:mb-8 sm:pr-10">
                 <h2 className="text-2xl font-black text-neutral-900 mb-2 tracking-tight">Add a Segment</h2>
-                <p className="text-sm text-neutral-500 font-medium">
+                <p className="text-sm leading-relaxed text-neutral-500 font-medium">
                     Know a great quiet road for intervals? Share it with the community.
                 </p>
             </div>
 
             <form onSubmit={handleSubmit} className="flex flex-1 flex-col min-h-0">
-                <div className="contribution-popup-form flex flex-1 flex-col gap-2 overflow-y-auto pr-1 min-h-0">
+                <div className="contribution-popup-form flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-0.5 sm:gap-2 sm:pr-1">
                     <div className="group">
                         <label htmlFor="strava_url" className="block text-xs font-bold text-neutral-400 uppercase tracking-widest mb-2 group-focus-within:text-neutral-900 transition-colors">
                             Strava Segment URL
@@ -284,7 +284,7 @@ export default function SubmissionForm({ onClose }: Props) {
                         />
                         <div className="mt-2 flex items-start gap-1.5 text-neutral-500">
                             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                            <p className="text-[11px] leading-relaxed">
+                            <p className="text-xs leading-relaxed">
                                 Please submit only uninterrupted segments (no traffic lights or major intersections)
                             </p>
                         </div>
@@ -293,7 +293,7 @@ export default function SubmissionForm({ onClose }: Props) {
 
                     <div className="flex flex-col gap-3">
                         {overallRatingField ? (
-                            <div className="rounded-lg border border-neutral-200 bg-white p-3">
+                            <div className="rounded-lg border border-neutral-200 bg-white p-3.5 sm:p-3">
                                 <RatingStarsInput
                                     fieldKey={overallRatingField.key}
                                     label={overallRatingField.label}
@@ -312,8 +312,8 @@ export default function SubmissionForm({ onClose }: Props) {
                             </div>
                         ) : null}
 
-                        <div className="rounded-lg border border-neutral-200 bg-white p-3">
-                            <div className="grid grid-cols-2 gap-4">
+                        <div className="rounded-lg border border-neutral-200 bg-white p-3.5 sm:p-3">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 {detailRatingFields.map((field) => {
                                 const value = formData.ratings[field.key];
                                 const handleChange = (nextValue: number) => {
@@ -353,11 +353,11 @@ export default function SubmissionForm({ onClose }: Props) {
                             </div>
                         </div>
                     </div>
-                    <p className="text-[14px] text-neutral-500">Select one option for each rating category.</p>
+                    <p className="text-sm text-neutral-500">Select one option for each rating category.</p>
 
                 </div>
 
-                <div className="mt-3 shrink-0">
+                <div className="mt-3 shrink-0 pb-[max(env(safe-area-inset-bottom),0px)]">
                     {formError ? (
                         <div role="alert" className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
                             {formError}
@@ -366,7 +366,7 @@ export default function SubmissionForm({ onClose }: Props) {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full bg-neutral-900 hover:bg-neutral-800 text-white py-4 rounded-xl font-bold transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:hover:translate-y-0 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-neutral-900 py-3.5 font-bold text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-neutral-800 hover:shadow-xl active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0 sm:py-4"
                     >
                         {loading ? (
                             <>

@@ -35,12 +35,18 @@ body {
 }
 
 .contribution-popup {
-  width: min(94vw, 32rem);
-  max-height: min(92dvh, 52rem);
+  width: min(96vw, 32rem);
+  max-height: min(94dvh, 52rem);
 }
 
 .contribution-popup-form {
   scrollbar-gutter: stable;
+}
+
+@media (max-width: 640px) {
+  .contribution-popup {
+    max-height: calc(100dvh - 1rem);
+  }
 }
 
 @media (min-width: 1024px) {
