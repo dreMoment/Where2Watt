@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Map, { Popup, Source, Layer, NavigationControl } from "react-map-gl/maplibre";
 import SegmentCard from "./SegmentCard";
 import CommunityRatingsPanel from "./CommunityRatingsPanel";
@@ -41,6 +41,8 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
   const [selectedSegment, setSelectedSegment] = useState<Segment | null>(null);
   const [clickedCoordinate, setClickedCoordinate] = useState<[number, number] | null>(null);
   const [cursor, setCursor] = useState("grab");
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [isRatingsVisible, setIsRatingsVisible] = useState(true);
 
   const filteredSegments = segments;
 
@@ -67,9 +69,42 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
   const mapStyle = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
 
   const interactiveLayerIds = useMemo(
-    () => filteredSegments.map((s, idx) => `route-${s.id || idx}`),
+    () => filteredSegments.map((s, idx) => `route-hit-${s.id || idx}`),
     [filteredSegments]
   );
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+
+    const mobileMediaQuery = window.matchMedia("(max-width: 768px)");
+    const handleViewportChange = (event: MediaQueryListEvent | MediaQueryList) => {
+      const isMobile = event.matches;
+      setIsMobileViewport(isMobile);
+      if (!isMobile) {
+        setIsRatingsVisible(true);
+      }
+    };
+
+    handleViewportChange(mobileMediaQuery);
+    if (typeof mobileMediaQuery.addEventListener === "function") {
+      mobileMediaQuery.addEventListener("change", handleViewportChange);
+    } else if (typeof mobileMediaQuery.addListener === "function") {
+      mobileMediaQuery.addListener(handleViewportChange);
+    }
+
+    return () => {
+      if (typeof mobileMediaQuery.removeEventListener === "function") {
+        mobileMediaQuery.removeEventListener("change", handleViewportChange);
+      } else if (typeof mobileMediaQuery.removeListener === "function") {
+        mobileMediaQuery.removeListener(handleViewportChange);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedSegment) return;
+    setIsRatingsVisible(!isMobileViewport);
+  }, [selectedSegment, isMobileViewport]);
 
   return (
     <div className="h-full w-full shadow-lg overflow-hidden relative">
@@ -141,6 +176,20 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
           return (
             <React.Fragment key={`segment-group-${segment.id || idx}`}>
               <Source id={`source-${segment.id || idx}`} type="geojson" data={geojsonData}>
+                <Layer
+                  id={`route-hit-${segment.id || idx}`}
+                  type="line"
+                  layout={{
+                    "line-join": "round",
+                    "line-cap": "round"
+                  }}
+                  paint={{
+                    "line-color": "#000000",
+                    // Slightly above zero keeps the layer pickable while remaining visually invisible.
+                    "line-opacity": 0.01,
+                    "line-width": isSelected ? 20 : 16
+                  }}
+                />
                 <Layer
                   id={`route-${segment.id || idx}`}
                   type="line"
@@ -217,8 +266,21 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
           );
         })()}
       </Map>
-      {selectedSegment && (
-        <div className="pointer-events-auto absolute right-16 top-16 z-20">
+      {selectedSegment && isMobileViewport && (
+        <button
+          type="button"
+          onClick={() => setIsRatingsVisible((prev) => !prev)}
+          className="absolute bottom-4 left-1/2 z-30 -translate-x-1/2 rounded-lg border border-neutral-200 bg-white/95 px-5 py-2.5 text-xs font-semibold text-neutral-700 shadow-md backdrop-blur-sm"
+        >
+          {isRatingsVisible ? "Hide ratings" : "Show ratings"}
+        </button>
+      )}
+      {selectedSegment && (!isMobileViewport || isRatingsVisible) && (
+        <div
+          className={`pointer-events-auto absolute z-20 ${
+            isMobileViewport ? "left-1/2 bottom-16 w-[min(92vw,340px)] -translate-x-1/2" : "right-16 top-16"
+          }`}
+        >
           <CommunityRatingsPanel
             segment={selectedSegment}
             onSegmentRated={(segmentId, rating) => {

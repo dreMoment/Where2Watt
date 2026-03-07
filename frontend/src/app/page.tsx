@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { Plus, Compass, LogIn, LogOut, PanelLeft, X } from "lucide-react";
+import { Plus, Compass, LogIn, LogOut, PanelLeft, X, Info } from "lucide-react";
 import type { Segment, SegmentAverageRatings } from "@/types";
 import { useAuth } from "@/components/AuthContext";
 import SubmissionForm from "@/components/SubmissionForm";
@@ -42,8 +42,21 @@ export default function Home() {
   const [filterTimeStr, setFilterTimeStr] = useState("5"); // in minutes
   const [isFiltered, setIsFiltered] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
 
   useEffect(() => {
+    const mobileMediaQuery = window.matchMedia("(max-width: 768px)");
+    const syncViewportState = (event: MediaQueryList | MediaQueryListEvent) => {
+      setIsMobileViewport(event.matches);
+    };
+    syncViewportState(mobileMediaQuery);
+
+    if (typeof mobileMediaQuery.addEventListener === "function") {
+      mobileMediaQuery.addEventListener("change", syncViewportState);
+    } else if (typeof mobileMediaQuery.addListener === "function") {
+      mobileMediaQuery.addListener(syncViewportState);
+    }
+
     const p = localStorage.getItem("plannedPower");
     const w = localStorage.getItem("riderWeight");
     const bw = localStorage.getItem("bikeWeight");
@@ -56,9 +69,15 @@ export default function Home() {
     setHideInfoScreenNextTime(hideInfoScreen);
     const shouldShowInfoScreen = !hideInfoScreen;
     setShowInfoScreen(shouldShowInfoScreen);
-    if (shouldShowInfoScreen) {
-      setSidebarOpen(false);
-    }
+    setSidebarOpen(!mobileMediaQuery.matches && !shouldShowInfoScreen);
+
+    return () => {
+      if (typeof mobileMediaQuery.removeEventListener === "function") {
+        mobileMediaQuery.removeEventListener("change", syncViewportState);
+      } else if (typeof mobileMediaQuery.removeListener === "function") {
+        mobileMediaQuery.removeListener(syncViewportState);
+      }
+    };
   }, []);
 
   const handleWeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -128,7 +147,9 @@ export default function Home() {
   const closeInfoScreen = () => {
     localStorage.setItem(HIDE_INFO_SCREEN_STORAGE_KEY, hideInfoScreenNextTime ? "true" : "false");
     setShowInfoScreen(false);
-    setSidebarOpen(true);
+    if (!isMobileViewport) {
+      setSidebarOpen(true);
+    }
   };
 
   const openInfoScreen = () => {
@@ -335,7 +356,7 @@ export default function Home() {
           )}
 
           {showInfoScreen && (
-            <div className="absolute inset-0 z-[9998] bg-neutral-900/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-3 sm:p-4">
+            <div className="absolute inset-0 z-[9998] bg-neutral-900/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
               <div
                 role="dialog"
                 aria-modal="true"
@@ -362,7 +383,7 @@ export default function Home() {
 
                 <div className="mt-5 sm:mt-6 space-y-2.5 sm:space-y-3 text-sm md:text-base text-neutral-600 leading-relaxed">
                   <p>
-                    Adjust your rider profile values to personalize estimated segment completion times.
+                    Adjust your rider profile values to personalize estimated segment completion times. You can find these by toggling the sidebar on the left.
                   </p>
                   <p>
                     Apply power and duration filters to find segments that best match your target duration.
@@ -370,9 +391,27 @@ export default function Home() {
                   <p>
                     Sign in with Strava if you want to contribute new segments or rate routes you have ridden.
                   </p>
+                    <p>
+                    Have fun and stay safe :)
+                    </p>
                 </div>
 
-                <div className="mt-6 sm:mt-8 flex flex-col-reverse gap-3 sm:gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="mt-6 sm:mt-8 space-y-3 sm:space-y-4">
+                  {isMobileViewport && (
+                    <div className="flex items-start gap-2.5 rounded-xl border border-amber-400 bg-amber-50 px-3.5 py-3 text-amber-900">
+                      <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                      <p className="text-sm md:text-base font-medium leading-relaxed">
+                        The app experience works best on a device with a wider screen, such as a laptop or PC.
+                      </p>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={closeInfoScreen}
+                    className="w-full rounded-xl bg-neutral-900 hover:bg-neutral-800 px-5 py-3 sm:py-2.5 text-sm font-semibold text-white transition-colors"
+                  >
+                    Continue
+                  </button>
                   <label className="flex items-center gap-3 text-sm text-neutral-700 cursor-pointer select-none leading-tight">
                     <input
                       type="checkbox"
@@ -382,13 +421,6 @@ export default function Home() {
                     />
                     Do not show this info screen again
                   </label>
-                  <button
-                    type="button"
-                    onClick={closeInfoScreen}
-                    className="w-full sm:w-auto self-stretch sm:self-end rounded-xl bg-neutral-900 hover:bg-neutral-800 px-5 py-3 sm:py-2.5 text-sm font-semibold text-white transition-colors"
-                  >
-                    Continue
-                  </button>
                 </div>
               </div>
             </div>
