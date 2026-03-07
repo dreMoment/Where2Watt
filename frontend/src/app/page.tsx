@@ -171,7 +171,9 @@ export default function Home() {
       <button
         type="button"
         onClick={openInfoScreen}
-        className="absolute top-3 right-3 z-30 p-0 transition-opacity hover:opacity-90"
+        className={`absolute top-3 right-3 z-30 p-0 transition-opacity hover:opacity-90 ${
+          isMobileViewport && sidebarOpen ? "opacity-0 pointer-events-none" : "opacity-100"
+        }`}
         title="Show onboarding info"
         aria-label="Show onboarding info"
       >
@@ -299,11 +301,11 @@ export default function Home() {
 
         {/* Sidebar */}
         <aside
-          className={`absolute inset-y-0 left-0 z-20 w-[350px] transform transition-transform duration-300 ease-in-out bg-white shadow-[4px_0_20px_rgba(0,0,0,0.04)] border-r border-neutral-100 ${
+          className={`absolute inset-y-0 left-0 z-20 w-full md:w-[350px] transform transition-transform duration-300 ease-in-out bg-white shadow-[4px_0_20px_rgba(0,0,0,0.04)] border-r border-neutral-100 ${
             sidebarOpen ? "translate-x-0 pointer-events-auto" : "-translate-x-full pointer-events-none"
           }`}
         >
-          <div className="w-[350px] h-full flex flex-col overflow-y-auto pt-16">
+          <div className="w-full md:w-[350px] h-full flex flex-col overflow-y-auto pt-16">
             {/* Rider Profile Configuration */}
             <SectionCard
               title="Rider Profile"
