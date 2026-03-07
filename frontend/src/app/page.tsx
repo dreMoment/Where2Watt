@@ -268,9 +268,9 @@ export default function Home() {
 
                 <div className="mt-6 sm:mt-8 space-y-3 sm:space-y-4">
                   {isMobileViewport && (
-                    <div className="flex items-start gap-2.5 rounded-xl border border-amber-400 bg-amber-50 px-3.5 py-3 text-amber-900">
-                      <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                      <p className="text-sm md:text-base font-medium leading-relaxed">
+                    <div className="flex flex-col items-center gap-2 rounded-xl border border-amber-400 bg-amber-50 px-3.5 py-3 text-amber-900">
+                      <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      <p className="center-text text-center text-sm md:text-base font-medium leading-relaxed">
                         The app experience works best on a device with a wider screen, such as a laptop or PC.
                       </p>
                     </div>

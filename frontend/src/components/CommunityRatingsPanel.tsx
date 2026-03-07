@@ -16,6 +16,24 @@ const RATING_FIELDS: Array<{ key: keyof SegmentRatingValues; label: string }> = 
     { key: "downhills", label: "Downhills" },
 ];
 
+function StarIcon({ className }: { className?: string }) {
+    return (
+        <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
+            <path d="M12 2.5 14.94 8.46 21.5 9.41 16.75 14.03 17.88 20.56 12 17.47 6.12 20.56 7.25 14.03 2.5 9.41 9.06 8.46 12 2.5Z" />
+        </svg>
+    );
+}
+
+function StarRow({ colorClassName }: { colorClassName: string }) {
+    return (
+        <span className={`inline-flex items-center gap-0 ${colorClassName}`}>
+            {[0, 1, 2, 3, 4].map((idx) => (
+                <StarIcon key={idx} className="h-3.5 w-3.5" />
+            ))}
+        </span>
+    );
+}
+
 type NullableSegmentRatings = {
     [K in keyof SegmentRatingValues]: number | null;
 };
@@ -38,14 +56,14 @@ function StarPreview({ valueOutOf10, label, fillTestId }: { valueOutOf10: number
     const widthPercent = (roundedStarsOutOf5 / 5) * 100;
     return (
         <span aria-label={`${label} average stars`}>
-            <span className="relative inline-block text-sm leading-none text-neutral-200" aria-hidden="true">
-                <span>★★★★★</span>
+            <span className="relative inline-block" aria-hidden="true">
+                <StarRow colorClassName="text-neutral-200" />
                 <span
-                    className="absolute left-0 top-0 overflow-hidden text-amber-500"
+                    className="absolute inset-y-0 left-0 overflow-hidden"
                     style={{ width: `${widthPercent}%` }}
                     data-testid={fillTestId}
                 >
-                    ★★★★★
+                    <StarRow colorClassName="text-amber-500" />
                 </span>
             </span>
         </span>
@@ -75,7 +93,7 @@ function RatingStarsInput({ fieldKey, label, valueOutOf10, onChange }: RatingSta
                     {label}
                 </span>
             </div>
-            <div className="flex items-center gap-1" role="group" aria-labelledby={`segment-rating-${fieldKey}-label`}>
+            <div className="flex items-center gap-0" role="group" aria-labelledby={`segment-rating-${fieldKey}-label`}>
                 {[1, 2, 3, 4, 5].map((starNumber) => {
                     const fullValue = starNumber * 2;
                     const fillPercent = getStarFillPercent(valueOutOf10, starNumber);
@@ -88,15 +106,15 @@ function RatingStarsInput({ fieldKey, label, valueOutOf10, onChange }: RatingSta
                                 const nextValue = valueOutOf10 === fullValue ? fullValue - 1 : fullValue;
                                 onChange(nextValue);
                             }}
-                            className="rounded p-0.5 transition-colors hover:bg-amber-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#fc4c02]"
+                            className="flex h-7 w-7 items-center justify-center rounded-sm transition-colors hover:bg-amber-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#fc4c02]"
                         >
-                            <span className="relative inline-block text-lg leading-none text-neutral-200" aria-hidden="true">
-                                <span>★</span>
+                            <span className="relative inline-block h-7 w-7 text-neutral-200" aria-hidden="true">
+                                <StarIcon className="h-7 w-7" />
                                 <span
-                                    className="absolute left-0 top-0 overflow-hidden text-amber-500"
+                                    className="absolute inset-y-0 left-0 overflow-hidden text-amber-500"
                                     style={{ width: `${fillPercent}%` }}
                                 >
-                                    ★
+                                    <StarIcon className="h-7 w-7" />
                                 </span>
                             </span>
                         </button>
@@ -116,6 +134,11 @@ export default function CommunityRatingsPanel({ segment, onSegmentRated }: Commu
     const [ratingDraft, setRatingDraft] = useState<NullableSegmentRatings>(DEFAULT_RATING_INPUT);
     const [showLoginPrompt, setShowLoginPrompt] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
+    const [isFolded, setIsFolded] = useState(false);
+
+    useEffect(() => {
+        setIsFolded(false);
+    }, [segment.id]);
 
     useEffect(() => {
         let cancelled = false;
@@ -192,12 +215,24 @@ export default function CommunityRatingsPanel({ segment, onSegmentRated }: Commu
     const averageRatings = segment.average_ratings;
 
     return (
-        <div className="w-[min(92vw,340px)] rounded-xl border border-neutral-200 bg-white/95 p-3 shadow-lg backdrop-blur-sm">
-            <div className="mb-2 flex flex-col gap-0.5">
-                <span className="text-xs font-bold uppercase tracking-wide text-neutral-600">Community Ratings</span>
-                <span className="truncate text-sm font-semibold text-neutral-800">{segment.name}</span>
+        <div className="w-[min(94vw,380px)] rounded-xl border border-neutral-200 bg-white/95 p-3 shadow-lg backdrop-blur-sm">
+            <div className="mb-2 flex items-start justify-between gap-2">
+                <div className="flex min-w-0 flex-col gap-0.5">
+                    <span className="text-xs font-bold uppercase tracking-wide text-neutral-600">Community Ratings</span>
+                    <span className="truncate text-sm font-semibold text-neutral-800">{segment.name}</span>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => setIsFolded((prev) => !prev)}
+                    aria-label={isFolded ? "Expand ratings popup" : "Fold ratings popup"}
+                    title={isFolded ? "Expand ratings popup" : "Fold ratings popup"}
+                    className="hidden shrink-0 rounded-md border border-neutral-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-neutral-600 transition-colors hover:bg-neutral-100 sm:inline-flex"
+                >
+                    {isFolded ? "Show" : "Hide"}
+                </button>
             </div>
-            <div className="rounded-xl border border-neutral-200 bg-neutral-50/70 p-3 flex flex-col gap-2">
+            {!isFolded && (
+            <div className="rounded-xl bg-neutral-50/70 p-3 flex flex-col gap-2">
                 <div className="flex items-center justify-between gap-2">
                     <span className="text-xs font-bold text-neutral-600 uppercase tracking-wide">Scores</span>
                     <span className="text-[11px] font-semibold text-neutral-500">{ratingsCount} {ratingsCount === 1 ? "rating" : "ratings"}</span>
@@ -288,7 +323,7 @@ export default function CommunityRatingsPanel({ segment, onSegmentRated }: Commu
                                 />
                             ))}
                         </div>
-                        <p className="text-[10px] text-neutral-500">Click a star once for full, click it again for half.</p>
+                        <p className="text-[10px] text-neutral-500">Click a star once for full, then click the same star again for a half-star.</p>
                         {formError ? (
                             <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-[11px] font-medium text-red-700">
                                 {formError}
@@ -315,6 +350,7 @@ export default function CommunityRatingsPanel({ segment, onSegmentRated }: Commu
                     </div>
                 )}
             </div>
+            )}
         </div>
     );
 }

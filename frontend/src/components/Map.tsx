@@ -278,7 +278,7 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
       {selectedSegment && (!isMobileViewport || isRatingsVisible) && (
         <div
           className={`pointer-events-auto absolute z-20 ${
-            isMobileViewport ? "left-1/2 bottom-16 w-[min(92vw,340px)] -translate-x-1/2" : "right-16 top-16"
+            isMobileViewport ? "left-1/2 bottom-16 w-[min(92vw,340px)] -translate-x-1/2" : "right-20 bottom-4"
           }`}
         >
           <CommunityRatingsPanel

@@ -155,4 +155,27 @@ describe("CommunityRatingsPanel", () => {
         expect(screen.queryByLabelText("Traffic average stars")).not.toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Traffic star 1" })).toBeInTheDocument();
     });
+
+    it("folds and expands the ratings popup content from the top-right toggle", () => {
+        const segmentWithAverages: import("@/types").Segment = {
+            ...mockSegment,
+            ratings_count: 3,
+            average_ratings: {
+                traffic: 7,
+                steady_gradient: 7,
+                sketchy_left_turns: 7,
+                downhills: 7,
+            },
+        };
+
+        render(<CommunityRatingsPanel segment={segmentWithAverages} />);
+
+        expect(screen.getByLabelText("Traffic average stars")).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("button", { name: /Fold ratings popup/i }));
+        expect(screen.queryByLabelText("Traffic average stars")).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole("button", { name: /Expand ratings popup/i }));
+        expect(screen.getByLabelText("Traffic average stars")).toBeInTheDocument();
+    });
 });

@@ -21,6 +21,14 @@ const RATING_FIELDS: Array<{ key: keyof SegmentRatingValues; label: string }> = 
     { key: "downhills", label: "Downhills" },
 ];
 
+function StarIcon({ className }: { className?: string }) {
+    return (
+        <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
+            <path d="M12 2.5 14.94 8.46 21.5 9.41 16.75 14.03 17.88 20.56 12 17.47 6.12 20.56 7.25 14.03 2.5 9.41 9.06 8.46 12 2.5Z" />
+        </svg>
+    );
+}
+
 function getStarFillPercent(valueOutOf10: number | null, starNumber: number): number {
     if (valueOutOf10 == null) return 0;
     const fullValue = starNumber * 2;
@@ -44,7 +52,7 @@ function RatingStarsInput({ fieldKey, label, valueOutOf10, onChange }: RatingSta
                     {label}
                 </span>
             </div>
-            <div className="flex items-center gap-1" role="group" aria-labelledby={`rating-${fieldKey}-label`}>
+            <div className="flex items-center gap-0" role="group" aria-labelledby={`rating-${fieldKey}-label`}>
                 {[1, 2, 3, 4, 5].map((starNumber) => {
                     const fullValue = starNumber * 2;
                     const fillPercent = getStarFillPercent(valueOutOf10, starNumber);
@@ -57,15 +65,15 @@ function RatingStarsInput({ fieldKey, label, valueOutOf10, onChange }: RatingSta
                                 const nextValue = valueOutOf10 === fullValue ? fullValue - 1 : fullValue;
                                 onChange(nextValue);
                             }}
-                            className="rounded p-0.5 transition-colors hover:bg-amber-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#fc4c02]"
+                            className="flex h-7 w-7 items-center justify-center rounded-sm transition-colors hover:bg-amber-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#fc4c02]"
                         >
-                            <span className="relative inline-block text-xl leading-none text-neutral-200" aria-hidden="true">
-                                <span>★</span>
+                            <span className="relative inline-block h-7 w-7 text-neutral-200" aria-hidden="true">
+                                <StarIcon className="h-7 w-7" />
                                 <span
-                                    className="absolute left-0 top-0 overflow-hidden text-amber-500"
+                                    className="absolute inset-y-0 left-0 overflow-hidden text-amber-500"
                                     style={{ width: `${fillPercent}%` }}
                                 >
-                                    ★
+                                    <StarIcon className="h-7 w-7" />
                                 </span>
                             </span>
                         </button>
@@ -255,13 +263,11 @@ export default function SubmissionForm({ onClose }: Props) {
                                 setFormData({ ...formData, strava_url: e.target.value });
                             }}
                         />
+                        
                     </div>
 
                     <div className="rounded-xl border border-neutral-200 bg-neutral-50/60 p-4 flex flex-col gap-4">
-                        <div>
-                            <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Required Ratings</h3>
-                            <p className="text-sm text-neutral-600 mt-1">Click a star once for full, click it again for half.</p>
-                        </div>
+                        
                         <div className="grid grid-cols-2 gap-4">
                             {RATING_FIELDS.map((field) => {
                                 const value = formData.ratings[field.key];
@@ -288,9 +294,11 @@ export default function SubmissionForm({ onClose }: Props) {
                             })}
                         </div>
                     </div>
+                    <p className="text-[14px] text-neutral-500">Click a star once for full, then click the same star again for a half-star.</p>
+
                 </div>
 
-                <div className="mt-4 shrink-0 border-t border-neutral-200/90 pt-4 bg-white/95">
+                <div className="mt-3 shrink-0">
                     {formError ? (
                         <div role="alert" className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
                             {formError}
