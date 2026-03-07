@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
+import { LogIn, X } from "lucide-react";
 import type { Segment, SegmentAverageRatings, SegmentRatingValues } from "@/types";
 import { fetchMySegmentRatingStatus, rateSegment } from "@/utils/api";
 import { useAuth } from "@/components/AuthContext";
 import { useUiFeedback } from "@/components/ui/UiFeedbackProvider";
+import StravaConnectButton from "@/components/StravaConnectButton";
 import {
     DEFAULT_RATING_INPUT,
     RATING_FIELDS,
@@ -204,6 +206,7 @@ export default function CommunityRatingsPanel({ segment, onSegmentRated }: Commu
     const assessmentFields = RATING_FIELDS.filter((field) => field.key !== "overall_quality");
 
     return (
+        <>
         <div className="w-[min(94vw,380px)] rounded-xl border border-neutral-200 bg-white/95 p-3 shadow-lg backdrop-blur-sm">
             <div className="mb-2 flex items-start justify-between gap-2">
                 <div className="flex min-w-0 flex-col gap-0.5">
@@ -264,26 +267,6 @@ export default function CommunityRatingsPanel({ segment, onSegmentRated }: Commu
                     >
                         {hasRated ? "Already rated" : "Rate this segment"}
                     </button>
-
-                    {showLoginPrompt && (
-                        <div className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-2">
-                            <p className="text-[11px] text-blue-800 mb-2">You need to log in with Strava to rate segments.</p>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => login()}
-                                    className="flex-1 bg-[#fc4c02] hover:bg-[#e34402] text-white py-1.5 rounded-lg font-semibold text-xs transition-colors"
-                                >
-                                    Log in
-                                </button>
-                                <button
-                                    onClick={() => setShowLoginPrompt(false)}
-                                    className="flex-1 bg-white border border-blue-200 hover:bg-blue-100 text-blue-600 py-1.5 rounded-lg font-semibold text-xs transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                            </div>
-                        </div>
-                    )}
 
                     {showRatingForm && !hasRated && (
                         <div className="mt-1 rounded-lg border border-neutral-200 bg-white p-2.5 flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
@@ -350,5 +333,43 @@ export default function CommunityRatingsPanel({ segment, onSegmentRated }: Commu
                 </div>
             )}
         </div>
+        {showLoginPrompt && (
+            <div className="fixed inset-0 z-[9999] bg-neutral-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="ratings-login-required-title"
+                    className="contribution-popup relative w-full max-w-[min(92vw,680px)] rounded-2xl border border-white/50 bg-white/95 p-5 shadow-2xl backdrop-blur-2xl transition-all animate-in fade-in slide-in-from-bottom-4 duration-300 sm:rounded-3xl sm:p-8"
+                >
+                    <button
+                        onClick={() => setShowLoginPrompt(false)}
+                        aria-label="Close login prompt"
+                        className="absolute right-3 top-3 rounded-full bg-neutral-100/50 p-2 text-neutral-400 transition-all hover:bg-neutral-100 hover:text-neutral-900 sm:right-5 sm:top-5"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+
+                    <div className="text-center py-4">
+                        <div className="w-20 h-20 bg-orange-50 text-[#fc4c02] rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-orange-100">
+                            <LogIn className="w-10 h-10" />
+                        </div>
+                        <h2 id="ratings-login-required-title" className="text-2xl font-black text-neutral-900 mb-2 tracking-tight">
+                            Login Required
+                        </h2>
+                        <p className="text-sm text-neutral-500 font-medium mb-6">
+                            You need to log in with Strava to rate segments.
+                        </p>
+                        <StravaConnectButton
+                            onClick={() => {
+                                login();
+                                setShowLoginPrompt(false);
+                            }}
+                            className="w-full sm:w-auto mx-auto"
+                        />
+                    </div>
+                </div>
+            </div>
+        )}
+        </>
     );
 }

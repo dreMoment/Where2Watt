@@ -5,6 +5,7 @@ import { X, Send, Loader2, LogIn, MapPin, Info } from "lucide-react";
 import { submitSegment, type SubmissionData } from "@/utils/api";
 import type { SegmentRatingValues } from "@/types";
 import { useAuth } from "@/components/AuthContext";
+import StravaConnectButton from "@/components/StravaConnectButton";
 import { DEFAULT_RATING_INPUT, RATING_FIELDS, type NullableSegmentRatings } from "@/constants/ratings";
 
 interface Props {
@@ -236,13 +237,7 @@ export default function SubmissionForm({ onClose }: Props) {
                     <p className="text-sm text-neutral-500 font-medium mb-6">
                         You need to log in with Strava to submit segments.
                     </p>
-                    <button
-                        onClick={login}
-                        className="w-full bg-[#fc4c02] hover:bg-[#e34402] text-white py-3.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-orange-500/20 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2"
-                    >
-                        <LogIn className="w-5 h-5" />
-                        Login with Strava
-                    </button>
+                    <StravaConnectButton onClick={login} className="w-full" />
                 </div>
             </div>
         );

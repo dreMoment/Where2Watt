@@ -3,12 +3,15 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { Plus, Compass, LogIn, LogOut, PanelLeft, X, Info } from "lucide-react";
+import Link from "next/link";
+import { Plus, Compass, LogOut, PanelLeft, X, Info } from "lucide-react";
 import type { Segment, SegmentAverageRatings } from "@/types";
 import { useAuth } from "@/components/AuthContext";
 import SubmissionForm from "@/components/SubmissionForm";
 import InputField from "@/components/InputField";
 import SectionCard from "@/components/SectionCard";
+import StravaConnectButton from "@/components/StravaConnectButton";
+import StravaCompatibleBadge from "@/components/StravaCompatibleBadge";
 import { fetchSegments } from "@/utils/api";
 import { filterSegmentsByInterval } from "@/utils/intervals";
 
@@ -159,14 +162,17 @@ export default function Home() {
 
   return (
     <main className="relative flex h-[100dvh] w-full bg-[#f9fafb] overflow-hidden">
-      <button
-        onClick={() => setSidebarOpen((v) => !v)}
-        className="absolute top-3 left-3 z-30 p-2 rounded-lg border border-neutral-200/70 bg-white/90 text-neutral-500 backdrop-blur-sm hover:text-neutral-800 hover:bg-white transition-colors shadow-sm"
-        title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
-        aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
-      >
-        {sidebarOpen ? <X className="w-5 h-5" /> : <PanelLeft className="w-5 h-5" />}
-      </button>
+      <div className="absolute top-3 left-3 z-30 flex items-center gap-2">
+        <button
+          onClick={() => setSidebarOpen((v) => !v)}
+          className="p-2 rounded-lg border border-neutral-200/70 bg-white/90 text-neutral-500 backdrop-blur-sm hover:text-neutral-800 hover:bg-white transition-colors shadow-sm"
+          title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+          aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+        >
+          {sidebarOpen ? <X className="w-5 h-5" /> : <PanelLeft className="w-5 h-5" />}
+        </button>
+        <StravaCompatibleBadge className="-ml-5 sm:-ml-6 w-[240px] sm:w-[280px]" />
+      </div>
 
       <button
         type="button"
@@ -331,15 +337,7 @@ export default function Home() {
                         <LogOut className="w-4 h-4" />
                       </button>
                     </div>
-                  ) : (
-                    <button
-                      onClick={login}
-                      className="flex items-center gap-1.5 bg-[#fc4c02] hover:bg-[#e34402] text-white px-3 py-1.5 rounded-lg font-semibold text-xs transition-all shadow-sm hover:shadow-md"
-                    >
-                      <LogIn className="w-3.5 h-3.5" />
-                      Strava Login
-                    </button>
-                  )
+                  ) : null
                 ) : null
               }
             >
@@ -405,6 +403,15 @@ export default function Home() {
               </div>
             </SectionCard>
 
+            {!authLoading && !isLoggedIn && (
+              <div className="mt-6 mb-4 flex flex-col items-center gap-2 px-4 text-center">
+                <StravaConnectButton onClick={login} />
+                <p className="text-xs text-neutral-500">
+                  Connect with Strava to contribute or rate a segment.
+                </p>
+              </div>
+            )}
+
             <hr className="border-neutral-100/80" />
 
             {/* Contribute CTA */}
@@ -425,6 +432,18 @@ export default function Home() {
                   Submit Segment
                 </button>
               </div>
+            </div>
+
+            <div className="px-6 pb-6 pt-4 border-t border-neutral-100 text-center">
+              <p className="text-[11px] leading-relaxed text-neutral-500">
+                Where2Watt uses the Strava API and is not endorsed by Strava.
+              </p>
+              <Link
+                href="/privacy-policy"
+                className="mt-2 inline-block text-xs font-medium text-neutral-500 underline decoration-neutral-300 underline-offset-4 hover:text-neutral-800"
+              >
+                Privacy Policy
+              </Link>
             </div>
           </div>
         </aside>
