@@ -5,21 +5,11 @@ import { X, Send, Loader2, LogIn, MapPin } from "lucide-react";
 import { submitSegment, type SubmissionData } from "@/utils/api";
 import type { SegmentRatingValues } from "@/types";
 import { useAuth } from "@/components/AuthContext";
+import { DEFAULT_RATING_INPUT, RATING_FIELDS, type NullableSegmentRatings } from "@/constants/ratings";
 
 interface Props {
     onClose: () => void;
 }
-
-type NullableSegmentRatings = {
-    [K in keyof SegmentRatingValues]: number | null;
-};
-
-const RATING_FIELDS: Array<{ key: keyof SegmentRatingValues; label: string }> = [
-    { key: "traffic", label: "Traffic" },
-    { key: "steady_gradient", label: "Steady Gradient" },
-    { key: "sketchy_left_turns", label: "Sketchy Left Turns" },
-    { key: "downhills", label: "Downhills" },
-];
 
 function StarIcon({ className }: { className?: string }) {
     return (
@@ -29,22 +19,14 @@ function StarIcon({ className }: { className?: string }) {
     );
 }
 
-function getStarFillPercent(valueOutOf10: number | null, starNumber: number): number {
-    if (valueOutOf10 == null) return 0;
-    const fullValue = starNumber * 2;
-    if (valueOutOf10 >= fullValue) return 100;
-    if (valueOutOf10 === fullValue - 1) return 50;
-    return 0;
-}
-
 interface RatingStarsInputProps {
     fieldKey: keyof SegmentRatingValues;
     label: string;
-    valueOutOf10: number | null;
-    onChange: (valueOutOf10: number) => void;
+    valueOutOf5: number | null;
+    onChange: (valueOutOf5: number) => void;
 }
 
-function RatingStarsInput({ fieldKey, label, valueOutOf10, onChange }: RatingStarsInputProps) {
+function RatingStarsInput({ fieldKey, label, valueOutOf5, onChange }: RatingStarsInputProps) {
     return (
         <div className="flex flex-col gap-2">
             <div className="text-sm">
@@ -54,17 +36,13 @@ function RatingStarsInput({ fieldKey, label, valueOutOf10, onChange }: RatingSta
             </div>
             <div className="flex items-center gap-0" role="group" aria-labelledby={`rating-${fieldKey}-label`}>
                 {[1, 2, 3, 4, 5].map((starNumber) => {
-                    const fullValue = starNumber * 2;
-                    const fillPercent = getStarFillPercent(valueOutOf10, starNumber);
+                    const fillPercent = valueOutOf5 != null && valueOutOf5 >= starNumber ? 100 : 0;
                     return (
                         <button
                             key={`${fieldKey}-${starNumber}`}
                             type="button"
                             aria-label={`${label} star ${starNumber}`}
-                            onClick={() => {
-                                const nextValue = valueOutOf10 === fullValue ? fullValue - 1 : fullValue;
-                                onChange(nextValue);
-                            }}
+                            onClick={() => onChange(starNumber)}
                             className="flex h-7 w-7 items-center justify-center rounded-sm transition-colors hover:bg-amber-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#fc4c02]"
                         >
                             <span className="relative inline-block h-7 w-7 text-neutral-200" aria-hidden="true">
@@ -84,6 +62,43 @@ function RatingStarsInput({ fieldKey, label, valueOutOf10, onChange }: RatingSta
     );
 }
 
+interface RatingChoiceInputProps {
+    fieldKey: keyof SegmentRatingValues;
+    label: string;
+    value: number | null;
+    options: Array<{ value: number; label: string }>;
+    onChange: (value: number) => void;
+}
+
+function RatingChoiceInput({ fieldKey, label, value, options, onChange }: RatingChoiceInputProps) {
+    return (
+        <div className="flex flex-col gap-2">
+            <div className="text-sm">
+                <span id={`rating-${fieldKey}-label`} className="font-semibold text-neutral-700">
+                    {label}
+                </span>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5" role="group" aria-labelledby={`rating-${fieldKey}-label`}>
+                {options.map((option) => (
+                    <button
+                        key={`${fieldKey}-${option.value}`}
+                        type="button"
+                        aria-label={`${label}: ${option.label}`}
+                        onClick={() => onChange(option.value)}
+                        className={`rounded-lg border px-2.5 py-2 text-center text-xs font-medium transition-colors ${
+                            value === option.value
+                                ? "border-[#fc4c02] bg-orange-50 text-[#fc4c02]"
+                                : "border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-100"
+                        }`}
+                    >
+                        {option.label}
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 export default function SubmissionForm({ onClose }: Props) {
     const { isLoggedIn, login, token } = useAuth();
     const [formData, setFormData] = useState<{
@@ -93,12 +108,7 @@ export default function SubmissionForm({ onClose }: Props) {
     }>({
         strava_url: "",
         safety_notes: "",
-        ratings: {
-            traffic: null,
-            steady_gradient: null,
-            sketchy_left_turns: null,
-            downhills: null,
-        },
+        ratings: { ...DEFAULT_RATING_INPUT },
     });
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
@@ -129,10 +139,11 @@ export default function SubmissionForm({ onClose }: Props) {
         const payload: SubmissionData = {
             ...formData,
             ratings: {
-                traffic: formData.ratings.traffic ?? 0,
-                steady_gradient: formData.ratings.steady_gradient ?? 0,
+                overall_quality: formData.ratings.overall_quality ?? 0,
+                traffic_level: formData.ratings.traffic_level ?? 0,
+                road_surface: formData.ratings.road_surface ?? 0,
+                gradient_profile: formData.ratings.gradient_profile ?? 0,
                 sketchy_left_turns: formData.ratings.sketchy_left_turns ?? 0,
-                downhills: formData.ratings.downhills ?? 0,
             },
         };
 
@@ -271,30 +282,43 @@ export default function SubmissionForm({ onClose }: Props) {
                         <div className="grid grid-cols-2 gap-4">
                             {RATING_FIELDS.map((field) => {
                                 const value = formData.ratings[field.key];
+                                const handleChange = (nextValue: number) => {
+                                    setFormError(null);
+                                    setFormData({
+                                        ...formData,
+                                        ratings: {
+                                            ...formData.ratings,
+                                            [field.key]: nextValue,
+                                        },
+                                    });
+                                };
+
+                                if (field.input === "stars") {
+                                    return (
+                                        <RatingStarsInput
+                                            key={field.key}
+                                            fieldKey={field.key}
+                                            label={field.label}
+                                            valueOutOf5={value}
+                                            onChange={handleChange}
+                                        />
+                                    );
+                                }
+
                                 return (
-                                    <RatingStarsInput
+                                    <RatingChoiceInput
                                         key={field.key}
                                         fieldKey={field.key}
                                         label={field.label}
-                                        valueOutOf10={value}
-                                        onChange={(nextValue) =>
-                                            {
-                                                setFormError(null);
-                                                setFormData({
-                                                    ...formData,
-                                                    ratings: {
-                                                        ...formData.ratings,
-                                                        [field.key]: nextValue,
-                                                    },
-                                                });
-                                            }
-                                        }
+                                        value={value}
+                                        options={field.options || []}
+                                        onChange={handleChange}
                                     />
                                 );
                             })}
                         </div>
                     </div>
-                    <p className="text-[14px] text-neutral-500">Click a star once for full, then click the same star again for a half-star.</p>
+                    <p className="text-[14px] text-neutral-500">Select one option for each rating category.</p>
 
                 </div>
 

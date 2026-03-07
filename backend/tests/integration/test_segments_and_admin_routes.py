@@ -9,10 +9,11 @@ from dependencies import actor_id_from_strava_id, create_jwt
 from schemas import SEGMENT_REPORT_NOTE_MAX_LENGTH
 
 DEFAULT_RATINGS = {
-    "traffic": 6,
-    "steady_gradient": 8,
-    "sketchy_left_turns": 4,
-    "downhills": 7,
+    "overall_quality": 4,
+    "traffic_level": 2,
+    "road_surface": 3,
+    "gradient_profile": 2,
+    "sketchy_left_turns": 1,
 }
 
 
@@ -75,10 +76,11 @@ def test_create_segment_enriches_with_strava_details(monkeypatch, app_client):
                     [
                         {
                             "ratings_count": 1,
-                            "traffic_total": DEFAULT_RATINGS["traffic"],
-                            "steady_gradient_total": DEFAULT_RATINGS["steady_gradient"],
+                            "overall_quality_total": DEFAULT_RATINGS["overall_quality"],
+                            "traffic_level_total": DEFAULT_RATINGS["traffic_level"],
+                            "road_surface_total": DEFAULT_RATINGS["road_surface"],
+                            "gradient_profile_total": DEFAULT_RATINGS["gradient_profile"],
                             "sketchy_left_turns_total": DEFAULT_RATINGS["sketchy_left_turns"],
-                            "downhills_total": DEFAULT_RATINGS["downhills"],
                         }
                     ]
                 )
@@ -176,10 +178,11 @@ def test_rate_segment_accepts_first_rating_and_rejects_duplicate(monkeypatch, ap
                     [
                         {
                             "ratings_count": 1,
-                            "traffic_total": DEFAULT_RATINGS["traffic"],
-                            "steady_gradient_total": DEFAULT_RATINGS["steady_gradient"],
+                            "overall_quality_total": DEFAULT_RATINGS["overall_quality"],
+                            "traffic_level_total": DEFAULT_RATINGS["traffic_level"],
+                            "road_surface_total": DEFAULT_RATINGS["road_surface"],
+                            "gradient_profile_total": DEFAULT_RATINGS["gradient_profile"],
                             "sketchy_left_turns_total": DEFAULT_RATINGS["sketchy_left_turns"],
-                            "downhills_total": DEFAULT_RATINGS["downhills"],
                         }
                     ]
                 )
@@ -197,7 +200,7 @@ def test_rate_segment_accepts_first_rating_and_rejects_duplicate(monkeypatch, ap
     assert first.status_code == 200
     assert first.json()["status"] == "rated"
     assert first.json()["ratings_count"] == 1
-    assert first.json()["average_ratings"]["traffic"] == 6.0
+    assert first.json()["average_ratings"]["overall_quality"] == 4.0
     db.segment_ratings.insert_one.assert_awaited_once_with(
         {
             "segment_id": segment_id,
@@ -531,10 +534,11 @@ def test_admin_can_list_and_delete_segment_ratings(monkeypatch, app_client):
                     [
                         {
                             "ratings_count": 2,
-                            "traffic_total": 12,
-                            "steady_gradient_total": 14,
-                            "sketchy_left_turns_total": 10,
-                            "downhills_total": 16,
+                            "overall_quality_total": 8,
+                            "traffic_level_total": 4,
+                            "road_surface_total": 5,
+                            "gradient_profile_total": 4,
+                            "sketchy_left_turns_total": 2,
                         }
                     ]
                 )
@@ -555,9 +559,10 @@ def test_admin_can_list_and_delete_segment_ratings(monkeypatch, app_client):
     assert deleted.json()["status"] == "deleted"
     assert deleted.json()["ratings_count"] == 2
     assert deleted.json()["average_ratings"] == {
-        "traffic": 6.0,
-        "steady_gradient": 7.0,
-        "sketchy_left_turns": 5.0,
-        "downhills": 8.0,
+        "overall_quality": 4.0,
+        "traffic_level": 2.0,
+        "road_surface": 2.5,
+        "gradient_profile": 2.0,
+        "sketchy_left_turns": 1.0,
     }
     db.segment_ratings.delete_one.assert_awaited_once_with({"_id": rating_id, "segment_id": segment_id})

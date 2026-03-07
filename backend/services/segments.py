@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from bson import ObjectId
 from fastapi import HTTPException
 
-RATING_FIELDS = ("traffic", "steady_gradient", "sketchy_left_turns", "downhills")
+from schemas import RATING_FIELD_BOUNDS, RATING_FIELDS
 
 
 def extract_strava_id(strava_url: str) -> str | None:
@@ -32,6 +32,12 @@ def empty_segment_rating_stats() -> dict:
     }
 
 
+def valid_rating_query(prefix: str = "ratings") -> dict:
+    return {
+        f"{prefix}.{field}": {"$gte": bounds[0], "$lte": bounds[1]} for field, bounds in RATING_FIELD_BOUNDS.items()
+    }
+
+
 def _normalize_average_ratings(raw_average: dict | None) -> dict[str, float | None]:
     normalized: dict[str, float | None] = {}
     for field in RATING_FIELDS:
@@ -50,15 +56,6 @@ def ensure_segment_rating_stats(segment: dict) -> None:
         count = defaults["ratings_count"]
 
     average_ratings = _normalize_average_ratings(segment.get("average_ratings"))
-
-    # Backward compatibility for legacy segment docs that still have rating_totals persisted.
-    if count > 0 and any(average_ratings[field] is None for field in RATING_FIELDS):
-        raw_totals = segment.get("rating_totals")
-        if isinstance(raw_totals, dict):
-            for field in RATING_FIELDS:
-                raw_value = raw_totals.get(field, 0)
-                if isinstance(raw_value, (int, float)):
-                    average_ratings[field] = round(float(raw_value) / count, 2)
 
     if count == 0:
         average_ratings = defaults["average_ratings"]
@@ -85,10 +82,11 @@ def _stats_from_aggregated_payload(payload: dict | None) -> dict:
 
 async def get_segment_rating_stats(db, segment_id: ObjectId) -> dict:
     aggregate_fields = {f"{field}_total": {"$sum": f"$ratings.{field}"} for field in RATING_FIELDS}
+    match_query = {"segment_id": segment_id, **valid_rating_query()}
     aggregated = (
         await db.segment_ratings.aggregate(
             [
-                {"$match": {"segment_id": segment_id}},
+                {"$match": match_query},
                 {"$group": {"_id": None, "ratings_count": {"$sum": 1}, **aggregate_fields}},
             ]
         ).to_list(length=1)
@@ -102,10 +100,11 @@ async def enrich_segments_with_rating_stats(db, segments: list[dict]) -> None:
 
     segment_ids = [segment["_id"] for segment in segments]
     aggregate_fields = {f"{field}_total": {"$sum": f"$ratings.{field}"} for field in RATING_FIELDS}
+    match_query = {"segment_id": {"$in": segment_ids}, **valid_rating_query()}
     aggregates = (
         await db.segment_ratings.aggregate(
             [
-                {"$match": {"segment_id": {"$in": segment_ids}}},
+                {"$match": match_query},
                 {"$group": {"_id": "$segment_id", "ratings_count": {"$sum": 1}, **aggregate_fields}},
             ]
         ).to_list(length=None)

@@ -52,7 +52,7 @@ def test_serialize_segment_includes_default_rating_stats():
     result = serialize_segment(segment)
 
     assert result["ratings_count"] == 0
-    assert result["average_ratings"]["traffic"] is None
+    assert result["average_ratings"]["overall_quality"] is None
 
 
 @pytest.mark.unit
@@ -62,10 +62,16 @@ def test_serialize_segment_uses_existing_average_ratings():
         "_id": obj_id,
         "name": "Rated Segment",
         "ratings_count": 2,
-        "average_ratings": {"traffic": 3.5, "steady_gradient": 4.5, "sketchy_left_turns": 2.5, "downhills": 4.0},
+        "average_ratings": {
+            "overall_quality": 4.5,
+            "traffic_level": 2.5,
+            "road_surface": 2.0,
+            "gradient_profile": 1.5,
+            "sketchy_left_turns": 1.0,
+        },
     }
 
     result = serialize_segment(segment)
 
-    assert result["average_ratings"]["traffic"] == 3.5
-    assert result["average_ratings"]["steady_gradient"] == 4.5
+    assert result["average_ratings"]["overall_quality"] == 4.5
+    assert result["average_ratings"]["traffic_level"] == 2.5

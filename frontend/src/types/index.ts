@@ -3,17 +3,19 @@ export type UserSummary = {
 };
 
 export type SegmentRatingValues = {
-  traffic: number;
-  steady_gradient: number;
+  overall_quality: number;
+  traffic_level: number;
+  road_surface: number;
+  gradient_profile: number;
   sketchy_left_turns: number;
-  downhills: number;
 };
 
 export type SegmentAverageRatings = {
-  traffic: number | null;
-  steady_gradient: number | null;
+  overall_quality: number | null;
+  traffic_level: number | null;
+  road_surface: number | null;
+  gradient_profile: number | null;
   sketchy_left_turns: number | null;
-  downhills: number | null;
 };
 
 export type SegmentAdminReport = {

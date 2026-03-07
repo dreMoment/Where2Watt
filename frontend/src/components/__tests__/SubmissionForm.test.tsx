@@ -52,20 +52,22 @@ describe('SubmissionForm', () => {
         fireEvent.change(screen.getByLabelText(/Strava Segment URL/i), {
             target: { value: 'https://www.strava.com/segments/123' },
         });
-        fireEvent.click(screen.getByRole('button', { name: /Traffic star 1/i }));
-        fireEvent.click(screen.getByRole('button', { name: /Steady Gradient star 1/i }));
-        fireEvent.click(screen.getByRole('button', { name: /Sketchy Left Turns star 1/i }));
-        fireEvent.click(screen.getByRole('button', { name: /Downhills star 1/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Overall Quality star 1/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Traffic Level: Low Traffic/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Road Surface: Med \(Patchy\)/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Gradient Profile: Mixed/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Sketchy Left Turns: 1 Left Turn/i }));
         fireEvent.click(screen.getByRole('button', { name: /Submit Segment/i }));
 
         expect(submitSegment).toHaveBeenCalledWith({
             strava_url: 'https://www.strava.com/segments/123',
             safety_notes: '',
             ratings: {
-                traffic: 2,
-                steady_gradient: 2,
-                sketchy_left_turns: 2,
-                downhills: 2,
+                overall_quality: 1,
+                traffic_level: 1,
+                road_surface: 2,
+                gradient_profile: 2,
+                sketchy_left_turns: 1,
             },
         }, 'mock-token');
 

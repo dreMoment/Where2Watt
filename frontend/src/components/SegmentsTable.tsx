@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import type { Segment, SegmentAdminRating, UserSummary } from "@/types";
 import type { Tab } from "@/hooks/useAdminSegments";
+import { getRatingDisplay } from "@/constants/ratings";
 
 function timeAgo(dateString?: string): string {
   if (!dateString) return "Unknown date";
@@ -341,10 +342,11 @@ export default function SegmentsTable({
                                 </button>
                               </div>
                               <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-gray-300">
-                                <span>Traffic: {rating.ratings.traffic}</span>
-                                <span>Steady Gradient: {rating.ratings.steady_gradient}</span>
-                                <span>Sketchy Left Turns: {rating.ratings.sketchy_left_turns}</span>
-                                <span>Downhills: {rating.ratings.downhills}</span>
+                                <span>Overall Quality: {getRatingDisplay("overall_quality", rating.ratings.overall_quality)}</span>
+                                <span>Traffic Level: {getRatingDisplay("traffic_level", rating.ratings.traffic_level)}</span>
+                                <span>Road Surface: {getRatingDisplay("road_surface", rating.ratings.road_surface)}</span>
+                                <span>Gradient Profile: {getRatingDisplay("gradient_profile", rating.ratings.gradient_profile)}</span>
+                                <span>Sketchy Left Turns: {getRatingDisplay("sketchy_left_turns", rating.ratings.sketchy_left_turns)}</span>
                               </div>
                             </div>
                           ))}

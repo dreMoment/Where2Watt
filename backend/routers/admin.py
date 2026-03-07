@@ -9,13 +9,11 @@ from rate_limiter import limiter
 from schemas import (
     AdminDeleteSegmentRatingResponseSchema,
     QuickAddSchema,
-    SEGMENT_RATING_MAX,
-    SEGMENT_RATING_MIN,
+    RATING_FIELD_BOUNDS,
     SegmentAdminRatingSchema,
     SegmentResponseSchema,
 )
 from services.segments import (
-    RATING_FIELDS,
     empty_segment_rating_stats,
     enrich_segments_with_rating_stats,
     enrich_admin_segment_users,
@@ -24,6 +22,7 @@ from services.segments import (
     now_iso,
     parse_object_id,
     serialize_segment,
+    valid_rating_query,
 )
 from services.strava import fetch_segment_details
 
@@ -74,20 +73,20 @@ async def list_segment_ratings(request: Request, segment_id: str, is_admin: bool
     if not segment:
         raise HTTPException(status_code=404, detail="Segment not found")
 
-    ratings = await db.segment_ratings.find({"segment_id": obj_id}).sort("rated_at", -1).to_list(500)
+    ratings = await db.segment_ratings.find({"segment_id": obj_id, **valid_rating_query()}).sort("rated_at", -1).to_list(500)
     response: list[dict] = []
     for rating in ratings:
         raw_ratings = rating.get("ratings")
         if not isinstance(raw_ratings, dict):
             raw_ratings = {}
         normalized_ratings: dict[str, int] = {}
-        for field in RATING_FIELDS:
+        for field, bounds in RATING_FIELD_BOUNDS.items():
             raw_value = raw_ratings.get(field)
             if isinstance(raw_value, (int, float)):
                 parsed = int(raw_value)
             else:
-                parsed = SEGMENT_RATING_MIN
-            normalized_ratings[field] = max(SEGMENT_RATING_MIN, min(SEGMENT_RATING_MAX, parsed))
+                parsed = bounds[0]
+            normalized_ratings[field] = max(bounds[0], min(bounds[1], parsed))
         response.append(
             {
                 "id": str(rating["_id"]),

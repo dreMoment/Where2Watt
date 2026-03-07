@@ -3,22 +3,32 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 SEGMENT_REPORT_NOTE_MAX_LENGTH = 500
-SEGMENT_RATING_MIN = 1
-SEGMENT_RATING_MAX = 10
+
+RATING_FIELD_BOUNDS: dict[str, tuple[int, int]] = {
+    "overall_quality": (1, 5),
+    "traffic_level": (1, 3),
+    "road_surface": (1, 3),
+    "gradient_profile": (1, 3),
+    "sketchy_left_turns": (0, 2),
+}
+
+RATING_FIELDS = tuple(RATING_FIELD_BOUNDS.keys())
 
 
 class SegmentCategoryRatingSchema(BaseModel):
-    traffic: int = Field(ge=SEGMENT_RATING_MIN, le=SEGMENT_RATING_MAX)
-    steady_gradient: int = Field(ge=SEGMENT_RATING_MIN, le=SEGMENT_RATING_MAX)
-    sketchy_left_turns: int = Field(ge=SEGMENT_RATING_MIN, le=SEGMENT_RATING_MAX)
-    downhills: int = Field(ge=SEGMENT_RATING_MIN, le=SEGMENT_RATING_MAX)
+    overall_quality: int = Field(ge=1, le=5)
+    traffic_level: int = Field(ge=1, le=3)
+    road_surface: int = Field(ge=1, le=3)
+    gradient_profile: int = Field(ge=1, le=3)
+    sketchy_left_turns: int = Field(ge=0, le=2)
 
 
 class SegmentAverageRatingSchema(BaseModel):
-    traffic: float | None = None
-    steady_gradient: float | None = None
+    overall_quality: float | None = None
+    traffic_level: float | None = None
+    road_surface: float | None = None
+    gradient_profile: float | None = None
     sketchy_left_turns: float | None = None
-    downhills: float | None = None
 
 
 class SegmentSchema(BaseModel):

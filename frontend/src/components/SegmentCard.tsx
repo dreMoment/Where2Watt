@@ -22,6 +22,45 @@ interface Props {
 
 const REPORT_NOTE_MAX_LENGTH = 500;
 
+function roundToNearestHalfStar(valueOutOf5: number): number {
+    const clamped = Math.max(0, Math.min(5, valueOutOf5));
+    return Math.round(clamped * 2) / 2;
+}
+
+function StarIcon({ className }: { className?: string }) {
+    return (
+        <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
+            <path d="M12 2.5 14.94 8.46 21.5 9.41 16.75 14.03 17.88 20.56 12 17.47 6.12 20.56 7.25 14.03 2.5 9.41 9.06 8.46 12 2.5Z" />
+        </svg>
+    );
+}
+
+function StarRow({ colorClassName }: { colorClassName: string }) {
+    return (
+        <span className={`inline-flex items-center gap-0 ${colorClassName}`}>
+            {[0, 1, 2, 3, 4].map((idx) => (
+                <StarIcon key={idx} className="h-3.5 w-3.5" />
+            ))}
+        </span>
+    );
+}
+
+function StarPreview({ valueOutOf5, label }: { valueOutOf5: number; label: string }) {
+    const roundedStarsOutOf5 = roundToNearestHalfStar(valueOutOf5);
+    const widthPercent = (roundedStarsOutOf5 / 5) * 100;
+
+    return (
+        <span aria-label={`${label} average stars`}>
+            <span className="relative inline-block" aria-hidden="true">
+                <StarRow colorClassName="text-neutral-200" />
+                <span className="absolute inset-y-0 left-0 overflow-hidden" style={{ width: `${widthPercent}%` }}>
+                    <StarRow colorClassName="text-amber-500" />
+                </span>
+            </span>
+        </span>
+    );
+}
+
 export default function SegmentCard({
     segment,
     riderPower = "250",
@@ -41,6 +80,9 @@ export default function SegmentCard({
         if (!profile) return null;
         return estimateSegmentDurationSeconds(segment, profile);
     }, [profile, segment]);
+
+    const ratingsCount = segment.ratings_count ?? 0;
+    const overallQualityAverage = segment.average_ratings?.overall_quality;
 
     const [showStreetView, setShowStreetView] = useState(false);
 
@@ -119,9 +161,24 @@ export default function SegmentCard({
                 </div>
             )}
             <div className="flex items-start justify-between border-b border-neutral-100/80 pb-3 gap-2">
-                <h3 className="font-bold text-lg text-neutral-800 leading-tight pr-2">
-                    {segment.name}
-                </h3>
+                <div className="min-w-0 pr-2">
+                    <h3 className="font-bold text-lg text-neutral-800 leading-tight">
+                        {segment.name}
+                    </h3>
+                    {ratingsCount > 0 && typeof overallQualityAverage === "number" ? (
+                        <div className="mt-1 flex items-center gap-2">
+                            <StarPreview valueOutOf5={overallQualityAverage} label="Overall Quality" />
+                            <span className="text-xs font-semibold text-neutral-700">
+                                {overallQualityAverage.toFixed(1)}/5
+                            </span>
+                            <span className="text-[11px] text-neutral-500">
+                                from {ratingsCount} {ratingsCount === 1 ? "rating" : "ratings"}
+                            </span>
+                        </div>
+                    ) : (
+                        <p className="mt-1 text-[11px] text-neutral-500">Overall quality: no ratings yet</p>
+                    )}
+                </div>
                 <button
                     onClick={() => {
                         if (isLoggedIn) {

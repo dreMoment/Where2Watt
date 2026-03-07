@@ -132,14 +132,26 @@ describe("useAdminSegments", () => {
         id: "r1",
         segment_id: "s1",
         rated_by_actor_id: "actor-1",
-        ratings: { traffic: 6, steady_gradient: 7, sketchy_left_turns: 5, downhills: 8 },
+        ratings: {
+          overall_quality: 4,
+          traffic_level: 2,
+          road_surface: 2,
+          gradient_profile: 3,
+          sketchy_left_turns: 1,
+        },
       },
     ]);
     confirmMock.mockResolvedValue(true);
     (deleteAdminSegmentRating as jest.Mock).mockResolvedValue({
       status: "deleted",
       ratings_count: 0,
-      average_ratings: { traffic: null, steady_gradient: null, sketchy_left_turns: null, downhills: null },
+      average_ratings: {
+        overall_quality: null,
+        traffic_level: null,
+        road_surface: null,
+        gradient_profile: null,
+        sketchy_left_turns: null,
+      },
     });
 
     const { result } = renderHook(() => useAdminSegments({ token: "token-1", onLogout: jest.fn() }));

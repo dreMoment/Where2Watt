@@ -54,7 +54,7 @@ describe("CommunityRatingsPanel", () => {
         });
     });
 
-    it("toggles full star to half star on second click and submits half-star value", async () => {
+    it("submits the new mixed rating inputs", async () => {
         authState.isLoggedIn = true;
         authState.token = "mock-token";
 
@@ -62,36 +62,31 @@ describe("CommunityRatingsPanel", () => {
             status: "rated",
             ratings_count: 1,
             average_ratings: {
-                traffic: 1,
-                steady_gradient: 6,
-                sketchy_left_turns: 6,
-                downhills: 6,
+                overall_quality: 4,
+                traffic_level: 2,
+                road_surface: 3,
+                gradient_profile: 2,
+                sketchy_left_turns: 1,
             },
         });
 
         render(<CommunityRatingsPanel segment={mockSegment} />);
 
         fireEvent.click(screen.getByRole("button", { name: /Rate this segment/i }));
-
-        const trafficStarOne = screen.getByRole("button", { name: "Traffic star 1" });
-        const steadyGradientStarThree = screen.getByRole("button", { name: "Steady Gradient star 3" });
-        const sketchyLeftTurnsStarThree = screen.getByRole("button", { name: "Sketchy Left Turns star 3" });
-        const downhillsStarThree = screen.getByRole("button", { name: "Downhills star 3" });
-
-        fireEvent.click(steadyGradientStarThree);
-        fireEvent.click(sketchyLeftTurnsStarThree);
-        fireEvent.click(downhillsStarThree);
-        fireEvent.click(trafficStarOne);
-        fireEvent.click(trafficStarOne);
-
+        fireEvent.click(screen.getByRole("button", { name: "Overall Quality star 4" }));
+        fireEvent.click(screen.getByRole("button", { name: "Traffic Level: Med" }));
+        fireEvent.click(screen.getByRole("button", { name: "Road Surface: Smooth" }));
+        fireEvent.click(screen.getByRole("button", { name: "Gradient Profile: Mixed" }));
+        fireEvent.click(screen.getByRole("button", { name: "Sketchy Left Turns: 1" }));
         fireEvent.click(screen.getByRole("button", { name: /Submit Rating/i }));
 
         await waitFor(() => {
             expect(rateSegment).toHaveBeenCalledWith("1", "mock-token", {
-                traffic: 1,
-                steady_gradient: 6,
-                sketchy_left_turns: 6,
-                downhills: 6,
+                overall_quality: 4,
+                traffic_level: 2,
+                road_surface: 3,
+                gradient_profile: 2,
+                sketchy_left_turns: 1,
             });
         });
     });
@@ -103,36 +98,42 @@ describe("CommunityRatingsPanel", () => {
         render(<CommunityRatingsPanel segment={mockSegment} />);
 
         fireEvent.click(screen.getByRole("button", { name: /Rate this segment/i }));
-        fireEvent.click(screen.getByRole("button", { name: "Traffic star 1" }));
+        fireEvent.click(screen.getByRole("button", { name: "Overall Quality star 1" }));
         fireEvent.click(screen.getByRole("button", { name: /Submit Rating/i }));
 
         expect(screen.getByRole("alert")).toHaveTextContent("Please rate all required fields before submitting.");
         expect(rateSegment).not.toHaveBeenCalled();
     });
 
-    it("shows community average stars rounded to the nearest half when not rating", () => {
+    it("shows all category labels without numeric averages", () => {
         const segmentWithAverages: import("@/types").Segment = {
             ...mockSegment,
             ratings_count: 8,
             average_ratings: {
-                traffic: 7.2,
-                steady_gradient: 8.1,
-                sketchy_left_turns: 6.9,
-                downhills: 5.4,
+                overall_quality: 3.6,
+                traffic_level: 2.2,
+                road_surface: 1.8,
+                gradient_profile: 2.7,
+                sketchy_left_turns: 0.4,
             },
         };
 
         render(<CommunityRatingsPanel segment={segmentWithAverages} />);
 
-        expect(screen.getByLabelText("Traffic average stars")).toBeInTheDocument();
-        expect(screen.queryByText("7.2/10")).not.toBeInTheDocument();
-
-        const starsFill = screen.getByTestId("average-stars-fill-traffic");
-        expect(starsFill).toBeTruthy();
-        expect((starsFill as HTMLSpanElement).style.width).toBe("70%");
+        expect(screen.getByTestId("community-categories-grid")).toBeInTheDocument();
+        expect(screen.getByText("Traffic Level")).toBeInTheDocument();
+        expect(screen.getByText("Road Surface")).toBeInTheDocument();
+        expect(screen.getByText("Gradient Profile")).toBeInTheDocument();
+        expect(screen.getByText("Sketchy Left Turns")).toBeInTheDocument();
+        expect(screen.getByText("Med")).toBeInTheDocument();
+        expect(screen.getByText("Patchy")).toBeInTheDocument();
+        expect(screen.getByText("Steady")).toBeInTheDocument();
+        expect(screen.getByText("0")).toBeInTheDocument();
+        expect(screen.queryByText("2.7")).not.toBeInTheDocument();
+        expect(screen.queryByText(/average\s*\/\s*3/i)).not.toBeInTheDocument();
     });
 
-    it("hides community average cards while rating form is open", () => {
+    it("hides category cards while rating form is open", () => {
         authState.isLoggedIn = true;
         authState.token = "mock-token";
 
@@ -140,20 +141,21 @@ describe("CommunityRatingsPanel", () => {
             ...mockSegment,
             ratings_count: 4,
             average_ratings: {
-                traffic: 8,
-                steady_gradient: 8,
-                sketchy_left_turns: 8,
-                downhills: 8,
+                overall_quality: 4,
+                traffic_level: 2,
+                road_surface: 2,
+                gradient_profile: 2,
+                sketchy_left_turns: 1,
             },
         };
 
         render(<CommunityRatingsPanel segment={segmentWithAverages} />);
-        expect(screen.getByLabelText("Traffic average stars")).toBeInTheDocument();
+        expect(screen.getByTestId("community-categories-grid")).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole("button", { name: /Rate this segment/i }));
 
-        expect(screen.queryByLabelText("Traffic average stars")).not.toBeInTheDocument();
-        expect(screen.getByRole("button", { name: "Traffic star 1" })).toBeInTheDocument();
+        expect(screen.queryByTestId("community-categories-grid")).not.toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Overall Quality star 1" })).toBeInTheDocument();
     });
 
     it("folds and expands the ratings popup content from the top-right toggle", () => {
@@ -161,21 +163,22 @@ describe("CommunityRatingsPanel", () => {
             ...mockSegment,
             ratings_count: 3,
             average_ratings: {
-                traffic: 7,
-                steady_gradient: 7,
-                sketchy_left_turns: 7,
-                downhills: 7,
+                overall_quality: 4,
+                traffic_level: 2,
+                road_surface: 2,
+                gradient_profile: 2,
+                sketchy_left_turns: 1,
             },
         };
 
         render(<CommunityRatingsPanel segment={segmentWithAverages} />);
 
-        expect(screen.getByLabelText("Traffic average stars")).toBeInTheDocument();
+        expect(screen.getByTestId("community-categories-grid")).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole("button", { name: /Fold ratings popup/i }));
-        expect(screen.queryByLabelText("Traffic average stars")).not.toBeInTheDocument();
+        expect(screen.queryByTestId("community-categories-grid")).not.toBeInTheDocument();
 
         fireEvent.click(screen.getByRole("button", { name: /Expand ratings popup/i }));
-        expect(screen.getByLabelText("Traffic average stars")).toBeInTheDocument();
+        expect(screen.getByTestId("community-categories-grid")).toBeInTheDocument();
     });
 });
