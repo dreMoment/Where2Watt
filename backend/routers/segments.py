@@ -9,9 +9,9 @@ from rate_limiter import limiter
 from schemas import (
     SegmentCategoryRatingSchema,
     SegmentCreateSchema,
+    SegmentPublicResponseSchema,
     SegmentRatingResponseSchema,
     SegmentReportSchema,
-    SegmentResponseSchema,
 )
 from services.segments import (
     get_segment_rating_stats,
@@ -26,7 +26,7 @@ from services.strava import fetch_segment_details
 router = APIRouter()
 
 
-@router.post("/api/segments", response_model=SegmentResponseSchema, status_code=201)
+@router.post("/api/segments", response_model=SegmentPublicResponseSchema, status_code=201)
 @limiter.limit("10/minute")
 async def create_segment(request: Request, segment: SegmentCreateSchema, identity: ActorIdentity = Depends(verify_user)):
     db = get_db()
@@ -72,7 +72,7 @@ async def create_segment(request: Request, segment: SegmentCreateSchema, identit
     return serialize_segment(created_segment)
 
 
-@router.get("/api/segments", response_model=List[SegmentResponseSchema])
+@router.get("/api/segments", response_model=List[SegmentPublicResponseSchema])
 @limiter.limit("120/minute")
 async def list_segments(request: Request):
     db = get_db()

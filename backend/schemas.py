@@ -85,8 +85,11 @@ class SegmentAdminRatingSchema(BaseModel):
     ratings: SegmentCategoryRatingSchema
 
 
-class SegmentResponseSchema(SegmentSchema):
+class SegmentPublicResponseSchema(SegmentSchema):
     id: str
+
+
+class SegmentResponseSchema(SegmentPublicResponseSchema):
     submitted_by_actor_id: str | None = None
     reported_by_actor_ids: list[str] = Field(default_factory=list)
     submitted_by_user: UserSummarySchema | None = None

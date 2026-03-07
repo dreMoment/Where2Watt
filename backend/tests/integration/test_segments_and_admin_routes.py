@@ -110,6 +110,11 @@ def test_create_segment_enriches_with_strava_details(monkeypatch, app_client):
     assert response.status_code == 201
     body = response.json()
     assert body["id"] == str(created_id)
+    assert "submitted_by_actor_id" not in body
+    assert "reported_by_actor_ids" not in body
+    assert "submitted_by_user" not in body
+    assert "reported_by_users" not in body
+    assert "block_reports" not in body
     db.segments.insert_one.assert_awaited_once()
     inserted_doc = db.segments.insert_one.await_args.args[0]
     assert inserted_doc["strava_id"] == "123"
@@ -125,6 +130,54 @@ def test_create_segment_enriches_with_strava_details(monkeypatch, app_client):
             "rated_at": ANY,
         }
     )
+
+
+@pytest.mark.integration
+def test_list_segments_hides_actor_ids_for_public_response(monkeypatch, app_client):
+    import routers.segments as segments_router
+
+    segment_id = ObjectId()
+    db = SimpleNamespace(
+        segments=SimpleNamespace(
+            find=Mock(
+                return_value=FindCursor(
+                    [
+                        {
+                            "_id": segment_id,
+                            "name": "Hidden IDs Segment",
+                            "approved": True,
+                            "submitted_by_actor_id": "actor-submitter",
+                            "reported_by_actor_ids": ["actor-reporter"],
+                            "submitted_by_user": {"actor_id": "actor-submitter"},
+                            "reported_by_users": [{"actor_id": "actor-reporter"}],
+                            "block_reports": [
+                                {
+                                    "reported_by_actor_id": "actor-reporter",
+                                    "reported_at": "2026-03-05T10:00:00+00:00",
+                                    "action": "blocked",
+                                    "note": "Roadworks",
+                                }
+                            ],
+                        }
+                    ]
+                )
+            )
+        ),
+        segment_ratings=SimpleNamespace(aggregate=Mock(return_value=FindCursor([]))),
+    )
+    monkeypatch.setattr(segments_router, "get_db", lambda: db)
+
+    response = app_client.get("/api/segments")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload) == 1
+    assert payload[0]["id"] == str(segment_id)
+    assert "submitted_by_actor_id" not in payload[0]
+    assert "reported_by_actor_ids" not in payload[0]
+    assert "submitted_by_user" not in payload[0]
+    assert "reported_by_users" not in payload[0]
+    assert "block_reports" not in payload[0]
 
 
 @pytest.mark.integration
