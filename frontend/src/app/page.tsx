@@ -185,13 +185,123 @@ export default function Home() {
         />
       </button>
 
-      {/* Body: sidebar + map */}
-      <div className="flex h-full w-full overflow-hidden relative">
+      {/* Body: layered sidebar + map */}
+      <div className="h-full w-full overflow-hidden relative">
+        {/* Main Map Viewport (kept full-size to avoid resize lag when toggling sidebar) */}
+        <section className="absolute inset-0 bg-neutral-100/50">
+          {error && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[5000] bg-red-50/90 backdrop-blur-md border border-red-200 text-red-700 px-6 py-4 shadow-xl max-w-sm w-[90%] text-center animate-in slide-in-from-top-4 fade-in duration-300">
+              <p className="font-bold text-sm flex items-center justify-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                {error}
+              </p>
+            </div>
+          )}
+
+          {!error && !loading && segments.length === 0 && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[5000] bg-amber-50/90 backdrop-blur-md border border-amber-200 text-amber-800 px-6 py-4 rounded-2xl shadow-xl max-w-sm w-[90%] text-center animate-in slide-in-from-top-4 fade-in duration-300">
+              <p className="font-bold text-sm">No intervals currently in the database. Be the first to add one!</p>
+            </div>
+          )}
+
+          <div className="w-full h-full overflow-hidden bg-white">
+            <Map
+              segments={filteredSegments}
+              riderPower={filterPowerStr}
+              riderWeight={weightStr}
+              bikeWeight={bikeWeightStr}
+              isFiltered={isFiltered}
+              filterPower={filterPowerStr}
+              filterTime={filterTimeStr}
+              onSegmentBlocked={handleSegmentBlocked}
+              onSegmentRated={handleSegmentRated}
+            />
+          </div>
+
+          {/* Floating Modal Overlay for Form */}
+          {showSubmissionContent && (
+            <div className="absolute inset-0 z-[9999] bg-neutral-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+              <SubmissionForm onClose={() => setShowSubmissionContent(false)} />
+            </div>
+          )}
+
+          {showInfoScreen && (
+            <div className="absolute inset-0 z-[9998] bg-neutral-900/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="landing-info-title"
+                className="w-full max-w-2xl rounded-2xl sm:rounded-3xl border border-neutral-200/90 bg-white shadow-2xl p-4 sm:p-6 md:p-8 max-h-[calc(100dvh-1.5rem)] sm:max-h-[90dvh] overflow-y-auto"
+              >
+                <div className="flex items-start justify-between gap-3 sm:gap-4">
+                  <div className="min-w-0 max-w-[38rem]">
+                    <h2 id="landing-info-title" className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900">
+                      Welcome to Where2Watt
+                    </h2>
+                    <p className="mt-2 sm:mt-3 text-sm md:text-base text-neutral-600 leading-relaxed">
+                      This tool helps you find and share safe road segments for your outdoor training.
+                    </p>
+                  </div>
+                  <Image
+                    src="/logo.svg"
+                    alt="Where2Watt logo"
+                    width={56}
+                    height={56}
+                    className="h-10 w-10 sm:h-12 sm:w-12 md:h-14 md:w-14 shrink-0"
+                  />
+                </div>
+
+                <div className="mt-5 sm:mt-6 space-y-2.5 sm:space-y-3 text-sm md:text-base text-neutral-600 leading-relaxed">
+                  <p>
+                    Adjust your rider profile values to personalize estimated segment completion times. You can find these by toggling the sidebar on the left.
+                  </p>
+                  <p>
+                    Apply power and duration filters to find segments that best match your target duration.
+                  </p>
+                  <p>
+                    Sign in with Strava if you want to contribute new segments or rate routes you have ridden.
+                  </p>
+                    <p>
+                    Have fun and stay safe :)
+                    </p>
+                </div>
+
+                <div className="mt-6 sm:mt-8 space-y-3 sm:space-y-4">
+                  {isMobileViewport && (
+                    <div className="flex items-start gap-2.5 rounded-xl border border-amber-400 bg-amber-50 px-3.5 py-3 text-amber-900">
+                      <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                      <p className="text-sm md:text-base font-medium leading-relaxed">
+                        The app experience works best on a device with a wider screen, such as a laptop or PC.
+                      </p>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={closeInfoScreen}
+                    className="w-full rounded-xl bg-neutral-900 hover:bg-neutral-800 px-5 py-3 sm:py-2.5 text-sm font-semibold text-white transition-colors"
+                  >
+                    Continue
+                  </button>
+                  <label className="flex items-center gap-3 text-sm text-neutral-700 cursor-pointer select-none leading-tight">
+                    <input
+                      type="checkbox"
+                      checked={hideInfoScreenNextTime}
+                      onChange={(e) => setHideInfoScreenNextTime(e.target.checked)}
+                      className="w-4 h-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-500"
+                    />
+                    Do not show this info screen again
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
         {/* Sidebar */}
         <aside
-          className={`${
-            sidebarOpen ? "w-[350px]" : "w-0"
-          } transition-all duration-300 ease-in-out bg-white shadow-[4px_0_20px_rgba(0,0,0,0.04)] z-20 flex flex-col shrink-0 overflow-hidden border-r border-neutral-100`}
+          className={`absolute inset-y-0 left-0 z-20 w-[350px] transform transition-transform duration-300 ease-in-out bg-white shadow-[4px_0_20px_rgba(0,0,0,0.04)] border-r border-neutral-100 ${
+            sidebarOpen ? "translate-x-0 pointer-events-auto" : "-translate-x-full pointer-events-none"
+          }`}
         >
           <div className="w-[350px] h-full flex flex-col overflow-y-auto pt-16">
             {/* Rider Profile Configuration */}
@@ -316,116 +426,6 @@ export default function Home() {
             </div>
           </div>
         </aside>
-
-        {/* Main Map Viewport */}
-        <section className="flex-1 bg-neutral-100/50 relative">
-          {error && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[5000] bg-red-50/90 backdrop-blur-md border border-red-200 text-red-700 px-6 py-4 shadow-xl max-w-sm w-[90%] text-center animate-in slide-in-from-top-4 fade-in duration-300">
-              <p className="font-bold text-sm flex items-center justify-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-                {error}
-              </p>
-            </div>
-          )}
-
-          {!error && !loading && segments.length === 0 && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[5000] bg-amber-50/90 backdrop-blur-md border border-amber-200 text-amber-800 px-6 py-4 rounded-2xl shadow-xl max-w-sm w-[90%] text-center animate-in slide-in-from-top-4 fade-in duration-300">
-              <p className="font-bold text-sm">No intervals currently in the database. Be the first to add one!</p>
-            </div>
-          )}
-
-          <div className="w-full h-full overflow-hidden bg-white">
-            <Map
-              segments={filteredSegments}
-              riderPower={filterPowerStr}
-              riderWeight={weightStr}
-              bikeWeight={bikeWeightStr}
-              isFiltered={isFiltered}
-              filterPower={filterPowerStr}
-              filterTime={filterTimeStr}
-              onSegmentBlocked={handleSegmentBlocked}
-              onSegmentRated={handleSegmentRated}
-            />
-          </div>
-
-          {/* Floating Modal Overlay for Form */}
-          {showSubmissionContent && (
-            <div className="absolute inset-0 z-[9999] bg-neutral-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-              <SubmissionForm onClose={() => setShowSubmissionContent(false)} />
-            </div>
-          )}
-
-          {showInfoScreen && (
-            <div className="absolute inset-0 z-[9998] bg-neutral-900/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-              <div
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="landing-info-title"
-                className="w-full max-w-2xl rounded-2xl sm:rounded-3xl border border-neutral-200/90 bg-white shadow-2xl p-4 sm:p-6 md:p-8 max-h-[calc(100dvh-1.5rem)] sm:max-h-[90dvh] overflow-y-auto"
-              >
-                <div className="flex items-start justify-between gap-3 sm:gap-4">
-                  <div className="min-w-0 max-w-[38rem]">
-                    <h2 id="landing-info-title" className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900">
-                      Welcome to Where2Watt
-                    </h2>
-                    <p className="mt-2 sm:mt-3 text-sm md:text-base text-neutral-600 leading-relaxed">
-                      This tool helps you find and share safe road segments for your outdoor training.
-                    </p>
-                  </div>
-                  <Image
-                    src="/logo.svg"
-                    alt="Where2Watt logo"
-                    width={56}
-                    height={56}
-                    className="h-10 w-10 sm:h-12 sm:w-12 md:h-14 md:w-14 shrink-0"
-                  />
-                </div>
-
-                <div className="mt-5 sm:mt-6 space-y-2.5 sm:space-y-3 text-sm md:text-base text-neutral-600 leading-relaxed">
-                  <p>
-                    Adjust your rider profile values to personalize estimated segment completion times. You can find these by toggling the sidebar on the left.
-                  </p>
-                  <p>
-                    Apply power and duration filters to find segments that best match your target duration.
-                  </p>
-                  <p>
-                    Sign in with Strava if you want to contribute new segments or rate routes you have ridden.
-                  </p>
-                    <p>
-                    Have fun and stay safe :)
-                    </p>
-                </div>
-
-                <div className="mt-6 sm:mt-8 space-y-3 sm:space-y-4">
-                  {isMobileViewport && (
-                    <div className="flex items-start gap-2.5 rounded-xl border border-amber-400 bg-amber-50 px-3.5 py-3 text-amber-900">
-                      <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                      <p className="text-sm md:text-base font-medium leading-relaxed">
-                        The app experience works best on a device with a wider screen, such as a laptop or PC.
-                      </p>
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={closeInfoScreen}
-                    className="w-full rounded-xl bg-neutral-900 hover:bg-neutral-800 px-5 py-3 sm:py-2.5 text-sm font-semibold text-white transition-colors"
-                  >
-                    Continue
-                  </button>
-                  <label className="flex items-center gap-3 text-sm text-neutral-700 cursor-pointer select-none leading-tight">
-                    <input
-                      type="checkbox"
-                      checked={hideInfoScreenNextTime}
-                      onChange={(e) => setHideInfoScreenNextTime(e.target.checked)}
-                      className="w-4 h-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-500"
-                    />
-                    Do not show this info screen again
-                  </label>
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
       </div>
     </main>
   );
