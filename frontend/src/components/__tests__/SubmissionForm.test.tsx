@@ -27,6 +27,7 @@ describe('SubmissionForm', () => {
     it('renders form fields correctly', () => {
         render(<SubmissionForm onClose={mockOnClose} />);
         expect(screen.getByText('Add a Segment')).toBeInTheDocument();
+        expect(screen.getByText('Please submit only uninterrupted segments (no traffic lights or major intersections)')).toBeInTheDocument();
         expect(screen.getByLabelText(/Strava Segment URL/i)).toBeInTheDocument();
         expect(screen.queryByLabelText(/Safety Notes/i)).not.toBeInTheDocument();
     });

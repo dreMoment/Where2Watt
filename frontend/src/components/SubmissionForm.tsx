@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Send, Loader2, LogIn, MapPin } from "lucide-react";
+import { X, Send, Loader2, LogIn, MapPin, Info } from "lucide-react";
 import { submitSegment, type SubmissionData } from "@/utils/api";
 import type { SegmentRatingValues } from "@/types";
 import { useAuth } from "@/components/AuthContext";
@@ -265,7 +265,7 @@ export default function SubmissionForm({ onClose }: Props) {
             </div>
 
             <form onSubmit={handleSubmit} className="flex flex-1 flex-col min-h-0">
-                <div className="contribution-popup-form flex flex-1 flex-col gap-5 overflow-y-auto pr-1 min-h-0">
+                <div className="contribution-popup-form flex flex-1 flex-col gap-2 overflow-y-auto pr-1 min-h-0">
                     <div className="group">
                         <label htmlFor="strava_url" className="block text-xs font-bold text-neutral-400 uppercase tracking-widest mb-2 group-focus-within:text-neutral-900 transition-colors">
                             Strava Segment URL
@@ -282,7 +282,13 @@ export default function SubmissionForm({ onClose }: Props) {
                                 setFormData({ ...formData, strava_url: e.target.value });
                             }}
                         />
-                        
+                        <div className="mt-2 flex items-start gap-1.5 text-neutral-500">
+                            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                            <p className="text-[11px] leading-relaxed">
+                                Please submit only uninterrupted segments (no traffic lights or major intersections)
+                            </p>
+                        </div>
+
                     </div>
 
                     <div className="flex flex-col gap-3">
