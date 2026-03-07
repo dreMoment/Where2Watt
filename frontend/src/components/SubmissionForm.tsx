@@ -101,6 +101,8 @@ function RatingChoiceInput({ fieldKey, label, value, options, onChange }: Rating
 
 export default function SubmissionForm({ onClose }: Props) {
     const { isLoggedIn, login, token } = useAuth();
+    const overallRatingField = RATING_FIELDS.find((field) => field.key === "overall_quality");
+    const detailRatingFields = RATING_FIELDS.filter((field) => field.key !== "overall_quality");
     const [formData, setFormData] = useState<{
         strava_url: string;
         safety_notes: string;
@@ -277,10 +279,30 @@ export default function SubmissionForm({ onClose }: Props) {
                         
                     </div>
 
-                    <div className="rounded-xl border border-neutral-200 bg-neutral-50/60 p-4 flex flex-col gap-4">
-                        
-                        <div className="grid grid-cols-2 gap-4">
-                            {RATING_FIELDS.map((field) => {
+                    <div className="flex flex-col gap-3">
+                        {overallRatingField ? (
+                            <div className="rounded-lg border border-neutral-200 bg-white p-3">
+                                <RatingStarsInput
+                                    fieldKey={overallRatingField.key}
+                                    label={overallRatingField.label}
+                                    valueOutOf5={formData.ratings[overallRatingField.key]}
+                                    onChange={(nextValue) => {
+                                        setFormError(null);
+                                        setFormData({
+                                            ...formData,
+                                            ratings: {
+                                                ...formData.ratings,
+                                                [overallRatingField.key]: nextValue,
+                                            },
+                                        });
+                                    }}
+                                />
+                            </div>
+                        ) : null}
+
+                        <div className="rounded-lg border border-neutral-200 bg-white p-3">
+                            <div className="grid grid-cols-2 gap-4">
+                                {detailRatingFields.map((field) => {
                                 const value = formData.ratings[field.key];
                                 const handleChange = (nextValue: number) => {
                                     setFormError(null);
@@ -315,7 +337,8 @@ export default function SubmissionForm({ onClose }: Props) {
                                         onChange={handleChange}
                                     />
                                 );
-                            })}
+                                })}
+                            </div>
                         </div>
                     </div>
                     <p className="text-[14px] text-neutral-500">Select one option for each rating category.</p>

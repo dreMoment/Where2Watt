@@ -53,10 +53,10 @@ describe('SubmissionForm', () => {
             target: { value: 'https://www.strava.com/segments/123' },
         });
         fireEvent.click(screen.getByRole('button', { name: /Overall Quality star 1/i }));
-        fireEvent.click(screen.getByRole('button', { name: /Traffic Level: Low Traffic/i }));
-        fireEvent.click(screen.getByRole('button', { name: /Road Surface: Med \(Patchy\)/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Traffic Level: Low/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Road Surface: Patchy/i }));
         fireEvent.click(screen.getByRole('button', { name: /Gradient Profile: Mixed/i }));
-        fireEvent.click(screen.getByRole('button', { name: /Sketchy Left Turns: 1 Left Turn/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Sketchy Left Turns: 1/i }));
         fireEvent.click(screen.getByRole('button', { name: /Submit Segment/i }));
 
         expect(submitSegment).toHaveBeenCalledWith({
