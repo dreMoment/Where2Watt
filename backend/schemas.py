@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 SEGMENT_REPORT_NOTE_MAX_LENGTH = 500
 
 RATING_FIELD_BOUNDS: dict[str, tuple[int, int]] = {
-    "overall_quality": (1, 5),
+    "overall_quality": (1, 10),
     "traffic_level": (1, 3),
     "road_surface": (1, 3),
     "gradient_profile": (1, 3),
@@ -16,7 +16,7 @@ RATING_FIELDS = tuple(RATING_FIELD_BOUNDS.keys())
 
 
 class SegmentCategoryRatingSchema(BaseModel):
-    overall_quality: int = Field(ge=1, le=5)
+    overall_quality: int = Field(ge=1, le=10)
     traffic_level: int = Field(ge=1, le=3)
     road_surface: int = Field(ge=1, le=3)
     gradient_profile: int = Field(ge=1, le=3)

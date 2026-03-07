@@ -73,7 +73,7 @@ describe('SegmentCard', () => {
             ...mockSegment,
             ratings_count: 6,
             average_ratings: {
-                overall_quality: 4.2,
+                overall_quality: 8.4,
                 traffic_level: 2.1,
                 road_surface: 2.7,
                 gradient_profile: 2.0,
@@ -84,8 +84,8 @@ describe('SegmentCard', () => {
         render(<SegmentCard segment={ratedSegment} />);
 
         expect(screen.getByLabelText('Overall Quality average stars')).toBeInTheDocument();
-        expect(screen.getByText('4.2/5')).toBeInTheDocument();
-        expect(screen.getByText('avg from 6 ratings')).toBeInTheDocument();
+        expect(screen.getByText('8.4/10')).toBeInTheDocument();
+        expect(screen.getByText('from 6 ratings')).toBeInTheDocument();
     });
 
 });

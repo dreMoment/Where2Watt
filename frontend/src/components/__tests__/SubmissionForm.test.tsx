@@ -63,7 +63,7 @@ describe('SubmissionForm', () => {
             strava_url: 'https://www.strava.com/segments/123',
             safety_notes: '',
             ratings: {
-                overall_quality: 1,
+                overall_quality: 2,
                 traffic_level: 1,
                 road_surface: 2,
                 gradient_profile: 2,

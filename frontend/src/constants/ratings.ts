@@ -43,7 +43,7 @@ const SKETCHY_LEFT_TURNS_OPTIONS: ChoiceOption[] = [
 ];
 
 export const RATING_FIELDS: RatingFieldConfig[] = [
-  { key: "overall_quality", label: "Overall Quality", min: 1, max: 5, input: "stars" },
+  { key: "overall_quality", label: "Overall Quality", min: 1, max: 10, input: "stars" },
   { key: "traffic_level", label: "Traffic Level", min: 1, max: 3, input: "choice", options: TRAFFIC_LEVEL_OPTIONS },
   { key: "road_surface", label: "Road Surface", min: 1, max: 3, input: "choice", options: ROAD_SURFACE_OPTIONS },
   { key: "gradient_profile", label: "Gradient Profile", min: 1, max: 3, input: "choice", options: GRADIENT_PROFILE_OPTIONS },
@@ -74,6 +74,6 @@ export function getChoiceLabel(fieldKey: keyof SegmentRatingValues, value: numbe
 
 export function getRatingDisplay(fieldKey: keyof SegmentRatingValues, value: number | null | undefined): string {
   if (typeof value !== "number") return "N/A";
-  if (fieldKey === "overall_quality") return `${value.toFixed(1)}/5`;
+  if (fieldKey === "overall_quality") return `${value.toFixed(1)}/10`;
   return getChoiceLabel(fieldKey, value);
 }

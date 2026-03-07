@@ -50,8 +50,8 @@ function StarPreview({ valueOutOf5, label }: { valueOutOf5: number; label: strin
     const widthPercent = (roundedStarsOutOf5 / 5) * 100;
 
     return (
-        <span aria-label={`${label} average stars`}>
-            <span className="relative inline-block" aria-hidden="true">
+        <span className="inline-flex items-center leading-none" aria-label={`${label} average stars`}>
+            <span className="relative inline-block align-middle leading-none" aria-hidden="true">
                 <StarRow colorClassName="text-neutral-200" />
                 <span className="absolute inset-y-0 left-0 overflow-hidden" style={{ width: `${widthPercent}%` }}>
                     <StarRow colorClassName="text-amber-500" />
@@ -166,12 +166,9 @@ export default function SegmentCard({
                         {segment.name}
                     </h3>
                     {ratingsCount > 0 && typeof overallQualityAverage === "number" ? (
-                        <div className="mt-1 flex items-center gap-2">
-                            <StarPreview valueOutOf5={overallQualityAverage} label="Overall Quality" />
-                            <span className="text-xs font-semibold text-neutral-700">
-                                {overallQualityAverage.toFixed(1)}/5
-                            </span>
-                            <span className="text-[11px] text-neutral-500">
+                        <div className="mt-1 flex items-center gap-2 leading-none">
+                            <StarPreview valueOutOf5={overallQualityAverage / 2} label="Overall Quality" />
+                            <span className="text-[11px] leading-none text-neutral-500 whitespace-nowrap">
                                 from {ratingsCount} {ratingsCount === 1 ? "rating" : "ratings"}
                             </span>
                         </div>
@@ -179,36 +176,38 @@ export default function SegmentCard({
                         <p className="mt-1 text-[11px] text-neutral-500">Overall quality: no ratings yet</p>
                     )}
                 </div>
-                <button
-                    onClick={() => {
-                        if (isLoggedIn) {
-                            if (hasReportedCurrentState) {
-                                showToast(
-                                    segment.blocked
-                                        ? "You already reported this segment as unblocked."
-                                        : "You already reported this segment as blocked.",
-                                    { type: "info" }
-                                );
-                                return;
+                <div className="shrink-0 flex flex-col items-end gap-1">
+                    <button
+                        onClick={() => {
+                            if (isLoggedIn) {
+                                if (hasReportedCurrentState) {
+                                    showToast(
+                                        segment.blocked
+                                            ? "You already reported this segment as unblocked."
+                                            : "You already reported this segment as blocked.",
+                                        { type: "info" }
+                                    );
+                                    return;
+                                }
+                                setShowReportForm(!showReportForm);
+                            } else {
+                                setShowLoginPrompt(true);
                             }
-                            setShowReportForm(!showReportForm);
-                        } else {
-                            setShowLoginPrompt(true);
-                        }
-                    }}
-                    title={segment.blocked ? "Report as unblocked/free" : "Report as blocked"}
-                    className={`shrink-0 p-1.5 rounded-lg transition-colors ${
-                        hasReportedCurrentState
-                            ? segment.blocked
-                                ? "text-white bg-green-500 hover:bg-green-600"
-                                : "text-white bg-red-500 hover:bg-red-600"
-                            : segment.blocked
-                                ? "text-white bg-green-500 hover:bg-green-600"
-                                : "text-neutral-400 hover:text-red-500 hover:bg-red-50"
-                    }`}
-                >
-                    <Flag className={`w-4 h-4 ${hasReportedCurrentState || segment.blocked ? "fill-current" : ""}`} />
-                </button>
+                        }}
+                        title={segment.blocked ? "Report as unblocked/free" : "Report as blocked"}
+                        className={`shrink-0 p-1.5 rounded-lg transition-colors ${
+                            hasReportedCurrentState
+                                ? segment.blocked
+                                    ? "text-white bg-green-500 hover:bg-green-600"
+                                    : "text-white bg-red-500 hover:bg-red-600"
+                                : segment.blocked
+                                    ? "text-white bg-green-500 hover:bg-green-600"
+                                    : "text-neutral-400 hover:text-red-500 hover:bg-red-50"
+                        }`}
+                    >
+                        <Flag className={`w-4 h-4 ${hasReportedCurrentState || segment.blocked ? "fill-current" : ""}`} />
+                    </button>
+                </div>
             </div>
 
             {showLoginPrompt && (

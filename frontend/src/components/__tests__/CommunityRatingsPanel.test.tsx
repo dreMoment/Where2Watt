@@ -62,7 +62,7 @@ describe("CommunityRatingsPanel", () => {
             status: "rated",
             ratings_count: 1,
             average_ratings: {
-                overall_quality: 4,
+                overall_quality: 8,
                 traffic_level: 2,
                 road_surface: 3,
                 gradient_profile: 2,
@@ -82,7 +82,7 @@ describe("CommunityRatingsPanel", () => {
 
         await waitFor(() => {
             expect(rateSegment).toHaveBeenCalledWith("1", "mock-token", {
-                overall_quality: 4,
+                overall_quality: 8,
                 traffic_level: 2,
                 road_surface: 3,
                 gradient_profile: 2,

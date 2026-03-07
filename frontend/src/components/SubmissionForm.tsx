@@ -22,11 +22,11 @@ function StarIcon({ className }: { className?: string }) {
 interface RatingStarsInputProps {
     fieldKey: keyof SegmentRatingValues;
     label: string;
-    valueOutOf5: number | null;
-    onChange: (valueOutOf5: number) => void;
+    valueOutOf10: number | null;
+    onChange: (valueOutOf10: number) => void;
 }
 
-function RatingStarsInput({ fieldKey, label, valueOutOf5, onChange }: RatingStarsInputProps) {
+function RatingStarsInput({ fieldKey, label, valueOutOf10, onChange }: RatingStarsInputProps) {
     return (
         <div className="flex flex-col gap-2">
             <div className="text-sm">
@@ -36,13 +36,18 @@ function RatingStarsInput({ fieldKey, label, valueOutOf5, onChange }: RatingStar
             </div>
             <div className="flex items-center gap-0" role="group" aria-labelledby={`rating-${fieldKey}-label`}>
                 {[1, 2, 3, 4, 5].map((starNumber) => {
-                    const fillPercent = valueOutOf5 != null && valueOutOf5 >= starNumber ? 100 : 0;
+                    const starStartOutOf10 = (starNumber - 1) * 2;
+                    const fillPercent = valueOutOf10 != null
+                        ? Math.max(0, Math.min(100, ((valueOutOf10 - starStartOutOf10) / 2) * 100))
+                        : 0;
+                    const fullValue = starNumber * 2;
+                    const halfValue = fullValue - 1;
                     return (
                         <button
                             key={`${fieldKey}-${starNumber}`}
                             type="button"
                             aria-label={`${label} star ${starNumber}`}
-                            onClick={() => onChange(starNumber)}
+                            onClick={() => onChange(valueOutOf10 === fullValue ? halfValue : fullValue)}
                             className="flex h-7 w-7 items-center justify-center rounded-sm transition-colors hover:bg-amber-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#fc4c02]"
                         >
                             <span className="relative inline-block h-7 w-7 text-neutral-200" aria-hidden="true">
@@ -58,6 +63,7 @@ function RatingStarsInput({ fieldKey, label, valueOutOf5, onChange }: RatingStar
                     );
                 })}
             </div>
+            <p className="text-[11px] text-neutral-500">Tip: click a star, then click it again to make it a half step.</p>
         </div>
     );
 }
@@ -285,7 +291,7 @@ export default function SubmissionForm({ onClose }: Props) {
                                 <RatingStarsInput
                                     fieldKey={overallRatingField.key}
                                     label={overallRatingField.label}
-                                    valueOutOf5={formData.ratings[overallRatingField.key]}
+                                    valueOutOf10={formData.ratings[overallRatingField.key]}
                                     onChange={(nextValue) => {
                                         setFormError(null);
                                         setFormData({
@@ -321,7 +327,7 @@ export default function SubmissionForm({ onClose }: Props) {
                                             key={field.key}
                                             fieldKey={field.key}
                                             label={field.label}
-                                            valueOutOf5={value}
+                                            valueOutOf10={value}
                                             onChange={handleChange}
                                         />
                                     );
