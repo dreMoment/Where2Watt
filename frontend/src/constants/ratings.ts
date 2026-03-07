@@ -31,8 +31,8 @@ const ROAD_SURFACE_OPTIONS: ChoiceOption[] = [
 ];
 
 const GRADIENT_PROFILE_OPTIONS: ChoiceOption[] = [
-  { value: 1, label: "Variable" },
-  { value: 2, label: "Mixed" },
+  { value: 1, label: "Rolling" },
+  { value: 2, label: "Flowing" },
   { value: 3, label: "Steady" },
 ];
 

@@ -76,7 +76,7 @@ describe("CommunityRatingsPanel", () => {
         fireEvent.click(screen.getByRole("button", { name: "Overall Quality star 4" }));
         fireEvent.click(screen.getByRole("button", { name: "Traffic Level: Med" }));
         fireEvent.click(screen.getByRole("button", { name: "Road Surface: Smooth" }));
-        fireEvent.click(screen.getByRole("button", { name: "Gradient Profile: Mixed" }));
+        fireEvent.click(screen.getByRole("button", { name: "Gradient Profile: Flowing" }));
         fireEvent.click(screen.getByRole("button", { name: "Sketchy Left Turns: 1" }));
         fireEvent.click(screen.getByRole("button", { name: /Submit Rating/i }));
 

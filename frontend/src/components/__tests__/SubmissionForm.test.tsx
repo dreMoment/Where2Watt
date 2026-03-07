@@ -56,7 +56,7 @@ describe('SubmissionForm', () => {
         fireEvent.click(screen.getByRole('button', { name: /Overall Quality star 1/i }));
         fireEvent.click(screen.getByRole('button', { name: /Traffic Level: Low/i }));
         fireEvent.click(screen.getByRole('button', { name: /Road Surface: Patchy/i }));
-        fireEvent.click(screen.getByRole('button', { name: /Gradient Profile: Mixed/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Gradient Profile: Flowing/i }));
         fireEvent.click(screen.getByRole('button', { name: /Sketchy Left Turns: 1/i }));
         fireEvent.click(screen.getByRole('button', { name: /Submit Segment/i }));
 
