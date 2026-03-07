@@ -10,7 +10,13 @@ from routers.admin import router as admin_router
 from routers.auth import router as auth_router
 from routers.segments import router as segments_router
 
-app = FastAPI(lifespan=lifespan, title="Where2Watt API")
+app = FastAPI(
+    lifespan=lifespan,
+    title="Where2Watt API",
+    docs_url=None,      # disables Swagger UI (/docs)
+    redoc_url=None,     # disables ReDoc (/redoc)
+    openapi_url=None,   # disables OpenAPI JSON (/openapi.json)
+)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
