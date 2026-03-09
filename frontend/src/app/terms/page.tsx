@@ -26,22 +26,18 @@ export default function TermsPage() {
           </p>
         </section>
 
-        <section className="mt-6 space-y-3 text-sm leading-relaxed text-neutral-700 sm:text-base">
-          <h2 className="text-lg font-semibold text-neutral-900">Support</h2>
-          <p>
-            Contact:{" "}
-            <a className="underline decoration-neutral-300 underline-offset-4" href="mailto:ndrmntn@gmail.com">
-              ndrmntn@gmail.com
-            </a>
-          </p>
-        </section>
-
         <div className="mt-8 flex flex-wrap items-center gap-3">
           <Link
             href="/privacy-policy"
             className="inline-flex items-center rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-100"
           >
             Privacy Policy
+          </Link>
+          <Link
+            href="/support"
+            className="inline-flex items-center rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-100"
+          >
+            Support
           </Link>
           <Link
             href="/"

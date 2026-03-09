@@ -245,9 +245,8 @@ export default function Home() {
       <button
         type="button"
         onClick={openInfoScreen}
-        className={`absolute top-3 right-3 z-30 p-0 transition-opacity hover:opacity-90 ${
-          isMobileViewport && sidebarOpen ? "opacity-0 pointer-events-none" : "opacity-100"
-        }`}
+        className={`absolute top-3 right-3 z-30 p-0 transition-opacity hover:opacity-90 ${isMobileViewport && sidebarOpen ? "opacity-0 pointer-events-none" : "opacity-100"
+          }`}
         title="Show onboarding info"
         aria-label="Show onboarding info"
       >
@@ -337,9 +336,9 @@ export default function Home() {
                   <p>
                     Sign in with Strava if you want to contribute new segments or rate routes you have ridden.
                   </p>
-                    <p>
+                  <p>
                     Have fun and stay safe :)
-                    </p>
+                  </p>
                 </div>
 
                 <div className="mt-6 sm:mt-8 space-y-3 sm:space-y-4">
@@ -375,9 +374,8 @@ export default function Home() {
 
         {/* Sidebar */}
         <aside
-          className={`absolute inset-y-0 left-0 z-20 w-full md:w-[400px] transform transition-transform duration-300 ease-in-out bg-white shadow-[4px_0_20px_rgba(0,0,0,0.04)] border-r border-neutral-100 ${
-            sidebarOpen ? "translate-x-0 pointer-events-auto" : "-translate-x-full pointer-events-none"
-          }`}
+          className={`absolute inset-y-0 left-0 z-20 w-full md:w-[400px] transform transition-transform duration-300 ease-in-out bg-white shadow-[4px_0_20px_rgba(0,0,0,0.04)] border-r border-neutral-100 ${sidebarOpen ? "translate-x-0 pointer-events-auto" : "-translate-x-full pointer-events-none"
+            }`}
         >
           <div className="w-full md:w-[400px] h-full flex flex-col overflow-y-auto pt-16">
             {/* Rider Profile Configuration */}
@@ -533,23 +531,29 @@ export default function Home() {
 
             <div className="px-5 py-3 border-t border-neutral-100/80 bg-white/70">
               <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[11px] text-neutral-500">
-                <span>Uses the Strava API</span>
-                <span className="text-neutral-300" aria-hidden="true">•</span>
-                <span>Not endorsed by Strava</span>
-                <span className="hidden sm:inline text-neutral-300" aria-hidden="true">•</span>
                 <Link
                   href="/privacy-policy"
                   className="font-medium text-neutral-500 hover:text-neutral-800"
                 >
                   Privacy
                 </Link>
-                                <span className="text-neutral-300" aria-hidden="true">•</span>
+                <span className="text-neutral-300" aria-hidden="true">•</span>
                 <Link
                   href="/terms"
                   className="font-medium text-neutral-500 hover:text-neutral-800"
                 >
                   Terms
                 </Link>
+                <span className="text-neutral-300" aria-hidden="true">•</span>
+                <Link
+                  href="/support"
+                  className="font-medium text-neutral-500 hover:text-neutral-800"
+                >
+                  Support
+                </Link>
+                <span>Where2Watt uses the Strava API and is not endorsed by Strava</span>
+                <span className="hidden sm:inline text-neutral-300" aria-hidden="true"> </span>
+
               </div>
             </div>
           </div>

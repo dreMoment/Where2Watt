@@ -67,6 +67,12 @@ export default function PrivacyPolicyPage() {
             Terms
           </Link>
           <Link
+            href="/support"
+            className="inline-flex items-center rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-100"
+          >
+            Support
+          </Link>
+          <Link
             href="/"
             className="inline-flex items-center rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-100"
           >
