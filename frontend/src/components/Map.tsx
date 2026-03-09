@@ -20,6 +20,56 @@ interface MapProps {
   onSegmentRated?: (segmentId: string, rating: { ratings_count: number; average_ratings: SegmentAverageRatings }) => void;
 }
 
+const MAP_VIEWPORT_STORAGE_KEY = "where2watt:lastMapViewport";
+
+type MapViewport = {
+  longitude: number;
+  latitude: number;
+  zoom: number;
+  bearing: number;
+  pitch: number;
+};
+
+const DEFAULT_VIEWPORT: MapViewport = {
+  longitude: 8.5417,
+  latitude: 47.3769,
+  zoom: 11,
+  bearing: 0,
+  pitch: 0,
+};
+
+function getInitialViewport(): MapViewport {
+  if (typeof window === "undefined") {
+    return DEFAULT_VIEWPORT;
+  }
+
+  try {
+    const raw = localStorage.getItem(MAP_VIEWPORT_STORAGE_KEY);
+    if (!raw) {
+      return DEFAULT_VIEWPORT;
+    }
+    const parsed = JSON.parse(raw) as Partial<MapViewport>;
+    if (
+      typeof parsed.longitude !== "number" ||
+      typeof parsed.latitude !== "number" ||
+      typeof parsed.zoom !== "number" ||
+      typeof parsed.bearing !== "number" ||
+      typeof parsed.pitch !== "number"
+    ) {
+      return DEFAULT_VIEWPORT;
+    }
+    return {
+      longitude: parsed.longitude,
+      latitude: parsed.latitude,
+      zoom: parsed.zoom,
+      bearing: parsed.bearing,
+      pitch: parsed.pitch,
+    };
+  } catch {
+    return DEFAULT_VIEWPORT;
+  }
+}
+
 /**
  * Returns a color between orange (#f97316) and green (#16a34a)
  * based on how much margin a segment has above the target interval time.
@@ -43,6 +93,7 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
   const [cursor, setCursor] = useState("grab");
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [isRatingsVisible, setIsRatingsVisible] = useState(true);
+  const [initialViewport] = useState<MapViewport>(() => getInitialViewport());
 
   const filteredSegments = segments;
 
@@ -110,10 +161,11 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
     <div className="h-full w-full shadow-lg overflow-hidden relative">
       <Map
         initialViewState={{
-          longitude: 8.5417,
-          latitude: 47.3769,
-          zoom: 11,
-          bearing: 0
+          longitude: initialViewport.longitude,
+          latitude: initialViewport.latitude,
+          zoom: initialViewport.zoom,
+          bearing: initialViewport.bearing,
+          pitch: initialViewport.pitch,
         }}
         maxPitch={85}
         terrain={{ source: "terrain-source", exaggeration: 2 }}
@@ -137,6 +189,13 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
         }}
         onMouseEnter={() => setCursor("pointer")}
         onMouseLeave={() => setCursor("grab")}
+        onMoveEnd={(event) => {
+          const { longitude, latitude, zoom, bearing, pitch } = event.viewState;
+          localStorage.setItem(
+            MAP_VIEWPORT_STORAGE_KEY,
+            JSON.stringify({ longitude, latitude, zoom, bearing, pitch })
+          );
+        }}
         cursor={cursor}
       >
         <Source
