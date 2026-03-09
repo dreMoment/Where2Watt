@@ -45,3 +45,40 @@ def test_rate_limit_key_uses_actor_id_and_ip_for_valid_token():
         client_host="192.0.2.44",
     )
     assert rate_limit_key(request) == f"actor:{actor_id}|ip:192.0.2.44"
+
+
+@pytest.mark.unit
+def test_rate_limit_key_bypasses_admin_with_unique_key_per_request():
+    actor_id = actor_id_from_strava_id(987654)
+    token = create_jwt(actor_id=actor_id, is_admin=True)
+
+    first_request = _build_request(
+        headers={"authorization": f"Bearer {token}"},
+        client_host="203.0.113.11",
+    )
+    second_request = _build_request(
+        headers={"authorization": f"Bearer {token}"},
+        client_host="203.0.113.11",
+    )
+
+    first_key = rate_limit_key(first_request)
+    second_key = rate_limit_key(second_request)
+
+    assert first_key.startswith(f"admin-bypass:{actor_id}:")
+    assert second_key.startswith(f"admin-bypass:{actor_id}:")
+    assert first_key != second_key
+
+
+@pytest.mark.unit
+def test_rate_limit_key_reuses_admin_bypass_key_within_same_request():
+    actor_id = actor_id_from_strava_id(987654)
+    token = create_jwt(actor_id=actor_id, is_admin=True)
+    request = _build_request(
+        headers={"authorization": f"Bearer {token}"},
+        client_host="203.0.113.11",
+    )
+
+    first_key = rate_limit_key(request)
+    second_key = rate_limit_key(request)
+
+    assert first_key == second_key
