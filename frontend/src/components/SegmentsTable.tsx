@@ -46,6 +46,10 @@ function getUserLabel(user?: UserSummary | null, fallbackId?: string | null): st
   return "Unknown";
 }
 
+function getSubmitterLabel(): string {
+  return "Anonymous";
+}
+
 function formatReportSentAt(dateString?: string | null): string {
   const formatted = formatDate(dateString);
   return formatted === "-" ? "Unknown date" : formatted;
@@ -159,7 +163,6 @@ export default function SegmentsTable({
                 : segment.reported_by_actor_ids && segment.reported_by_actor_ids.length > 0
                   ? segment.reported_by_actor_ids.map((id) => ({ label: getUserLabel(undefined, id), fullId: id }))
                   : [];
-            const submittedByFullId = segment.submitted_by_user?.actor_id || segment.submitted_by_actor_id;
             const segmentId = segment.id;
             const ratingsCount = segment.ratings_count ?? 0;
             const isRatingsExpanded = !!segmentId && expandedRatingsSegmentId === segmentId;
@@ -218,8 +221,8 @@ export default function SegmentsTable({
                       <span className="text-gray-600 text-sm">N/A</span>
                     )}
                   </td>
-                  <td className="p-5 text-sm text-gray-300" title={submittedByFullId}>
-                    {getUserLabel(segment.submitted_by_user, segment.submitted_by_actor_id)}
+                  <td className="p-5 text-sm text-gray-300">
+                    {getSubmitterLabel()}
                   </td>
                   <td className="p-5 text-sm text-gray-300 max-w-[420px] whitespace-normal">
                     {reportQueueEntries.length > 0 ? (

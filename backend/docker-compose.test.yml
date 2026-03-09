@@ -25,4 +25,6 @@ services:
       - STRAVA_CLIENT_ID=test-client-id
       - STRAVA_CLIENT_SECRET=test-client-secret
       - STRAVA_REFRESH_TOKEN=test-refresh-token
+      - STRAVA_WEBHOOK_VERIFY_TOKEN=test-webhook-verify-token
+      - STRAVA_WEBHOOK_SECRET=test-webhook-secret
     command: pytest -m "unit or integration" -q

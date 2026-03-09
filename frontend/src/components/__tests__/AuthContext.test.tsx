@@ -1,19 +1,21 @@
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { AuthProvider, useAuth } from "@/components/AuthContext";
-import { fetchCurrentUser } from "@/utils/api";
+import { disconnectStrava, fetchCurrentUser } from "@/utils/api";
 
 jest.mock("@/utils/api", () => ({
   fetchCurrentUser: jest.fn(),
+  disconnectStrava: jest.fn(),
 }));
 
 function Consumer() {
-  const { isLoggedIn, isLoading, user, logout } = useAuth();
+  const { isLoggedIn, isLoading, user, logout, disconnect } = useAuth();
   return (
     <div>
       <div data-testid="loading">{String(isLoading)}</div>
       <div data-testid="logged">{String(isLoggedIn)}</div>
       <div data-testid="actor">{user?.actor_id ?? ""}</div>
       <button onClick={logout}>logout</button>
+      <button onClick={() => disconnect()}>disconnect</button>
     </div>
   );
 }
@@ -71,5 +73,23 @@ describe("AuthProvider", () => {
     fireEvent.click(screen.getByText("logout"));
     expect(localStorage.getItem("auth_token")).toBeNull();
     expect(screen.getByTestId("logged")).toHaveTextContent("false");
+  });
+
+  it("disconnect calls backend endpoint and clears auth state", async () => {
+    localStorage.setItem("auth_token", "t1");
+    (fetchCurrentUser as jest.Mock).mockResolvedValue({ actor_id: "server-user", is_admin: false });
+    (disconnectStrava as jest.Mock).mockResolvedValue({ status: "disconnected", deauthorized_with_strava: true, deleted: {} });
+
+    render(
+      <AuthProvider>
+        <Consumer />
+      </AuthProvider>
+    );
+
+    await waitFor(() => expect(screen.getByTestId("logged")).toHaveTextContent("true"));
+    fireEvent.click(screen.getByText("disconnect"));
+    await waitFor(() => expect(disconnectStrava).toHaveBeenCalledWith("t1"));
+    await waitFor(() => expect(screen.getByTestId("logged")).toHaveTextContent("false"));
+    expect(localStorage.getItem("auth_token")).toBeNull();
   });
 });

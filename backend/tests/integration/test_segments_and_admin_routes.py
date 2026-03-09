@@ -120,6 +120,7 @@ def test_create_segment_enriches_with_strava_details(monkeypatch, app_client):
     assert inserted_doc["strava_id"] == "123"
     assert inserted_doc["name"] == "Segment Name"
     assert inserted_doc["approved"] is False
+    assert "submitted_by_actor_id" not in inserted_doc
     assert "ratings_count" not in inserted_doc
     assert "rating_totals" not in inserted_doc
     db.segment_ratings.insert_one.assert_awaited_once_with(
@@ -146,9 +147,7 @@ def test_list_segments_hides_actor_ids_for_public_response(monkeypatch, app_clie
                             "_id": segment_id,
                             "name": "Hidden IDs Segment",
                             "approved": True,
-                            "submitted_by_actor_id": "actor-submitter",
                             "reported_by_actor_ids": ["actor-reporter"],
-                            "submitted_by_user": {"actor_id": "actor-submitter"},
                             "reported_by_users": [{"actor_id": "actor-reporter"}],
                             "block_reports": [
                                 {

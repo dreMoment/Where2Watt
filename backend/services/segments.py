@@ -166,22 +166,12 @@ async def enrich_admin_segment_users(db, segments: list[dict]) -> None:
         if reporter_id not in reporter_id_seen_by_segment[segment_key]:
             reporter_ids_by_segment[segment_key].append(reporter_id)
             reporter_id_seen_by_segment[segment_key].add(reporter_id)
-    user_map: dict[str, dict] = {}
-
     for segment in segments:
         segment_key = str(segment["_id"])
         segment_reporter_ids = reporter_ids_by_segment.get(segment_key, [])
         segment["reported_by_actor_ids"] = segment_reporter_ids
         segment["block_reports"] = report_queue_by_segment.get(segment_key, [])
-
-        submitted_by_id = segment.get("submitted_by_actor_id")
-
-        if isinstance(submitted_by_id, str) and submitted_by_id:
-            segment["submitted_by_user"] = user_map.get(submitted_by_id, {"actor_id": submitted_by_id})
-
-        segment["reported_by_users"] = [
-            user_map.get(reporter_id, {"actor_id": reporter_id}) for reporter_id in segment_reporter_ids
-        ]
+        segment["reported_by_users"] = [{"actor_id": reporter_id} for reporter_id in segment_reporter_ids]
 
 
 def now_iso() -> str:

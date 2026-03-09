@@ -90,9 +90,7 @@ class SegmentPublicResponseSchema(SegmentSchema):
 
 
 class SegmentResponseSchema(SegmentPublicResponseSchema):
-    submitted_by_actor_id: str | None = None
     reported_by_actor_ids: list[str] = Field(default_factory=list)
-    submitted_by_user: UserSummarySchema | None = None
     reported_by_users: list[UserSummarySchema] = Field(default_factory=list)
     block_reports: list[SegmentAdminReportSchema] = Field(default_factory=list)
 
@@ -117,3 +115,9 @@ class StravaCallbackSchema(BaseModel):
 class UserResponseSchema(BaseModel):
     actor_id: str
     is_admin: bool
+
+
+class DisconnectResponseSchema(BaseModel):
+    status: Literal["disconnected"]
+    deauthorized_with_strava: bool
+    deleted: dict[str, int]

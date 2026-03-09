@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pymongo.errors import DuplicateKeyError
 
 from database import get_db
-from dependencies import ActorIdentity, verify_admin, verify_user
+from dependencies import ActorIdentity, verify_active_user, verify_admin
 from rate_limiter import limiter
 from schemas import (
     SegmentCategoryRatingSchema,
@@ -28,13 +28,12 @@ router = APIRouter()
 
 @router.post("/api/segments", response_model=SegmentPublicResponseSchema, status_code=201)
 @limiter.limit("10/minute")
-async def create_segment(request: Request, segment: SegmentCreateSchema, identity: ActorIdentity = Depends(verify_user)):
+async def create_segment(request: Request, segment: SegmentCreateSchema, identity: ActorIdentity = Depends(verify_active_user)):
     db = get_db()
     segment_dict = segment.model_dump()
     submitted_ratings = segment_dict.pop("ratings")
     segment_dict["created_at"] = now_iso()
     segment_dict["approved"] = False
-    segment_dict["submitted_by_actor_id"] = identity.actor_id
 
     strava_url = segment_dict.get("strava_url")
     if strava_url:
@@ -52,7 +51,7 @@ async def create_segment(request: Request, segment: SegmentCreateSchema, identit
                 raise HTTPException(status_code=400, detail="Segment already exists")
             segment_dict["strava_id"] = segment_id
 
-            details = await fetch_segment_details(segment_id)
+            details = await fetch_segment_details(segment_id, db=db, actor_id=identity.actor_id)
             if details:
                 for key in ["polyline", "name", "distance_km", "gradient_pct"]:
                     if not segment_dict.get(key):
@@ -89,7 +88,7 @@ async def rate_segment(
     request: Request,
     segment_id: str,
     rating: SegmentCategoryRatingSchema,
-    identity: ActorIdentity = Depends(verify_user),
+    identity: ActorIdentity = Depends(verify_active_user),
 ):
     db = get_db()
     obj_id = parse_object_id(segment_id)
@@ -120,7 +119,7 @@ async def rate_segment(
 
 @router.get("/api/segments/{segment_id}/my-rating-status")
 @limiter.limit("30/minute")
-async def get_my_rating_status(request: Request, segment_id: str, identity: ActorIdentity = Depends(verify_user)):
+async def get_my_rating_status(request: Request, segment_id: str, identity: ActorIdentity = Depends(verify_active_user)):
     db = get_db()
     obj_id = parse_object_id(segment_id)
     segment = await db.segments.find_one({"_id": obj_id})
@@ -145,7 +144,7 @@ async def report_segment_blocked(
     request: Request,
     segment_id: str,
     data: SegmentReportSchema = SegmentReportSchema(),
-    identity: ActorIdentity = Depends(verify_user),
+    identity: ActorIdentity = Depends(verify_active_user),
 ):
     db = get_db()
     obj_id = parse_object_id(segment_id)
@@ -196,7 +195,7 @@ async def report_segment_unblocked(
     request: Request,
     segment_id: str,
     data: SegmentReportSchema = SegmentReportSchema(),
-    identity: ActorIdentity = Depends(verify_user),
+    identity: ActorIdentity = Depends(verify_active_user),
 ):
     db = get_db()
     obj_id = parse_object_id(segment_id)
@@ -243,7 +242,7 @@ async def report_segment_unblocked(
 
 @router.get("/api/segments/{segment_id}/my-report-status")
 @limiter.limit("30/minute")
-async def get_my_report_status(request: Request, segment_id: str, identity: ActorIdentity = Depends(verify_user)):
+async def get_my_report_status(request: Request, segment_id: str, identity: ActorIdentity = Depends(verify_active_user)):
     db = get_db()
     obj_id = parse_object_id(segment_id)
     segment = await db.segments.find_one({"_id": obj_id})

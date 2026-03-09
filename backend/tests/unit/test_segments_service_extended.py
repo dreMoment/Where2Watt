@@ -21,7 +21,7 @@ class FindCursor:
 @pytest.mark.unit
 def test_enrich_admin_segment_users_dedupes_reporters_and_sets_summaries():
     segment_id = ObjectId()
-    segments = [{"_id": segment_id, "submitted_by_actor_id": "submitter-1"}]
+    segments = [{"_id": segment_id}]
     reports = [
         {"segment_id": segment_id, "reported_by_actor_id": "actor-a", "reported_at": "2026-03-05T10:00:00+00:00", "action": "blocked", "note": "Roadworks"},
         {"segment_id": segment_id, "reported_by_actor_id": "actor-a", "reported_at": "2026-03-05T09:00:00+00:00", "action": "blocked", "note": "Same"},
@@ -36,7 +36,6 @@ def test_enrich_admin_segment_users_dedupes_reporters_and_sets_summaries():
     asyncio.run(enrich_admin_segment_users(db, segments))
 
     assert segments[0]["reported_by_actor_ids"] == ["actor-a", "actor-b"]
-    assert segments[0]["submitted_by_user"] == {"actor_id": "submitter-1"}
     assert segments[0]["reported_by_users"] == [{"actor_id": "actor-a"}, {"actor_id": "actor-b"}]
     assert len(segments[0]["block_reports"]) == 3
     assert segments[0]["block_reports"][0]["note"] == "Roadworks"

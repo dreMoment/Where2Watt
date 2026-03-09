@@ -48,12 +48,10 @@ export type Segment = {
   approved: boolean;
   polyline?: string;
   created_at?: string;
-  submitted_by_actor_id?: string;
   blocked?: boolean;
   ratings_count?: number;
   average_ratings?: SegmentAverageRatings;
   reported_by_actor_ids?: string[];
-  submitted_by_user?: UserSummary | null;
   reported_by_users?: UserSummary[];
   block_reports?: SegmentAdminReport[];
 };

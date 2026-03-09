@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { fetchCurrentUser, type AuthUser } from "@/utils/api";
+import { disconnectStrava, fetchCurrentUser, type AuthUser, type DisconnectResponse } from "@/utils/api";
 
 const STRAVA_CLIENT_ID = process.env.NEXT_PUBLIC_STRAVA_CLIENT_ID || "122429";
 
@@ -12,6 +12,7 @@ interface AuthContextType {
     isLoading: boolean;
     login: () => void;
     logout: () => void;
+    disconnect: () => Promise<DisconnectResponse | null>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -21,6 +22,7 @@ const AuthContext = createContext<AuthContextType>({
     isLoading: true,
     login: () => { },
     logout: () => { },
+    disconnect: async () => null,
 });
 
 export function useAuth() {
@@ -81,8 +83,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
     }, []);
 
+    const disconnect = useCallback(async () => {
+        if (!token) {
+            logout();
+            return null;
+        }
+        const response = await disconnectStrava(token);
+        logout();
+        return response;
+    }, [logout, token]);
+
     return (
-        <AuthContext.Provider value={{ user, token, isLoggedIn: !!user, isLoading, login, logout }}>
+        <AuthContext.Provider value={{ user, token, isLoggedIn: !!user, isLoading, login, logout, disconnect }}>
             {children}
         </AuthContext.Provider>
     );

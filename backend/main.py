@@ -9,6 +9,7 @@ from rate_limiter import limiter
 from routers.admin import router as admin_router
 from routers.auth import router as auth_router
 from routers.segments import router as segments_router
+from routers.strava_webhook import router as strava_webhook_router
 
 app = FastAPI(
     lifespan=lifespan,
@@ -42,3 +43,4 @@ async def health_check():
 app.include_router(auth_router)
 app.include_router(segments_router)
 app.include_router(admin_router)
+app.include_router(strava_webhook_router)

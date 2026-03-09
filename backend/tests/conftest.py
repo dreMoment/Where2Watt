@@ -13,6 +13,8 @@ os.environ.setdefault("MONGODB_DB_NAME", "where2watt_test")
 os.environ.setdefault("STRAVA_CLIENT_ID", "test-client-id")
 os.environ.setdefault("STRAVA_CLIENT_SECRET", "test-client-secret")
 os.environ.setdefault("STRAVA_REFRESH_TOKEN", "test-refresh-token")
+os.environ.setdefault("STRAVA_WEBHOOK_VERIFY_TOKEN", "test-webhook-verify-token")
+os.environ.setdefault("STRAVA_WEBHOOK_SECRET", "test-webhook-secret")
 
 import pytest
 from fastapi.testclient import TestClient

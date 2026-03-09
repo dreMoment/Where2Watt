@@ -1,4 +1,5 @@
 import asyncio
+import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -57,6 +58,40 @@ def test_fetch_segment_details_returns_normalized_payload(monkeypatch):
         "distance_km": 1.23,
         "gradient_pct": 3.3,
     }
+
+
+@pytest.mark.unit
+def test_fetch_segment_details_supports_avg_grade_fallback(monkeypatch):
+    monkeypatch.setattr(strava_service, "get_strava_access_token", AsyncMock(return_value="token-1"))
+    mock_response = SimpleNamespace(
+        status_code=200,
+        json=lambda: {"map": {"polyline": "xyz"}, "name": "Segment A", "distance": 1234, "avg_grade": 4.04},
+    )
+    mock_client = SimpleNamespace(get=AsyncMock(return_value=mock_response))
+    monkeypatch.setattr(strava_service.httpx, "AsyncClient", lambda: MockAsyncClientContext(mock_client))
+
+    details = asyncio.run(strava_service.fetch_segment_details("42"))
+
+    assert details == {
+        "polyline": "xyz",
+        "name": "Segment A",
+        "distance_km": 1.23,
+        "gradient_pct": 4.0,
+    }
+
+
+@pytest.mark.unit
+def test_get_strava_access_token_prefers_actor_token(monkeypatch):
+    actor_id = "actor-123"
+    valid_expires_at = int(time.time()) + 3600
+    mock_db = SimpleNamespace(
+        strava_auth=SimpleNamespace(
+            find_one=AsyncMock(return_value={"actor_id": actor_id, "access_token": "actor-token", "expires_at": valid_expires_at})
+        )
+    )
+
+    token = asyncio.run(strava_service.get_strava_access_token(db=mock_db, actor_id=actor_id))
+    assert token == "actor-token"
 
 
 @pytest.mark.unit

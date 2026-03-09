@@ -1,4 +1,5 @@
 import {
+  disconnectStrava,
   deleteAdminSegmentRating,
   fetchAdminSegmentRatings,
   fetchMySegmentReportStatus,
@@ -42,6 +43,17 @@ describe("api utils", () => {
   it("verifyAdminAccess returns false when request fails", async () => {
     (request as jest.Mock).mockRejectedValue(new Error("forbidden"));
     await expect(verifyAdminAccess("token-1")).resolves.toBe(false);
+  });
+
+  it("disconnectStrava calls expected endpoint", async () => {
+    (request as jest.Mock).mockResolvedValue({ status: "disconnected", deauthorized_with_strava: true, deleted: {} });
+    await disconnectStrava("token-1");
+    expect(request).toHaveBeenCalledWith(
+      "/auth/disconnect",
+      expect.objectContaining({
+        method: "POST",
+      })
+    );
   });
 
   it("reportSegmentBlocked forwards optional note", async () => {

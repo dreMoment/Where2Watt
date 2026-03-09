@@ -231,8 +231,6 @@ export function useAdminSegments({ token, onLogout }: UseAdminSegmentsParams) {
         segment.strava_id,
         segment.strava_url,
         segment.created_at,
-        segment.submitted_by_actor_id,
-        segment.submitted_by_user?.actor_id,
         reportedIds,
         reportedNames,
       ]

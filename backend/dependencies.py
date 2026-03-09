@@ -8,6 +8,7 @@ import jwt
 from fastapi import Depends, Header, HTTPException
 
 from config import ACTOR_ID_SECRET, ADMIN_STRAVA_IDS, JWT_ALGORITHM, JWT_EXPIRATION_HOURS, JWT_SECRET
+from database import get_db
 
 
 @dataclass(frozen=True)
@@ -43,7 +44,28 @@ def verify_user(authorization: Annotated[str, Header()] = None) -> ActorIdentity
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
-def verify_admin(identity: ActorIdentity = Depends(verify_user)):
+async def verify_active_user(identity: ActorIdentity = Depends(verify_user)) -> ActorIdentity:
+    try:
+        db = get_db()
+    except RuntimeError:
+        return identity
+
+    revoked = await db.revoked_actors.find_one(
+        {
+            "actor_id": identity.actor_id,
+            "$or": [
+                {"revoked_until": {"$exists": False}},
+                {"revoked_until": {"$gt": datetime.now(timezone.utc)}},
+            ],
+        },
+        {"_id": 1},
+    )
+    if revoked:
+        raise HTTPException(status_code=401, detail="Strava access has been revoked")
+    return identity
+
+
+def verify_admin(identity: ActorIdentity = Depends(verify_active_user)):
     # Enforce current server-side admin config even if an old token claim exists.
     if not identity.is_admin or identity.actor_id not in ADMIN_ACTOR_IDS:
         raise HTTPException(status_code=403, detail="Admin access required")

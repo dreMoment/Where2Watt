@@ -176,6 +176,20 @@ export interface MySegmentReportStatusResponse {
     } | null;
 }
 
+export interface DisconnectResponse {
+    status: "disconnected";
+    deauthorized_with_strava: boolean;
+    deleted: Record<string, number>;
+}
+
+export async function disconnectStrava(token: string): Promise<DisconnectResponse> {
+    return request<DisconnectResponse>("/auth/disconnect", {
+        method: "POST",
+        headers: withBearerAuth(token),
+        errorMessage: "Failed to disconnect Strava",
+    });
+}
+
 export async function reportSegmentBlocked(id: string, token: string, note?: string): Promise<ReportBlockedResponse> {
     const body: Record<string, string> = {};
     if (note) {

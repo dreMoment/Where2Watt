@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
-import { Plus, Compass, LogOut, PanelLeft, X, Info } from "lucide-react";
+import { Plus, Compass, PanelLeft, X, Info, ChevronDown, Trash2, User } from "lucide-react";
 import type { Segment, SegmentAverageRatings } from "@/types";
 import { useAuth } from "@/components/AuthContext";
 import SubmissionForm from "@/components/SubmissionForm";
@@ -12,6 +12,7 @@ import InputField from "@/components/InputField";
 import SectionCard from "@/components/SectionCard";
 import StravaConnectButton from "@/components/StravaConnectButton";
 import StravaCompatibleBadge from "@/components/StravaCompatibleBadge";
+import { useUiFeedback } from "@/components/ui/UiFeedbackProvider";
 import { fetchSegments } from "@/utils/api";
 import { filterSegmentsByInterval } from "@/utils/intervals";
 
@@ -29,7 +30,8 @@ const Map = dynamic(() => import("@/components/Map"), {
 const HIDE_INFO_SCREEN_STORAGE_KEY = "hideLandingInfoScreen";
 
 export default function Home() {
-  const { user, isLoggedIn, login, logout, isLoading: authLoading } = useAuth();
+  const { user, isLoggedIn, login, logout, disconnect, isLoading: authLoading } = useAuth();
+  const { confirm, showToast } = useUiFeedback();
   const [segments, setSegments] = useState<Segment[]>([]);
   const [showSubmissionContent, setShowSubmissionContent] = useState(false);
   const [showInfoScreen, setShowInfoScreen] = useState(false);
@@ -46,6 +48,9 @@ export default function Home() {
   const [isFiltered, setIsFiltered] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const mobileMediaQuery = window.matchMedia("(max-width: 768px)");
@@ -117,6 +122,14 @@ export default function Home() {
     });
   }, [segments, isFiltered, filterPowerStr, filterTimeStr, weightStr, bikeWeightStr]);
 
+  const actorIdLabel = useMemo(() => {
+    const actorId = user?.actor_id;
+    if (!actorId) {
+      return "User: unknown";
+    }
+    return `User: ${actorId.slice(0, 8)}`;
+  }, [user?.actor_id]);
+
   const handleSegmentBlocked = useCallback((segmentId: string, report: { blocked: boolean }) => {
     setSegments((prev) =>
       prev.map((s) =>
@@ -160,6 +173,61 @@ export default function Home() {
     setSidebarOpen(false);
   };
 
+  const handleDisconnect = useCallback(async () => {
+    const shouldDisconnect = await confirm({
+      title: "Disconnect Strava?",
+      description:
+        "This will deauthenticate the app connection with Strava and permanently delete all your Where2Watt data. This includes any segments you've submitted, ratings you've made, and reports you've filed. This action cannot be undone.",
+      confirmLabel: "Disconnect Strava and Delete Data",
+      cancelLabel: "Cancel",
+      tone: "danger",
+    });
+    if (!shouldDisconnect) {
+      return;
+    }
+
+    setIsDisconnecting(true);
+    try {
+      await disconnect();
+      showToast("Strava disconnected and local account data cleared.", { type: "success" });
+    } catch (disconnectError) {
+      const errorMessage =
+        disconnectError instanceof Error ? disconnectError.message : "Failed to disconnect Strava right now.";
+      showToast(errorMessage, { type: "error" });
+    } finally {
+      setIsDisconnecting(false);
+    }
+  }, [confirm, disconnect, showToast]);
+
+  useEffect(() => {
+    if (!isProfileMenuOpen) {
+      return;
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!profileMenuRef.current) {
+        return;
+      }
+      if (!profileMenuRef.current.contains(event.target as Node)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsProfileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isProfileMenuOpen]);
+
   return (
     <main className="relative flex h-[100dvh] w-full bg-[#f9fafb] overflow-hidden">
       <div className="absolute top-3 left-3 z-30 flex items-center gap-2">
@@ -171,7 +239,7 @@ export default function Home() {
         >
           {sidebarOpen ? <X className="w-5 h-5" /> : <PanelLeft className="w-5 h-5" />}
         </button>
-        <StravaCompatibleBadge className="-ml-5 sm:-ml-6 w-[240px] sm:w-[280px]" />
+        <StravaCompatibleBadge className="-ml-2 sm:-ml-3 w-[240px] sm:w-[280px]" />
       </div>
 
       <button
@@ -307,35 +375,64 @@ export default function Home() {
 
         {/* Sidebar */}
         <aside
-          className={`absolute inset-y-0 left-0 z-20 w-full md:w-[350px] transform transition-transform duration-300 ease-in-out bg-white shadow-[4px_0_20px_rgba(0,0,0,0.04)] border-r border-neutral-100 ${
+          className={`absolute inset-y-0 left-0 z-20 w-full md:w-[400px] transform transition-transform duration-300 ease-in-out bg-white shadow-[4px_0_20px_rgba(0,0,0,0.04)] border-r border-neutral-100 ${
             sidebarOpen ? "translate-x-0 pointer-events-auto" : "-translate-x-full pointer-events-none"
           }`}
         >
-          <div className="w-full md:w-[350px] h-full flex flex-col overflow-y-auto pt-16">
+          <div className="w-full md:w-[400px] h-full flex flex-col overflow-y-auto pt-16">
             {/* Rider Profile Configuration */}
             <SectionCard
               title="Rider Profile"
               headerContent={
                 !authLoading ? (
                   isLoggedIn && user ? (
-                    <div className="flex items-center gap-2.5">
-                      {user.profile_pic && (
-                        <img
-                          src={user.profile_pic}
-                          alt={user.firstname || "User"}
-                          className="w-8 h-8 rounded-full border-2 border-neutral-200 shadow-sm"
-                        />
-                      )}
-                      <span className="text-sm font-medium text-neutral-600">
-                        {user.firstname}
-                      </span>
+                    <div ref={profileMenuRef} className="relative z-30">
                       <button
-                        onClick={logout}
-                        title="Log out"
-                        className="p-1.5 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        type="button"
+                        onClick={() => setIsProfileMenuOpen((prev) => !prev)}
+                        aria-haspopup="menu"
+                        aria-expanded={isProfileMenuOpen}
+                        title="Open account menu"
+                        className="flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-1.5 py-1 shadow-sm transition-colors hover:border-neutral-300"
                       >
-                        <LogOut className="w-4 h-4" />
+                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-900 text-white shadow-inner">
+                          <User aria-hidden="true" className="h-4.5 w-4.5" />
+                        </span>
+                        <ChevronDown className="h-3.5 w-3.5 text-neutral-500" />
                       </button>
+
+                      {isProfileMenuOpen && (
+                        <div
+                          role="menu"
+                          className="absolute right-0 z-40 mt-2 w-56 rounded-xl border border-neutral-200 bg-white p-2 shadow-xl"
+                        >
+                          <div className="rounded-lg px-2.5 py-2 text-xs text-neutral-500">
+                            <p className="font-bold text-sm text-neutral-900 break-all">{actorIdLabel}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsProfileMenuOpen(false);
+                              logout();
+                            }}
+                            className="flex w-full items-center justify-center rounded-lg border border-neutral-200 px-2.5 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50"
+                          >
+                            Logout
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsProfileMenuOpen(false);
+                              void handleDisconnect();
+                            }}
+                            disabled={isDisconnecting}
+                            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-200 px-2.5 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            {isDisconnecting ? "Deleting..." : "Delete My Data"}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ) : null
                 ) : null
@@ -434,16 +531,26 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="px-6 pb-6 pt-4 border-t border-neutral-100 text-center">
-              <p className="text-[11px] leading-relaxed text-neutral-500">
-                Where2Watt uses the Strava API and is not endorsed by Strava.
-              </p>
-              <Link
-                href="/privacy-policy"
-                className="mt-2 inline-block text-xs font-medium text-neutral-500 underline decoration-neutral-300 underline-offset-4 hover:text-neutral-800"
-              >
-                Privacy Policy
-              </Link>
+            <div className="px-5 py-3 border-t border-neutral-100/80 bg-white/70">
+              <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[11px] text-neutral-500">
+                <span>Uses the Strava API</span>
+                <span className="text-neutral-300" aria-hidden="true">•</span>
+                <span>Not endorsed by Strava</span>
+                <span className="hidden sm:inline text-neutral-300" aria-hidden="true">•</span>
+                <Link
+                  href="/privacy-policy"
+                  className="font-medium text-neutral-500 hover:text-neutral-800"
+                >
+                  Privacy
+                </Link>
+                                <span className="text-neutral-300" aria-hidden="true">•</span>
+                <Link
+                  href="/terms"
+                  className="font-medium text-neutral-500 hover:text-neutral-800"
+                >
+                  Terms
+                </Link>
+              </div>
             </div>
           </div>
         </aside>
