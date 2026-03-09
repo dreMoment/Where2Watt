@@ -429,7 +429,7 @@ export default function Home() {
                             className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-200 px-2.5 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             <Trash2 className="h-4 w-4" />
-                            {isDisconnecting ? "Deleting..." : "Delete My Data"}
+                            {isDisconnecting ? "Disconnecting..." : "Disconnect Strava"}
                           </button>
                         </div>
                       )}
