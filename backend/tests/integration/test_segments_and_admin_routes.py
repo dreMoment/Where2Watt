@@ -220,6 +220,7 @@ def test_rate_segment_accepts_first_rating_and_rejects_duplicate(monkeypatch, ap
                 side_effect=[
                     {"_id": segment_id},
                     {"_id": segment_id},
+                    {"_id": segment_id},
                 ]
             ),
         ),

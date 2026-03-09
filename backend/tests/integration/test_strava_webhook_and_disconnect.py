@@ -48,7 +48,6 @@ def test_disconnect_deauthorizes_and_purges_actor_data(monkeypatch, app_client):
     monkeypatch.setattr(auth_router.httpx, "AsyncClient", lambda: MockAsyncClientContext(mock_client))
 
     deleted_payload = {
-        "submitted_segments_anonymized": 1,
         "actor_ratings_deleted": 4,
         "actor_reports_deleted": 5,
         "strava_auth_rows_deleted": 1,
@@ -112,7 +111,6 @@ def test_webhook_deauthorization_event_purges_actor_data(monkeypatch, app_client
     monkeypatch.setattr(strava_webhook_router, "get_db", lambda: SimpleNamespace())
     purge_mock = AsyncMock(
         return_value={
-            "submitted_segments_anonymized": 0,
             "actor_ratings_deleted": 0,
             "actor_reports_deleted": 0,
             "strava_auth_rows_deleted": 0,
@@ -132,7 +130,7 @@ def test_webhook_deauthorization_event_purges_actor_data(monkeypatch, app_client
 
     response = app_client.post(
         "/api/strava/webhook",
-        data=body,
+        content=body,
         headers={"X-Strava-Signature": signature, "Content-Type": "application/json"},
     )
 
