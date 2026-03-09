@@ -13,7 +13,7 @@ import SectionCard from "@/components/SectionCard";
 import StravaConnectButton from "@/components/StravaConnectButton";
 import StravaCompatibleBadge from "@/components/StravaCompatibleBadge";
 import { useUiFeedback } from "@/components/ui/UiFeedbackProvider";
-import { fetchSegments } from "@/utils/api";
+import { fetchSegments, fetchUserPreferences, updateUserPreferences } from "@/utils/api";
 import { filterSegmentsByInterval } from "@/utils/intervals";
 
 // Dynamically import Map with SSR disabled since maplibre relies on window object
@@ -30,7 +30,7 @@ const Map = dynamic(() => import("@/components/Map"), {
 const HIDE_INFO_SCREEN_STORAGE_KEY = "hideLandingInfoScreen";
 
 export default function Home() {
-  const { user, isLoggedIn, login, logout, disconnect, isLoading: authLoading } = useAuth();
+  const { user, token, isLoggedIn, login, logout, disconnect, isLoading: authLoading } = useAuth();
   const { confirm, showToast } = useUiFeedback();
   const [segments, setSegments] = useState<Segment[]>([]);
   const [showSubmissionContent, setShowSubmissionContent] = useState(false);
@@ -87,6 +87,32 @@ export default function Home() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (authLoading || !isLoggedIn || !token) {
+      return;
+    }
+
+    let cancelled = false;
+    fetchUserPreferences(token)
+      .then((preferences) => {
+        if (cancelled) {
+          return;
+        }
+        setHideInfoScreenNextTime(preferences.hide_info_screen);
+        const shouldShowInfoScreen = !preferences.hide_info_screen;
+        setShowInfoScreen(shouldShowInfoScreen);
+        const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
+        setSidebarOpen((prev) => (isMobile ? prev : !shouldShowInfoScreen));
+      })
+      .catch((preferenceError) => {
+        console.error("Failed to fetch user preferences:", preferenceError);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, isLoggedIn, token]);
 
   const handleWeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setWeightStr(e.target.value);
@@ -160,8 +186,18 @@ export default function Home() {
     []
   );
 
-  const closeInfoScreen = () => {
+  const closeInfoScreen = async () => {
     localStorage.setItem(HIDE_INFO_SCREEN_STORAGE_KEY, hideInfoScreenNextTime ? "true" : "false");
+
+    if (isLoggedIn && token) {
+      try {
+        await updateUserPreferences(token, { hide_info_screen: hideInfoScreenNextTime });
+      } catch (preferenceError) {
+        console.error("Failed to update user preferences:", preferenceError);
+        showToast("Could not persist onboarding preference to your account.", { type: "error" });
+      }
+    }
+
     setShowInfoScreen(false);
     if (!isMobileViewport) {
       setSidebarOpen(true);

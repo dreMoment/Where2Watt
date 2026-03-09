@@ -33,6 +33,35 @@ def test_auth_me_returns_user_for_valid_token(app_client):
 
 
 @pytest.mark.integration
+def test_auth_preferences_returns_default_when_not_set(app_client):
+    actor_id = actor_id_from_strava_id(123456)
+    token = create_jwt(actor_id=actor_id, is_admin=False)
+
+    response = app_client.get("/api/auth/preferences", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 200
+    assert response.json() == {"hide_info_screen": False}
+
+
+@pytest.mark.integration
+def test_auth_preferences_can_be_updated_and_read(app_client):
+    actor_id = actor_id_from_strava_id(123457)
+    token = create_jwt(actor_id=actor_id, is_admin=False)
+
+    update_response = app_client.patch(
+        "/api/auth/preferences",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"hide_info_screen": True},
+    )
+    assert update_response.status_code == 200
+    assert update_response.json() == {"hide_info_screen": True}
+
+    read_response = app_client.get("/api/auth/preferences", headers={"Authorization": f"Bearer {token}"})
+    assert read_response.status_code == 200
+    assert read_response.json() == {"hide_info_screen": True}
+
+
+@pytest.mark.integration
 def test_admin_verify_with_admin_user_token(app_client):
     token = create_jwt(actor_id=actor_id_from_strava_id(987654), is_admin=True)
     response = app_client.post("/api/admin/verify", headers={"Authorization": f"Bearer {token}"})

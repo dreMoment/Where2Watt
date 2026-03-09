@@ -182,11 +182,35 @@ export interface DisconnectResponse {
     deleted: Record<string, number>;
 }
 
+export interface UserPreferencesResponse {
+    hide_info_screen: boolean;
+}
+
 export async function disconnectStrava(token: string): Promise<DisconnectResponse> {
     return request<DisconnectResponse>("/auth/disconnect", {
         method: "POST",
         headers: withBearerAuth(token),
         errorMessage: "Failed to disconnect Strava",
+    });
+}
+
+export async function fetchUserPreferences(token: string): Promise<UserPreferencesResponse> {
+    return request<UserPreferencesResponse>("/auth/preferences", {
+        method: "GET",
+        headers: withBearerAuth(token),
+        errorMessage: "Failed to fetch user preferences",
+    });
+}
+
+export async function updateUserPreferences(
+    token: string,
+    preferences: UserPreferencesResponse
+): Promise<UserPreferencesResponse> {
+    return request<UserPreferencesResponse>("/auth/preferences", {
+        method: "PATCH",
+        headers: withBearerAuth(token, { "Content-Type": "application/json" }),
+        body: JSON.stringify(preferences),
+        errorMessage: "Failed to update user preferences",
     });
 }
 

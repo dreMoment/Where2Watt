@@ -117,6 +117,14 @@ class UserResponseSchema(BaseModel):
     is_admin: bool
 
 
+class UserPreferencesSchema(BaseModel):
+    hide_info_screen: bool = False
+
+
+class UserPreferencesUpdateSchema(BaseModel):
+    hide_info_screen: bool
+
+
 class DisconnectResponseSchema(BaseModel):
     status: Literal["disconnected"]
     deauthorized_with_strava: bool

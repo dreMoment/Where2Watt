@@ -7,7 +7,13 @@ from config import ADMIN_STRAVA_IDS, STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET
 from database import get_db
 from dependencies import ActorIdentity, actor_id_from_strava_id, create_jwt, verify_active_user
 from rate_limiter import limiter
-from schemas import DisconnectResponseSchema, StravaCallbackSchema, UserResponseSchema
+from schemas import (
+    DisconnectResponseSchema,
+    StravaCallbackSchema,
+    UserPreferencesSchema,
+    UserPreferencesUpdateSchema,
+    UserResponseSchema,
+)
 from services.account_cleanup import purge_actor_data
 from services.segments import now_iso
 
@@ -109,6 +115,39 @@ async def get_current_user(request: Request, identity: ActorIdentity = Depends(v
         "actor_id": identity.actor_id,
         "is_admin": identity.is_admin,
     }
+
+
+@router.get("/api/auth/preferences", response_model=UserPreferencesSchema)
+@limiter.limit("60/minute")
+async def get_user_preferences(request: Request, identity: ActorIdentity = Depends(verify_active_user)):
+    db = get_db()
+    doc = await db.user_preferences.find_one({"actor_id": identity.actor_id})
+    hide_info_screen = False
+    if isinstance(doc, dict):
+        hide_info_screen = bool(doc.get("hide_info_screen", False))
+    return {"hide_info_screen": hide_info_screen}
+
+
+@router.patch("/api/auth/preferences", response_model=UserPreferencesSchema)
+@limiter.limit("30/minute")
+async def update_user_preferences(
+    request: Request,
+    payload: UserPreferencesUpdateSchema,
+    identity: ActorIdentity = Depends(verify_active_user),
+):
+    db = get_db()
+    await db.user_preferences.update_one(
+        {"actor_id": identity.actor_id},
+        {
+            "$set": {
+                "actor_id": identity.actor_id,
+                "hide_info_screen": payload.hide_info_screen,
+                "updated_at": now_iso(),
+            }
+        },
+        upsert=True,
+    )
+    return {"hide_info_screen": payload.hide_info_screen}
 
 
 @router.post("/api/auth/disconnect", response_model=DisconnectResponseSchema)

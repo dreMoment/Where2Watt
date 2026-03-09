@@ -4,9 +4,11 @@ import {
   fetchAdminSegmentRatings,
   fetchMySegmentReportStatus,
   fetchCurrentUser,
+  fetchUserPreferences,
   reportSegmentBlocked,
   reportSegmentUnblocked,
   stravaLoginCallback,
+  updateUserPreferences,
   verifyAdminAccess,
 } from "@/utils/api";
 import { request } from "@/utils/apiClient";
@@ -87,6 +89,30 @@ describe("api utils", () => {
       "/segments/seg-1/my-report-status",
       expect.objectContaining({
         method: "GET",
+      })
+    );
+  });
+
+  it("fetchUserPreferences calls expected endpoint", async () => {
+    (request as jest.Mock).mockResolvedValue({ hide_info_screen: true });
+    await fetchUserPreferences("token-1");
+    expect(request).toHaveBeenCalledWith(
+      "/auth/preferences",
+      expect.objectContaining({
+        method: "GET",
+        errorMessage: "Failed to fetch user preferences",
+      })
+    );
+  });
+
+  it("updateUserPreferences calls expected endpoint", async () => {
+    (request as jest.Mock).mockResolvedValue({ hide_info_screen: true });
+    await updateUserPreferences("token-1", { hide_info_screen: true });
+    expect(request).toHaveBeenCalledWith(
+      "/auth/preferences",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({ hide_info_screen: true }),
       })
     );
   });
