@@ -6,7 +6,13 @@ import SegmentCard from "./SegmentCard";
 import CommunityRatingsPanel from "./CommunityRatingsPanel";
 import { decodePolyline } from "@/utils/polyline";
 import type { Segment, SegmentAverageRatings } from "@/types";
-import { createIntervalProfile, getIntervalMarginRatio, parseIntervalMinutes } from "@/utils/intervals";
+import {
+  createIntervalProfile,
+  estimateSegmentDurationSeconds,
+  formatDuration,
+  getIntervalMarginRatio,
+  parseIntervalMinutes,
+} from "@/utils/intervals";
 
 interface MapProps {
   segments: Segment[];
@@ -90,6 +96,8 @@ function getMarginColor(ratio: number): string {
 export default function InteractiveMap({ segments, riderPower, riderWeight, bikeWeight, isFiltered, filterPower, filterTime, onSegmentBlocked, onSegmentRated }: MapProps) {
   const [selectedSegment, setSelectedSegment] = useState<Segment | null>(null);
   const [clickedCoordinate, setClickedCoordinate] = useState<[number, number] | null>(null);
+  const [hoveredSegment, setHoveredSegment] = useState<Segment | null>(null);
+  const [hoveredCoordinate, setHoveredCoordinate] = useState<[number, number] | null>(null);
   const [cursor, setCursor] = useState("grab");
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [isRatingsVisible, setIsRatingsVisible] = useState(true);
@@ -103,6 +111,16 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
     [filterPower, riderWeight, bikeWeight]
   );
   const targetMinutes = parseIntervalMinutes(filterTime);
+
+  const hoverProfile = useMemo(
+    () => createIntervalProfile(riderPower ?? "250", riderWeight ?? "75", bikeWeight ?? "9"),
+    [riderPower, riderWeight, bikeWeight]
+  );
+
+  const hoverEstimatedTimeSeconds = useMemo(() => {
+    if (!hoveredSegment || !hoverProfile) return null;
+    return estimateSegmentDurationSeconds(hoveredSegment, hoverProfile);
+  }, [hoveredSegment, hoverProfile]);
 
   const segmentColors = useMemo(() => {
     if (!isFiltered || !filterProfile || !targetMinutes) return {};
@@ -188,7 +206,26 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
           setClickedCoordinate(null);
         }}
         onMouseEnter={() => setCursor("pointer")}
-        onMouseLeave={() => setCursor("grab")}
+        onMouseMove={(e) => {
+          if (e.features && e.features.length > 0) {
+            const featureId = e.features[0].properties?.id;
+            const matchedSegment = filteredSegments.find((segment) => String(segment.id) === String(featureId));
+
+            if (matchedSegment && e.lngLat) {
+              setHoveredSegment(matchedSegment);
+              setHoveredCoordinate([e.lngLat.lng, e.lngLat.lat]);
+              return;
+            }
+          }
+
+          setHoveredSegment(null);
+          setHoveredCoordinate(null);
+        }}
+        onMouseLeave={() => {
+          setCursor("grab");
+          setHoveredSegment(null);
+          setHoveredCoordinate(null);
+        }}
         onMoveEnd={(event) => {
           const { longitude, latitude, zoom, bearing, pitch } = event.viewState;
           localStorage.setItem(
@@ -283,6 +320,35 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
             </React.Fragment>
           );
         })}
+
+        {hoveredSegment && hoveredCoordinate && selectedSegment?.id !== hoveredSegment.id && (
+          <Popup
+            longitude={hoveredCoordinate[0]}
+            latitude={hoveredCoordinate[1]}
+            anchor="bottom"
+            offset={[0, -8]}
+            closeButton={false}
+            closeOnClick={false}
+            className="hover-segment-popup z-20"
+            maxWidth="220px"
+          >
+            <div className="rounded-md border border-neutral-200 bg-white/95 px-3 py-2 text-xs text-neutral-800 shadow-sm backdrop-blur-sm">
+              <div className="mt-0.5 flex items-center justify-between gap-3">
+                <span className="text-neutral-500">Est. time</span>
+                <span className="font-semibold text-neutral-800">{formatDuration(hoverEstimatedTimeSeconds)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-neutral-500">Avg rating</span>
+                <span className="font-semibold text-neutral-800">
+                  {typeof hoveredSegment.average_ratings?.overall_quality === "number"
+                    ? `${(Math.round((hoveredSegment.average_ratings.overall_quality / 2) * 10) / 10).toFixed(1)} / 5`
+                    : "No ratings"}
+                </span>
+              </div>
+              
+            </div>
+          </Popup>
+        )}
 
         {selectedSegment && (() => {
           const coordinates = selectedSegment.polyline ? decodePolyline(selectedSegment.polyline) : [];

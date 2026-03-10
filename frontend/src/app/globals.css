@@ -34,6 +34,16 @@ body {
   border-top-color: #dc2626;
 }
 
+.hover-segment-popup .maplibregl-popup-content {
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
+.hover-segment-popup .maplibregl-popup-tip {
+  display: none;
+}
+
 .contribution-popup {
   width: min(96vw, 32rem);
   max-height: min(94dvh, 52rem);
