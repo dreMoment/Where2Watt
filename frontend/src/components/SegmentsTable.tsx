@@ -199,10 +199,17 @@ export default function SegmentsTable({
                         </span>
                       )}
                       {segment.blocked && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/10 text-red-400 text-xs font-semibold border border-red-500/20">
-                          <span className="w-1.5 h-1.5 rounded-full bg-red-400"></span>
-                          Blocked
-                        </span>
+                        <>
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/10 text-red-400 text-xs font-semibold border border-red-500/20">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+                            Blocked
+                          </span>
+                          {segment.block_message && segment.block_message.trim().length > 0 && (
+                            <div className="max-w-[260px] text-[11px] leading-4 text-red-300 bg-red-500/10 border border-red-500/20 rounded-md px-2 py-1">
+                              {segment.block_message}
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </td>

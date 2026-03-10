@@ -157,6 +157,9 @@ export default function SegmentCard({
                     <span className="text-red-500 text-base leading-none mt-0.5">!</span>
                     <div className="flex flex-col gap-0.5">
                         <span className="text-red-700 font-semibold text-sm">This segment is currently blocked</span>
+                        {segment.block_message && segment.block_message.trim().length > 0 && (
+                            <span className="text-red-700 text-xs leading-relaxed">{segment.block_message}</span>
+                        )}
                     </div>
                 </div>
             )}

@@ -46,11 +46,18 @@ const sampleSegment = {
 };
 
 describe("useAdminSegments", () => {
+  let promptSpy: jest.SpyInstance<string | null, [message?: string, _default?: string]>;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    promptSpy = jest.spyOn(window, "prompt").mockReturnValue("Temporary closure");
     (fetchUnapprovedSegments as jest.Mock).mockResolvedValue([sampleSegment]);
     (fetchAllSegments as jest.Mock).mockResolvedValue([sampleSegment]);
     (fetchAdminSegmentRatings as jest.Mock).mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    promptSpy.mockRestore();
   });
 
   it("loads pending segments on mount", async () => {
@@ -118,7 +125,7 @@ describe("useAdminSegments", () => {
     await act(async () => {
       await result.current.handleBlock("s1");
     });
-    expect(blockSegment).toHaveBeenCalledWith("s1", "token-1");
+    expect(blockSegment).toHaveBeenCalledWith("s1", "token-1", "Temporary closure");
 
     await act(async () => {
       await result.current.handleUnblock("s1");

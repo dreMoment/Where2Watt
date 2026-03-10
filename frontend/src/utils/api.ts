@@ -129,11 +129,12 @@ export async function quickAddSegment(stravaUrl: string, token: string): Promise
     });
 }
 
-export async function blockSegment(id: string, token: string): Promise<void> {
+export async function blockSegment(id: string, token: string, message?: string): Promise<void> {
+    const trimmed = message?.trim();
     await request(`/admin/segments/${id}/block`, {
         method: "PATCH",
         headers: withBearerAuth(token, { "Content-Type": "application/json" }),
-        body: JSON.stringify({}),
+        body: JSON.stringify(trimmed ? { message: trimmed } : {}),
         errorMessage: "Failed to block segment",
     });
 }

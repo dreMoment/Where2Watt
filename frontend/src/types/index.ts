@@ -49,6 +49,7 @@ export type Segment = {
   polyline?: string;
   created_at?: string;
   blocked?: boolean;
+  block_message?: string | null;
   ratings_count?: number;
   average_ratings?: SegmentAverageRatings;
   reported_by_actor_ids?: string[];

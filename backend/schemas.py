@@ -41,6 +41,7 @@ class SegmentSchema(BaseModel):
     strava_id: str | None = None
     created_at: str | None = None
     blocked: bool | None = False
+    block_message: str | None = None
     ratings_count: int = 0
     average_ratings: SegmentAverageRatingSchema = Field(default_factory=SegmentAverageRatingSchema)
 
@@ -64,6 +65,10 @@ class QuickAddSchema(BaseModel):
 
 class SegmentReportSchema(BaseModel):
     note: str | None = Field(default=None, max_length=SEGMENT_REPORT_NOTE_MAX_LENGTH)
+
+
+class AdminBlockSegmentSchema(BaseModel):
+    message: str | None = Field(default=None, max_length=SEGMENT_REPORT_NOTE_MAX_LENGTH)
 
 
 class UserSummarySchema(BaseModel):

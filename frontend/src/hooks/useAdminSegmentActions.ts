@@ -121,10 +121,24 @@ export function useAdminSegmentActions({
   const handleBlock = useCallback(
     async (id: string) => {
       try {
-        await blockSegment(id, token);
+        const messageInput = typeof window !== "undefined"
+          ? window.prompt("Optional message shown to users when this segment is blocked:", "")
+          : "";
+        if (messageInput === null) {
+          return;
+        }
+        const blockMessage = messageInput.trim();
+        await blockSegment(id, token, blockMessage || undefined);
         const updateSegment = (segment: Segment) =>
           segment.id === id
-            ? { ...segment, blocked: true, reported_by_actor_ids: [], reported_by_users: [], block_reports: [] }
+            ? {
+                ...segment,
+                blocked: true,
+                block_message: blockMessage || null,
+                reported_by_actor_ids: [],
+                reported_by_users: [],
+                block_reports: [],
+              }
             : segment;
 
         setPendingSegments((prev) => prev.map(updateSegment));
@@ -142,7 +156,14 @@ export function useAdminSegmentActions({
         await unblockSegment(id, token);
         const updateSegment = (segment: Segment) =>
           segment.id === id
-            ? { ...segment, blocked: false, reported_by_actor_ids: [], reported_by_users: [], block_reports: [] }
+            ? {
+                ...segment,
+                blocked: false,
+                block_message: null,
+                reported_by_actor_ids: [],
+                reported_by_users: [],
+                block_reports: [],
+              }
             : segment;
 
         setPendingSegments((prev) => prev.map(updateSegment));

@@ -600,14 +600,21 @@ def test_admin_segment_state_mutations_and_report_listing(monkeypatch, app_clien
 
     block = app_client.patch(
         f"/api/admin/segments/{segment_id}/block",
+        json={"message": "Closed for race event"},
         headers=admin_auth_headers(),
     )
     assert block.status_code == 200
-    assert block.json() == {"status": "blocked"}
+    assert block.json() == {"status": "blocked", "block_message": "Closed for race event"}
+
+    db.segments.update_one.assert_any_await(
+        {"_id": segment_id},
+        {"$set": {"blocked": True, "block_message": "Closed for race event"}},
+    )
 
     unblock = app_client.patch(f"/api/admin/segments/{segment_id}/unblock", headers=admin_auth_headers())
     assert unblock.status_code == 200
     assert unblock.json() == {"status": "unblocked"}
+    db.segments.update_one.assert_any_await({"_id": segment_id}, {"$set": {"blocked": False, "block_message": None}})
     assert db.segment_block_reports.delete_many.await_count == 2
     db.segment_block_reports.delete_many.assert_any_await({"segment_id": segment_id})
 

@@ -7,6 +7,7 @@ from database import get_db
 from dependencies import verify_admin
 from rate_limiter import limiter
 from schemas import (
+    AdminBlockSegmentSchema,
     AdminDeleteSegmentRatingResponseSchema,
     QuickAddSchema,
     RATING_FIELD_BOUNDS,
@@ -173,16 +174,25 @@ async def approve_segment(request: Request, segment_id: str, is_admin: bool = De
 
 @router.patch("/api/admin/segments/{segment_id}/block")
 @limiter.limit("30/minute")
-async def block_segment(request: Request, segment_id: str, is_admin: bool = Depends(verify_admin)):
+async def block_segment(
+    request: Request,
+    segment_id: str,
+    data: AdminBlockSegmentSchema = AdminBlockSegmentSchema(),
+    is_admin: bool = Depends(verify_admin),
+):
     db = get_db()
     obj_id = parse_object_id(segment_id)
 
-    result = await db.segments.update_one({"_id": obj_id}, {"$set": {"blocked": True}})
+    message = (data.message or "").strip()
+    result = await db.segments.update_one(
+        {"_id": obj_id},
+        {"$set": {"blocked": True, "block_message": message if message else None}},
+    )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Segment not found")
     await db.segment_block_reports.delete_many({"segment_id": obj_id})
 
-    return {"status": "blocked"}
+    return {"status": "blocked", "block_message": message if message else None}
 
 
 @router.patch("/api/admin/segments/{segment_id}/unblock")
@@ -191,7 +201,7 @@ async def unblock_segment(request: Request, segment_id: str, is_admin: bool = De
     db = get_db()
     obj_id = parse_object_id(segment_id)
 
-    result = await db.segments.update_one({"_id": obj_id}, {"$set": {"blocked": False}})
+    result = await db.segments.update_one({"_id": obj_id}, {"$set": {"blocked": False, "block_message": None}})
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Segment not found")
     await db.segment_block_reports.delete_many({"segment_id": obj_id})
