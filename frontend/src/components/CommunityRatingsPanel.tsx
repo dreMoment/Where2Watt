@@ -244,29 +244,31 @@ export default function CommunityRatingsPanel({ segment, onSegmentRated }: Commu
                     ) : null
                     }
 
-                    <button
-                        onClick={() => {
-                            if (!isLoggedIn) {
-                                setShowLoginPrompt(true);
-                                return;
-                            }
-                            if (hasRated) {
-                                showToast("You have already rated this segment.", { type: "info" });
-                                return;
-                            }
-                            setFormError(null);
-                            setRatingDraft({ ...DEFAULT_RATING_INPUT });
-                            setShowRatingForm((prev) => !prev);
-                        }}
-                        className={`mt-1 w-full py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                            hasRated
-                                ? "bg-neutral-100 text-neutral-400 cursor-not-allowed"
-                                : "bg-neutral-900 text-white hover:bg-neutral-800"
-                        }`}
-                        disabled={hasRated}
-                    >
-                        {hasRated ? "Already rated" : "Rate this segment"}
-                    </button>
+                    {!showRatingForm && (
+                        <button
+                            onClick={() => {
+                                if (!isLoggedIn) {
+                                    setShowLoginPrompt(true);
+                                    return;
+                                }
+                                if (hasRated) {
+                                    showToast("You have already rated this segment.", { type: "info" });
+                                    return;
+                                }
+                                setFormError(null);
+                                setRatingDraft({ ...DEFAULT_RATING_INPUT });
+                                setShowRatingForm((prev) => !prev);
+                            }}
+                            className={`mt-1 w-full py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                                hasRated
+                                    ? "bg-neutral-100 text-neutral-400 cursor-not-allowed"
+                                    : "bg-neutral-900 text-white hover:bg-neutral-800"
+                            }`}
+                            disabled={hasRated}
+                        >
+                            {hasRated ? "Already rated" : "Rate this segment"}
+                        </button>
+                    )}
 
                     {showRatingForm && !hasRated && (
                         <div className="mt-1 rounded-lg border border-neutral-200 bg-white p-2.5 flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-200">

@@ -155,6 +155,7 @@ describe("CommunityRatingsPanel", () => {
         fireEvent.click(screen.getByRole("button", { name: /Rate this segment/i }));
 
         expect(screen.queryByTestId("community-categories-grid")).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: /Rate this segment/i })).not.toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Overall Quality star 1" })).toBeInTheDocument();
     });
 
