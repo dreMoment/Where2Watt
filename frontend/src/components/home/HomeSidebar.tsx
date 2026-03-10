@@ -25,6 +25,7 @@ interface HomeSidebarProps {
   onResetFilter: () => void;
   onSubmitSegment: () => void;
   onToggleProfileMenu: () => void;
+  preferencesReady: boolean;
   onWeightChange: (value: string) => void;
   profileMenuRef: RefObject<HTMLDivElement | null>;
   sidebarOpen: boolean;
@@ -52,6 +53,7 @@ export default function HomeSidebar({
   onResetFilter,
   onSubmitSegment,
   onToggleProfileMenu,
+  preferencesReady,
   onWeightChange,
   profileMenuRef,
   sidebarOpen,
@@ -116,18 +118,18 @@ export default function HomeSidebar({
             label="Rider (kg)"
             type="number"
             min="0"
-            value={weightStr}
+            value={preferencesReady ? weightStr : ""}
             onChange={(event) => onWeightChange(event.target.value)}
-            placeholder="e.g. 75"
+            placeholder={preferencesReady ? "e.g. 75" : ""}
           />
           <InputField
             id="global-bike-weight"
             label="Bike (kg)"
             type="number"
             min="0"
-            value={bikeWeightStr}
+            value={preferencesReady ? bikeWeightStr : ""}
             onChange={(event) => onBikeWeightChange(event.target.value)}
-            placeholder="e.g. 9"
+            placeholder={preferencesReady ? "e.g. 9" : ""}
           />
         </SectionCard>
 
@@ -139,18 +141,18 @@ export default function HomeSidebar({
                 label="Power (W)"
                 type="number"
                 min="0"
-                value={filterPowerStr}
+                value={preferencesReady ? filterPowerStr : ""}
                 onChange={(event) => onFilterPowerChange(event.target.value)}
-                placeholder="e.g. 300"
+                placeholder={preferencesReady ? "e.g. 300" : ""}
               />
               <InputField
                 id="filter-time"
                 label="Min. Time (m)"
                 type="number"
                 min="0"
-                value={filterTimeStr}
+                value={preferencesReady ? filterTimeStr : ""}
                 onChange={(event) => onFilterTimeChange(event.target.value)}
-                placeholder="e.g. 5"
+                placeholder={preferencesReady ? "e.g. 5" : ""}
               />
             </div>
             <div className="flex gap-2">

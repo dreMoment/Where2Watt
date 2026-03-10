@@ -119,10 +119,18 @@ class UserResponseSchema(BaseModel):
 
 class UserPreferencesSchema(BaseModel):
     hide_info_screen: bool = False
+    rider_weight_kg: float = 75.0
+    bike_weight_kg: float = 9.0
+    interval_filter_power_watts: float = 250.0
+    interval_filter_minutes: float = 5.0
 
 
 class UserPreferencesUpdateSchema(BaseModel):
-    hide_info_screen: bool
+    hide_info_screen: bool | None = None
+    rider_weight_kg: float | None = None
+    bike_weight_kg: float | None = None
+    interval_filter_power_watts: float | None = None
+    interval_filter_minutes: float | None = None
 
 
 class DisconnectResponseSchema(BaseModel):

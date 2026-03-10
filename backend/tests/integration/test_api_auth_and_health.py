@@ -40,7 +40,13 @@ def test_auth_preferences_returns_default_when_not_set(app_client):
     response = app_client.get("/api/auth/preferences", headers={"Authorization": f"Bearer {token}"})
 
     assert response.status_code == 200
-    assert response.json() == {"hide_info_screen": False}
+    assert response.json() == {
+        "hide_info_screen": False,
+        "rider_weight_kg": 75.0,
+        "bike_weight_kg": 9.0,
+        "interval_filter_power_watts": 250.0,
+        "interval_filter_minutes": 5.0,
+    }
 
 
 @pytest.mark.integration
@@ -51,14 +57,32 @@ def test_auth_preferences_can_be_updated_and_read(app_client):
     update_response = app_client.patch(
         "/api/auth/preferences",
         headers={"Authorization": f"Bearer {token}"},
-        json={"hide_info_screen": True},
+        json={
+            "hide_info_screen": True,
+            "rider_weight_kg": 72.5,
+            "bike_weight_kg": 8.7,
+            "interval_filter_power_watts": 280.0,
+            "interval_filter_minutes": 6.0,
+        },
     )
     assert update_response.status_code == 200
-    assert update_response.json() == {"hide_info_screen": True}
+    assert update_response.json() == {
+        "hide_info_screen": True,
+        "rider_weight_kg": 72.5,
+        "bike_weight_kg": 8.7,
+        "interval_filter_power_watts": 280.0,
+        "interval_filter_minutes": 6.0,
+    }
 
     read_response = app_client.get("/api/auth/preferences", headers={"Authorization": f"Bearer {token}"})
     assert read_response.status_code == 200
-    assert read_response.json() == {"hide_info_screen": True}
+    assert read_response.json() == {
+        "hide_info_screen": True,
+        "rider_weight_kg": 72.5,
+        "bike_weight_kg": 8.7,
+        "interval_filter_power_watts": 280.0,
+        "interval_filter_minutes": 6.0,
+    }
 
 
 @pytest.mark.integration

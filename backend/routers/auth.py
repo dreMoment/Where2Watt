@@ -123,9 +123,23 @@ async def get_user_preferences(request: Request, identity: ActorIdentity = Depen
     db = get_db()
     doc = await db.user_preferences.find_one({"actor_id": identity.actor_id})
     hide_info_screen = False
+    rider_weight_kg = 75.0
+    bike_weight_kg = 9.0
+    interval_filter_power_watts = 250.0
+    interval_filter_minutes = 5.0
     if isinstance(doc, dict):
         hide_info_screen = bool(doc.get("hide_info_screen", False))
-    return {"hide_info_screen": hide_info_screen}
+        rider_weight_kg = float(doc.get("rider_weight_kg", 75.0))
+        bike_weight_kg = float(doc.get("bike_weight_kg", 9.0))
+        interval_filter_power_watts = float(doc.get("interval_filter_power_watts", 250.0))
+        interval_filter_minutes = float(doc.get("interval_filter_minutes", 5.0))
+    return {
+        "hide_info_screen": hide_info_screen,
+        "rider_weight_kg": rider_weight_kg,
+        "bike_weight_kg": bike_weight_kg,
+        "interval_filter_power_watts": interval_filter_power_watts,
+        "interval_filter_minutes": interval_filter_minutes,
+    }
 
 
 @router.patch("/api/auth/preferences", response_model=UserPreferencesSchema)
@@ -136,18 +150,33 @@ async def update_user_preferences(
     identity: ActorIdentity = Depends(verify_active_user),
 ):
     db = get_db()
+    update_payload = payload.model_dump(exclude_unset=True)
+    update_payload["actor_id"] = identity.actor_id
+    update_payload["updated_at"] = now_iso()
+
     await db.user_preferences.update_one(
         {"actor_id": identity.actor_id},
-        {
-            "$set": {
-                "actor_id": identity.actor_id,
-                "hide_info_screen": payload.hide_info_screen,
-                "updated_at": now_iso(),
-            }
-        },
+        {"$set": update_payload},
         upsert=True,
     )
-    return {"hide_info_screen": payload.hide_info_screen}
+
+    doc = await db.user_preferences.find_one({"actor_id": identity.actor_id})
+    if not isinstance(doc, dict):
+        return {
+            "hide_info_screen": False,
+            "rider_weight_kg": 75.0,
+            "bike_weight_kg": 9.0,
+            "interval_filter_power_watts": 250.0,
+            "interval_filter_minutes": 5.0,
+        }
+
+    return {
+        "hide_info_screen": bool(doc.get("hide_info_screen", False)),
+        "rider_weight_kg": float(doc.get("rider_weight_kg", 75.0)),
+        "bike_weight_kg": float(doc.get("bike_weight_kg", 9.0)),
+        "interval_filter_power_watts": float(doc.get("interval_filter_power_watts", 250.0)),
+        "interval_filter_minutes": float(doc.get("interval_filter_minutes", 5.0)),
+    }
 
 
 @router.post("/api/auth/disconnect", response_model=DisconnectResponseSchema)

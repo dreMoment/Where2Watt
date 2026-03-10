@@ -95,7 +95,13 @@ describe("api utils", () => {
   });
 
   it("fetchUserPreferences calls expected endpoint", async () => {
-    (request as jest.Mock).mockResolvedValue({ hide_info_screen: true });
+    (request as jest.Mock).mockResolvedValue({
+      hide_info_screen: true,
+      rider_weight_kg: 75,
+      bike_weight_kg: 9,
+      interval_filter_power_watts: 250,
+      interval_filter_minutes: 5,
+    });
     await fetchUserPreferences("token-1");
     expect(request).toHaveBeenCalledWith(
       "/auth/preferences",
@@ -107,7 +113,13 @@ describe("api utils", () => {
   });
 
   it("updateUserPreferences calls expected endpoint", async () => {
-    (request as jest.Mock).mockResolvedValue({ hide_info_screen: true });
+    (request as jest.Mock).mockResolvedValue({
+      hide_info_screen: true,
+      rider_weight_kg: 75,
+      bike_weight_kg: 9,
+      interval_filter_power_watts: 250,
+      interval_filter_minutes: 5,
+    });
     await updateUserPreferences("token-1", { hide_info_screen: true });
     expect(request).toHaveBeenCalledWith(
       "/auth/preferences",

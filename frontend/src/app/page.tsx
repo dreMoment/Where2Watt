@@ -21,12 +21,15 @@ export default function Home() {
   const {
     bikeWeightStr,
     closeInfoScreen,
+    filterTimeStr,
     filterPowerStr,
     handleBikeWeightChange,
+    handleFilterPowerChange,
+    handleFilterTimeChange,
     handleWeightChange,
     hideInfoScreenNextTime,
     openInfoScreen,
-    setFilterPowerStr,
+    preferencesReady,
     setHideInfoScreenNextTime,
     setSidebarOpen,
     showInfoScreen,
@@ -46,7 +49,6 @@ export default function Home() {
   const [showSubmissionContent, setShowSubmissionContent] = useState(false);
 
   // Filter state
-  const [filterTimeStr, setFilterTimeStr] = useState("5"); // in minutes
   const [isFiltered, setIsFiltered] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const { closeMenu: closeProfileMenu, isOpen: isProfileMenuOpen, menuRef: profileMenuRef, toggleMenu: toggleProfileMenu } =
@@ -146,8 +148,8 @@ export default function Home() {
           closeProfileMenu();
           void handleDisconnect();
         }}
-        onFilterPowerChange={setFilterPowerStr}
-        onFilterTimeChange={setFilterTimeStr}
+        onFilterPowerChange={handleFilterPowerChange}
+        onFilterTimeChange={handleFilterTimeChange}
         onLogin={login}
         onLogout={() => {
           closeProfileMenu();
@@ -156,6 +158,7 @@ export default function Home() {
         onResetFilter={() => setIsFiltered(false)}
         onSubmitSegment={() => setShowSubmissionContent(true)}
         onToggleProfileMenu={toggleProfileMenu}
+        preferencesReady={preferencesReady}
         onWeightChange={handleWeightChange}
         profileMenuRef={profileMenuRef}
         sidebarOpen={sidebarOpen}

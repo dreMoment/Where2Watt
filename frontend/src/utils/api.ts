@@ -184,7 +184,13 @@ export interface DisconnectResponse {
 
 export interface UserPreferencesResponse {
     hide_info_screen: boolean;
+    rider_weight_kg: number;
+    bike_weight_kg: number;
+    interval_filter_power_watts: number;
+    interval_filter_minutes: number;
 }
+
+export type UserPreferencesUpdateRequest = Partial<UserPreferencesResponse>;
 
 export async function disconnectStrava(token: string): Promise<DisconnectResponse> {
     return request<DisconnectResponse>("/auth/disconnect", {
@@ -204,7 +210,7 @@ export async function fetchUserPreferences(token: string): Promise<UserPreferenc
 
 export async function updateUserPreferences(
     token: string,
-    preferences: UserPreferencesResponse
+    preferences: UserPreferencesUpdateRequest
 ): Promise<UserPreferencesResponse> {
     return request<UserPreferencesResponse>("/auth/preferences", {
         method: "PATCH",
