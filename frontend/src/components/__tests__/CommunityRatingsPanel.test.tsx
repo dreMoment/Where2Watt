@@ -1,6 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import CommunityRatingsPanel from "../CommunityRatingsPanel";
-import { fetchMySegmentRatingStatus, rateSegment } from "@/utils/api";
+import { deleteMySegmentRating, fetchMySegmentRatingStatus, rateSegment } from "@/utils/api";
+
+const mockConfirm = jest.fn();
+const mockShowToast = jest.fn();
 
 const authState = {
     isLoggedIn: false,
@@ -18,14 +21,15 @@ jest.mock("@/components/AuthContext", () => ({
 }));
 
 jest.mock("@/utils/api", () => ({
+    deleteMySegmentRating: jest.fn(),
     fetchMySegmentRatingStatus: jest.fn(),
     rateSegment: jest.fn(),
 }));
 
 jest.mock("@/components/ui/UiFeedbackProvider", () => ({
     useUiFeedback: () => ({
-        showToast: jest.fn(),
-        confirm: jest.fn(),
+        showToast: mockShowToast,
+        confirm: mockConfirm,
     }),
 }));
 
@@ -46,6 +50,7 @@ describe("CommunityRatingsPanel", () => {
         jest.clearAllMocks();
         authState.isLoggedIn = false;
         authState.token = null;
+        mockConfirm.mockResolvedValue(true);
 
         (fetchMySegmentRatingStatus as jest.Mock).mockResolvedValue({
             segment_id: "1",
@@ -159,6 +164,54 @@ describe("CommunityRatingsPanel", () => {
         expect(screen.getByRole("button", { name: "Overall Quality star 1" })).toBeInTheDocument();
     });
 
+    it("allows editing an existing rating", async () => {
+        authState.isLoggedIn = true;
+        authState.token = "mock-token";
+
+        (fetchMySegmentRatingStatus as jest.Mock).mockResolvedValue({
+            segment_id: "1",
+            has_rated: true,
+            rating: {
+                overall_quality: 6,
+                traffic_level: 2,
+                road_surface: 2,
+                gradient_profile: 2,
+                sketchy_left_turns: 1,
+            },
+        });
+        (rateSegment as jest.Mock).mockResolvedValue({
+            status: "rated",
+            ratings_count: 4,
+            average_ratings: {
+                overall_quality: 7,
+                traffic_level: 2,
+                road_surface: 2,
+                gradient_profile: 2,
+                sketchy_left_turns: 1,
+            },
+        });
+
+        render(<CommunityRatingsPanel segment={mockSegment} />);
+
+        await waitFor(() => {
+            expect(fetchMySegmentRatingStatus).toHaveBeenCalled();
+        });
+
+        fireEvent.click(screen.getByRole("button", { name: /Edit your rating/i }));
+        fireEvent.click(screen.getByRole("button", { name: "Overall Quality star 5" }));
+        fireEvent.click(screen.getByRole("button", { name: /Update Rating/i }));
+
+        await waitFor(() => {
+            expect(rateSegment).toHaveBeenCalledWith("1", "mock-token", {
+                overall_quality: 10,
+                traffic_level: 2,
+                road_surface: 2,
+                gradient_profile: 2,
+                sketchy_left_turns: 1,
+            });
+        });
+    });
+
     it("folds and expands the ratings popup content from the top-right toggle", () => {
         const segmentWithAverages: import("@/types").Segment = {
             ...mockSegment,
@@ -181,5 +234,47 @@ describe("CommunityRatingsPanel", () => {
 
         fireEvent.click(screen.getByRole("button", { name: /Expand ratings popup/i }));
         expect(screen.getByTestId("community-categories-grid")).toBeInTheDocument();
+    });
+
+    it("allows deleting an existing rating", async () => {
+        authState.isLoggedIn = true;
+        authState.token = "mock-token";
+
+        (fetchMySegmentRatingStatus as jest.Mock).mockResolvedValue({
+            segment_id: "1",
+            has_rated: true,
+            rating: {
+                overall_quality: 6,
+                traffic_level: 2,
+                road_surface: 2,
+                gradient_profile: 2,
+                sketchy_left_turns: 1,
+            },
+        });
+        (deleteMySegmentRating as jest.Mock).mockResolvedValue({
+            status: "deleted",
+            ratings_count: 3,
+            average_ratings: {
+                overall_quality: 7,
+                traffic_level: 2,
+                road_surface: 2,
+                gradient_profile: 2,
+                sketchy_left_turns: 1,
+            },
+        });
+
+        render(<CommunityRatingsPanel segment={mockSegment} />);
+
+        await waitFor(() => {
+            expect(fetchMySegmentRatingStatus).toHaveBeenCalled();
+        });
+
+        fireEvent.click(screen.getByRole("button", { name: /Edit your rating/i }));
+        fireEvent.click(screen.getByRole("button", { name: /Delete My Rating/i }));
+
+        await waitFor(() => {
+            expect(mockConfirm).toHaveBeenCalled();
+            expect(deleteMySegmentRating).toHaveBeenCalledWith("1", "mock-token");
+        });
     });
 });

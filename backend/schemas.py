@@ -96,7 +96,7 @@ class SegmentResponseSchema(SegmentPublicResponseSchema):
 
 
 class SegmentRatingResponseSchema(BaseModel):
-    status: Literal["rated"]
+    status: Literal["rated", "deleted"]
     ratings_count: int
     average_ratings: SegmentAverageRatingSchema
 

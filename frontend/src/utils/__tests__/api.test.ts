@@ -1,4 +1,5 @@
 import {
+  deleteMySegmentRating,
   disconnectStrava,
   deleteAdminSegmentRating,
   fetchAdminSegmentRatings,
@@ -133,6 +134,17 @@ describe("api utils", () => {
     await deleteAdminSegmentRating("seg-1", "rating-1", "token-1");
     expect(request).toHaveBeenCalledWith(
       "/admin/segments/seg-1/ratings/rating-1",
+      expect.objectContaining({
+        method: "DELETE",
+      })
+    );
+  });
+
+  it("deleteMySegmentRating calls expected endpoint", async () => {
+    (request as jest.Mock).mockResolvedValue({ status: "deleted" });
+    await deleteMySegmentRating("seg-1", "token-1");
+    expect(request).toHaveBeenCalledWith(
+      "/segments/seg-1/ratings",
       expect.objectContaining({
         method: "DELETE",
       })

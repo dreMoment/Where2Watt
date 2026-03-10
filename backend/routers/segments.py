@@ -97,21 +97,54 @@ async def rate_segment(
         raise HTTPException(status_code=404, detail="Segment not found")
 
     rating_values = rating.model_dump()
-    rating_doc = {
-        "segment_id": obj_id,
-        "rated_by_actor_id": identity.actor_id,
-        "ratings": rating_values,
-        "rated_at": now_iso(),
-    }
-
-    try:
-        await db.segment_ratings.insert_one(rating_doc)
-    except DuplicateKeyError:
-        raise HTTPException(status_code=409, detail="You already rated this segment")
+    timestamp = now_iso()
+    existing_rating = await db.segment_ratings.find_one(
+        {"segment_id": obj_id, "rated_by_actor_id": identity.actor_id},
+        {"_id": 1},
+    )
+    if existing_rating:
+        await db.segment_ratings.update_one(
+            {"_id": existing_rating["_id"]},
+            {"$set": {"ratings": rating_values, "rated_at": timestamp}},
+        )
+    else:
+        await db.segment_ratings.insert_one(
+            {
+                "segment_id": obj_id,
+                "rated_by_actor_id": identity.actor_id,
+                "ratings": rating_values,
+                "rated_at": timestamp,
+            }
+        )
 
     stats = await get_segment_rating_stats(db, obj_id)
     return {
         "status": "rated",
+        "ratings_count": stats["ratings_count"],
+        "average_ratings": stats["average_ratings"],
+    }
+
+
+@router.delete("/api/segments/{segment_id}/ratings", response_model=SegmentRatingResponseSchema)
+@limiter.limit("20/minute")
+async def delete_my_segment_rating(
+    request: Request,
+    segment_id: str,
+    identity: ActorIdentity = Depends(verify_active_user),
+):
+    db = get_db()
+    obj_id = parse_object_id(segment_id)
+    segment = await db.segments.find_one({"_id": obj_id})
+    if not segment:
+        raise HTTPException(status_code=404, detail="Segment not found")
+
+    delete_result = await db.segment_ratings.delete_one({"segment_id": obj_id, "rated_by_actor_id": identity.actor_id})
+    if delete_result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Rating not found")
+
+    stats = await get_segment_rating_stats(db, obj_id)
+    return {
+        "status": "deleted",
         "ratings_count": stats["ratings_count"],
         "average_ratings": stats["average_ratings"],
     }

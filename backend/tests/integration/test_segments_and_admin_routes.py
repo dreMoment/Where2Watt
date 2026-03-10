@@ -209,7 +209,7 @@ def test_create_segment_requires_ratings(app_client):
 
 
 @pytest.mark.integration
-def test_rate_segment_accepts_first_rating_and_rejects_duplicate(monkeypatch, app_client):
+def test_rate_segment_accepts_first_rating_and_updates_existing(monkeypatch, app_client):
     import routers.segments as segments_router
 
     segment_id = ObjectId()
@@ -225,7 +225,9 @@ def test_rate_segment_accepts_first_rating_and_rejects_duplicate(monkeypatch, ap
             ),
         ),
         segment_ratings=SimpleNamespace(
-            insert_one=AsyncMock(side_effect=[None, DuplicateKeyError("dup")]),
+            find_one=AsyncMock(side_effect=[None, {"_id": ObjectId()}, {"ratings": DEFAULT_RATINGS, "rated_at": "2026-03-06T10:00:00+00:00"}]),
+            insert_one=AsyncMock(),
+            update_one=AsyncMock(),
             aggregate=Mock(
                 return_value=FindCursor(
                     [
@@ -240,7 +242,6 @@ def test_rate_segment_accepts_first_rating_and_rejects_duplicate(monkeypatch, ap
                     ]
                 )
             ),
-            find_one=AsyncMock(return_value={"ratings": DEFAULT_RATINGS, "rated_at": "2026-03-06T10:00:00+00:00"}),
         ),
     )
     monkeypatch.setattr(segments_router, "get_db", lambda: db)
@@ -262,18 +263,80 @@ def test_rate_segment_accepts_first_rating_and_rejects_duplicate(monkeypatch, ap
             "rated_at": ANY,
         }
     )
+    updated_ratings = {
+        **DEFAULT_RATINGS,
+        "overall_quality": 9,
+    }
     second = app_client.post(
         f"/api/segments/{segment_id}/ratings",
-        json=DEFAULT_RATINGS,
+        json=updated_ratings,
         headers=user_auth_headers(),
     )
-    assert second.status_code == 409
-    assert second.json()["detail"] == "You already rated this segment"
+    assert second.status_code == 200
+    assert second.json()["status"] == "rated"
+    db.segment_ratings.update_one.assert_awaited_once()
+    update_set = db.segment_ratings.update_one.await_args.args[1]["$set"]
+    assert update_set["ratings"] == updated_ratings
+    assert "rated_at" in update_set
 
     my_status = app_client.get(f"/api/segments/{segment_id}/my-rating-status", headers=user_auth_headers())
     assert my_status.status_code == 200
     assert my_status.json()["has_rated"] is True
     assert my_status.json()["rating"] == DEFAULT_RATINGS
+
+
+@pytest.mark.integration
+def test_delete_my_segment_rating_deletes_only_current_user_rating(monkeypatch, app_client):
+    import routers.segments as segments_router
+
+    segment_id = ObjectId()
+    actor_id = actor_id_from_strava_id(12345)
+    db = SimpleNamespace(
+        segments=SimpleNamespace(
+            find_one=AsyncMock(return_value={"_id": segment_id}),
+        ),
+        segment_ratings=SimpleNamespace(
+            delete_one=AsyncMock(side_effect=[SimpleNamespace(deleted_count=1), SimpleNamespace(deleted_count=0)]),
+            aggregate=Mock(
+                return_value=FindCursor(
+                    [
+                        {
+                            "ratings_count": 0,
+                            "overall_quality_total": 0,
+                            "traffic_level_total": 0,
+                            "road_surface_total": 0,
+                            "gradient_profile_total": 0,
+                            "sketchy_left_turns_total": 0,
+                        }
+                    ]
+                )
+            ),
+        ),
+    )
+    monkeypatch.setattr(segments_router, "get_db", lambda: db)
+
+    deleted = app_client.delete(
+        f"/api/segments/{segment_id}/ratings",
+        headers=user_auth_headers(),
+    )
+    assert deleted.status_code == 200
+    assert deleted.json()["status"] == "deleted"
+    assert deleted.json()["ratings_count"] == 0
+    assert deleted.json()["average_ratings"] == {
+        "overall_quality": None,
+        "traffic_level": None,
+        "road_surface": None,
+        "gradient_profile": None,
+        "sketchy_left_turns": None,
+    }
+    db.segment_ratings.delete_one.assert_awaited_with({"segment_id": segment_id, "rated_by_actor_id": actor_id})
+
+    missing = app_client.delete(
+        f"/api/segments/{segment_id}/ratings",
+        headers=user_auth_headers(),
+    )
+    assert missing.status_code == 404
+    assert missing.json()["detail"] == "Rating not found"
 
 
 @pytest.mark.integration

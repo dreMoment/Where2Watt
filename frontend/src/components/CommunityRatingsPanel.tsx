@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { LogIn, X } from "lucide-react";
 import type { Segment, SegmentAverageRatings, SegmentRatingValues } from "@/types";
-import { fetchMySegmentRatingStatus, rateSegment } from "@/utils/api";
+import { deleteMySegmentRating, fetchMySegmentRatingStatus, rateSegment } from "@/utils/api";
 import { useAuth } from "@/components/AuthContext";
 import { useUiFeedback } from "@/components/ui/UiFeedbackProvider";
 import StravaConnectButton from "@/components/StravaConnectButton";
@@ -113,7 +113,7 @@ function RatingChoiceInput({ fieldKey, label, value, options, onChange }: Rating
 
 export default function CommunityRatingsPanel({ segment, onSegmentRated }: CommunityRatingsPanelProps) {
     const { isLoggedIn, token, login } = useAuth();
-    const { showToast } = useUiFeedback();
+    const { confirm, showToast } = useUiFeedback();
     const [showRatingForm, setShowRatingForm] = useState(false);
     const [isRating, setIsRating] = useState(false);
     const [hasRated, setHasRated] = useState(false);
@@ -176,6 +176,7 @@ export default function CommunityRatingsPanel({ segment, onSegmentRated }: Commu
             gradient_profile: ratingDraft.gradient_profile ?? 0,
             sketchy_left_turns: ratingDraft.sketchy_left_turns ?? 0,
         };
+        const isUpdatingExistingRating = hasRated;
 
         try {
             setIsRating(true);
@@ -187,15 +188,47 @@ export default function CommunityRatingsPanel({ segment, onSegmentRated }: Commu
                 ratings_count: result.ratings_count,
                 average_ratings: result.average_ratings,
             });
-            showToast("Thanks! Your rating was submitted.", { type: "info" });
+            showToast(isUpdatingExistingRating ? "Your rating was updated." : "Thanks! Your rating was submitted.", {
+                type: "info",
+            });
         } catch (err) {
-            if (err instanceof Error && err.message.includes("already rated")) {
-                setHasRated(true);
-                setShowRatingForm(false);
-                showToast("You have already rated this segment.", { type: "info" });
-                return;
-            }
             showToast("Failed to submit rating. Please try again.", { type: "error" });
+        } finally {
+            setIsRating(false);
+        }
+    };
+
+    const handleDeleteRating = async () => {
+        if (!segment.id || !token) {
+            showToast("You need to log in before deleting your rating.", { type: "error" });
+            return;
+        }
+
+        const shouldDelete = await confirm({
+            title: "Delete your rating?",
+            description: "This removes your rating from this segment.",
+            confirmLabel: "Delete rating",
+            cancelLabel: "Keep rating",
+            tone: "danger",
+        });
+        if (!shouldDelete) {
+            return;
+        }
+
+        try {
+            setIsRating(true);
+            setFormError(null);
+            const result = await deleteMySegmentRating(segment.id, token);
+            setHasRated(false);
+            setShowRatingForm(false);
+            setRatingDraft({ ...DEFAULT_RATING_INPUT });
+            onSegmentRated?.(segment.id, {
+                ratings_count: result.ratings_count,
+                average_ratings: result.average_ratings,
+            });
+            showToast("Your rating was deleted.", { type: "info" });
+        } catch {
+            showToast("Failed to delete rating. Please try again.", { type: "error" });
         } finally {
             setIsRating(false);
         }
@@ -251,26 +284,19 @@ export default function CommunityRatingsPanel({ segment, onSegmentRated }: Commu
                                     setShowLoginPrompt(true);
                                     return;
                                 }
-                                if (hasRated) {
-                                    showToast("You have already rated this segment.", { type: "info" });
-                                    return;
-                                }
                                 setFormError(null);
-                                setRatingDraft({ ...DEFAULT_RATING_INPUT });
+                                if (!hasRated) {
+                                    setRatingDraft({ ...DEFAULT_RATING_INPUT });
+                                }
                                 setShowRatingForm((prev) => !prev);
                             }}
-                            className={`mt-1 w-full py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                                hasRated
-                                    ? "bg-neutral-100 text-neutral-400 cursor-not-allowed"
-                                    : "bg-neutral-900 text-white hover:bg-neutral-800"
-                            }`}
-                            disabled={hasRated}
+                            className="mt-1 w-full rounded-lg bg-neutral-900 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-neutral-800"
                         >
-                            {hasRated ? "Already rated" : "Rate this segment"}
+                            {hasRated ? "Edit your rating" : "Rate this segment"}
                         </button>
                     )}
 
-                    {showRatingForm && !hasRated && (
+                    {showRatingForm && (
                         <div className="mt-1 rounded-lg border border-neutral-200 bg-white p-2.5 flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
                             <div className="grid grid-cols-1 gap-3">
                                 {RATING_FIELDS.map((field) => {
@@ -318,7 +344,7 @@ export default function CommunityRatingsPanel({ segment, onSegmentRated }: Commu
                                     disabled={isRating}
                                     className="flex-1 bg-[#fc4c02] hover:bg-[#e34402] disabled:bg-orange-300 text-white py-1.5 rounded-lg font-semibold text-xs transition-colors"
                                 >
-                                    {isRating ? "Submitting..." : "Submit Rating"}
+                                    {isRating ? "Submitting..." : hasRated ? "Update Rating" : "Submit Rating"}
                                 </button>
                                 <button
                                     onClick={() => {
@@ -330,6 +356,15 @@ export default function CommunityRatingsPanel({ segment, onSegmentRated }: Commu
                                     Cancel
                                 </button>
                             </div>
+                            {hasRated ? (
+                                <button
+                                    onClick={handleDeleteRating}
+                                    disabled={isRating}
+                                    className="w-full rounded-lg border border-red-200 bg-red-50 py-1.5 text-xs font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-70"
+                                >
+                                    {isRating ? "Working..." : "Delete My Rating"}
+                                </button>
+                            ) : null}
                         </div>
                     )}
                 </div>

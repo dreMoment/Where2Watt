@@ -153,7 +153,7 @@ export interface ReportBlockedResponse {
 }
 
 export interface RateSegmentResponse {
-    status: "rated";
+    status: "rated" | "deleted";
     ratings_count: number;
     average_ratings: SegmentAverageRatings;
 }
@@ -260,6 +260,14 @@ export async function rateSegment(id: string, token: string, ratings: SegmentRat
         headers: withBearerAuth(token, { "Content-Type": "application/json" }),
         body: JSON.stringify(ratings),
         errorMessage: "Failed to submit rating",
+    });
+}
+
+export async function deleteMySegmentRating(id: string, token: string): Promise<RateSegmentResponse> {
+    return request<RateSegmentResponse>(`/segments/${id}/ratings`, {
+        method: "DELETE",
+        headers: withBearerAuth(token),
+        errorMessage: "Failed to delete rating",
     });
 }
 
