@@ -133,37 +133,43 @@ export default function Home() {
       </section>
 
       <HomeSidebar
-        actorIdLabel={actorIdLabel}
-        authLoading={authLoading}
-        bikeWeightStr={bikeWeightStr}
-        filterPowerStr={filterPowerStr}
-        filterTimeStr={filterTimeStr}
-        isDisconnecting={isDisconnecting}
-        isFiltered={isFiltered}
-        isLoggedIn={isLoggedIn}
-        isProfileMenuOpen={isProfileMenuOpen}
-        onApplyFilter={() => setIsFiltered(true)}
-        onBikeWeightChange={handleBikeWeightChange}
-        onDisconnect={() => {
-          closeProfileMenu();
-          void handleDisconnect();
+        auth={{
+          loading: authLoading,
+          isLoggedIn,
+          actorIdLabel,
+          isDisconnecting,
+          isProfileMenuOpen,
+          userPresent: Boolean(user),
         }}
-        onFilterPowerChange={handleFilterPowerChange}
-        onFilterTimeChange={handleFilterTimeChange}
-        onLogin={login}
-        onLogout={() => {
-          closeProfileMenu();
-          logout();
+        filter={{
+          isFiltered,
+          preferencesReady,
+          weightStr,
+          bikeWeightStr,
+          filterPowerStr,
+          filterTimeStr,
         }}
-        onResetFilter={() => setIsFiltered(false)}
-        onSubmitSegment={() => setShowSubmissionContent(true)}
-        onToggleProfileMenu={toggleProfileMenu}
-        preferencesReady={preferencesReady}
-        onWeightChange={handleWeightChange}
+        actions={{
+          onApplyFilter: () => setIsFiltered(true),
+          onBikeWeightChange: handleBikeWeightChange,
+          onDisconnect: () => {
+            closeProfileMenu();
+            void handleDisconnect();
+          },
+          onFilterPowerChange: handleFilterPowerChange,
+          onFilterTimeChange: handleFilterTimeChange,
+          onLogin: login,
+          onLogout: () => {
+            closeProfileMenu();
+            logout();
+          },
+          onResetFilter: () => setIsFiltered(false),
+          onSubmitSegment: () => setShowSubmissionContent(true),
+          onToggleProfileMenu: toggleProfileMenu,
+          onWeightChange: handleWeightChange,
+        }}
         profileMenuRef={profileMenuRef}
         sidebarOpen={sidebarOpen}
-        userPresent={Boolean(user)}
-        weightStr={weightStr}
       />
     </HomeShell>
   );
