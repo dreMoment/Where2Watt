@@ -34,15 +34,19 @@ async def recompute_segment_rating_stats(db, segment_id: ObjectId) -> dict:
     return await get_segment_rating_stats(db, segment_id)
 
 
-@router.post("/api/admin/verify")
+@router.post("/api/admin/verify", dependencies=[Depends(verify_admin)])
 @limiter.limit("5/minute")
-async def verify_admin_password(request: Request, is_admin: bool = Depends(verify_admin)):
+async def verify_admin_password(request: Request):
     return {"status": "ok"}
 
 
-@router.get("/api/admin/segments/unapproved", response_model=List[SegmentResponseSchema])
+@router.get(
+    "/api/admin/segments/unapproved",
+    response_model=List[SegmentResponseSchema],
+    dependencies=[Depends(verify_admin)],
+)
 @limiter.limit("60/minute")
-async def list_unapproved_segments(request: Request, is_admin: bool = Depends(verify_admin)):
+async def list_unapproved_segments(request: Request):
     db = get_db()
     segments = await db.segments.find({"approved": False}).sort("created_at", -1).to_list(100)
     await enrich_admin_segment_users(db, segments)
@@ -52,9 +56,13 @@ async def list_unapproved_segments(request: Request, is_admin: bool = Depends(ve
     return segments
 
 
-@router.get("/api/admin/segments", response_model=List[SegmentResponseSchema])
+@router.get(
+    "/api/admin/segments",
+    response_model=List[SegmentResponseSchema],
+    dependencies=[Depends(verify_admin)],
+)
 @limiter.limit("60/minute")
-async def list_all_segments(request: Request, is_admin: bool = Depends(verify_admin)):
+async def list_all_segments(request: Request):
     db = get_db()
     segments = await db.segments.find().sort("created_at", -1).to_list(500)
     await enrich_admin_segment_users(db, segments)
@@ -64,9 +72,13 @@ async def list_all_segments(request: Request, is_admin: bool = Depends(verify_ad
     return segments
 
 
-@router.get("/api/admin/segments/{segment_id}/ratings", response_model=List[SegmentAdminRatingSchema])
+@router.get(
+    "/api/admin/segments/{segment_id}/ratings",
+    response_model=List[SegmentAdminRatingSchema],
+    dependencies=[Depends(verify_admin)],
+)
 @limiter.limit("120/minute")
-async def list_segment_ratings(request: Request, segment_id: str, is_admin: bool = Depends(verify_admin)):
+async def list_segment_ratings(request: Request, segment_id: str):
     db = get_db()
     obj_id = parse_object_id(segment_id)
 
@@ -103,9 +115,10 @@ async def list_segment_ratings(request: Request, segment_id: str, is_admin: bool
 @router.delete(
     "/api/admin/segments/{segment_id}/ratings/{rating_id}",
     response_model=AdminDeleteSegmentRatingResponseSchema,
+    dependencies=[Depends(verify_admin)],
 )
 @limiter.limit("60/minute")
-async def delete_segment_rating(request: Request, segment_id: str, rating_id: str, is_admin: bool = Depends(verify_admin)):
+async def delete_segment_rating(request: Request, segment_id: str, rating_id: str):
     db = get_db()
     segment_obj_id = parse_object_id(segment_id)
     try:
@@ -133,9 +146,9 @@ async def delete_segment_rating(request: Request, segment_id: str, rating_id: st
     }
 
 
-@router.get("/api/admin/segments/{segment_id}/blocked-reports")
+@router.get("/api/admin/segments/{segment_id}/blocked-reports", dependencies=[Depends(verify_admin)])
 @limiter.limit("120/minute")
-async def list_block_reports_for_segment(request: Request, segment_id: str, is_admin: bool = Depends(verify_admin)):
+async def list_block_reports_for_segment(request: Request, segment_id: str):
     db = get_db()
     obj_id = parse_object_id(segment_id)
 
@@ -159,9 +172,9 @@ async def list_block_reports_for_segment(request: Request, segment_id: str, is_a
     }
 
 
-@router.post("/api/admin/segments/{segment_id}/approve")
+@router.post("/api/admin/segments/{segment_id}/approve", dependencies=[Depends(verify_admin)])
 @limiter.limit("30/minute")
-async def approve_segment(request: Request, segment_id: str, is_admin: bool = Depends(verify_admin)):
+async def approve_segment(request: Request, segment_id: str):
     db = get_db()
     obj_id = parse_object_id(segment_id)
 
@@ -172,13 +185,12 @@ async def approve_segment(request: Request, segment_id: str, is_admin: bool = De
     return {"status": "approved"}
 
 
-@router.patch("/api/admin/segments/{segment_id}/block")
+@router.patch("/api/admin/segments/{segment_id}/block", dependencies=[Depends(verify_admin)])
 @limiter.limit("30/minute")
 async def block_segment(
     request: Request,
     segment_id: str,
     data: AdminBlockSegmentSchema = AdminBlockSegmentSchema(),
-    is_admin: bool = Depends(verify_admin),
 ):
     db = get_db()
     obj_id = parse_object_id(segment_id)
@@ -195,9 +207,9 @@ async def block_segment(
     return {"status": "blocked", "block_message": message if message else None}
 
 
-@router.patch("/api/admin/segments/{segment_id}/unblock")
+@router.patch("/api/admin/segments/{segment_id}/unblock", dependencies=[Depends(verify_admin)])
 @limiter.limit("30/minute")
-async def unblock_segment(request: Request, segment_id: str, is_admin: bool = Depends(verify_admin)):
+async def unblock_segment(request: Request, segment_id: str):
     db = get_db()
     obj_id = parse_object_id(segment_id)
 
@@ -209,9 +221,14 @@ async def unblock_segment(request: Request, segment_id: str, is_admin: bool = De
     return {"status": "unblocked"}
 
 
-@router.post("/api/admin/segments/quickadd", response_model=SegmentResponseSchema, status_code=201)
+@router.post(
+    "/api/admin/segments/quickadd",
+    response_model=SegmentResponseSchema,
+    status_code=201,
+    dependencies=[Depends(verify_admin)],
+)
 @limiter.limit("20/minute")
-async def quick_add_segment(request: Request, data: QuickAddSchema, is_admin: bool = Depends(verify_admin)):
+async def quick_add_segment(request: Request, data: QuickAddSchema):
     db = get_db()
     strava_url = data.strava_url
 

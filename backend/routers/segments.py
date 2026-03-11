@@ -295,9 +295,9 @@ async def get_my_report_status(request: Request, segment_id: str, identity: Acto
     }
 
 
-@router.delete("/api/segments/{segment_id}")
+@router.delete("/api/segments/{segment_id}", dependencies=[Depends(verify_admin)])
 @limiter.limit("30/minute")
-async def delete_segment(request: Request, segment_id: str, is_admin: bool = Depends(verify_admin)):
+async def delete_segment(request: Request, segment_id: str):
     db = get_db()
     obj_id = parse_object_id(segment_id)
 
