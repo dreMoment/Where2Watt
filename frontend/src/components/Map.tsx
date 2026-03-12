@@ -332,7 +332,7 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
             className="hover-segment-popup z-20"
             maxWidth="220px"
           >
-            <div className="rounded-md border border-neutral-200 bg-white/95 px-3 py-2 text-xs text-neutral-800 shadow-sm backdrop-blur-sm">
+            <div className="rounded-md border border-neutral-200 bg-white/95 px-1.5 py-1 text-xs text-neutral-800 shadow-sm backdrop-blur-sm">
               <div className="mt-0.5 flex items-center justify-between gap-3">
                 <span className="text-neutral-500">Est. time</span>
                 <span className="font-semibold text-neutral-800">{formatDuration(hoverEstimatedTimeSeconds)}</span>
