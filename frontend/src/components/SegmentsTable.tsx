@@ -339,7 +339,7 @@ export default function SegmentsTable({
                       )}
                       {segment.id && aliasCount > 0 && (
                         <button
-                          onClick={() => onSplit(segment.id, aliasCount)}
+                          onClick={() => segment.id && onSplit(segment.id, aliasCount)}
                           className="inline-flex items-center px-4 py-2 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500 hover:text-white rounded-lg text-sm font-semibold transition-all shadow-sm focus:opacity-100"
                         >
                           <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 6l-4 6 4 6m8-12l4 6-4 6M13 6l-2 12" /></svg>
