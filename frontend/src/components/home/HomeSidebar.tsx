@@ -48,11 +48,11 @@ export default function HomeSidebar({
 }: HomeSidebarProps) {
   return (
     <aside
-      className={`absolute inset-y-0 left-0 z-20 w-full transform border-r border-neutral-100 bg-white shadow-[4px_0_20px_rgba(0,0,0,0.04)] transition-transform duration-300 ease-in-out md:w-[380px] ${
+      className={`absolute inset-y-0 left-0 z-20 max-h-[100dvh] w-full overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] transform border-r border-neutral-100 bg-white shadow-[4px_0_20px_rgba(0,0,0,0.04)] transition-transform duration-300 ease-in-out md:w-[380px] ${
         sidebarOpen ? "pointer-events-auto translate-x-0" : "pointer-events-none -translate-x-full"
       }`}
     >
-      <div className="flex h-full w-full flex-col overflow-y-auto pt-16 md:w-[380px]">
+      <div className="flex min-h-full w-full flex-col pt-16 md:w-[380px]">
         <SectionCard
           title="Rider Profile"
           headerContent={
