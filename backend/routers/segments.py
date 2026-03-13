@@ -21,6 +21,7 @@ from services.segments import (
     parse_object_id,
     serialize_segment,
 )
+from services.notifications import notify_new_segment_submission
 from services.strava import fetch_segment_details
 
 router = APIRouter()
@@ -68,6 +69,12 @@ async def create_segment(request: Request, segment: SegmentCreateSchema, identit
     )
     created_segment = await db.segments.find_one({"_id": result.inserted_id})
     created_segment.update(await get_segment_rating_stats(db, result.inserted_id))
+    await notify_new_segment_submission(
+        strava_url=created_segment.get("strava_url"),
+        segment_name=created_segment.get("name"),
+        submitted_by_actor_id=identity.actor_id,
+        created_at=created_segment.get("created_at"),
+    )
     return serialize_segment(created_segment)
 
 

@@ -100,6 +100,8 @@ def test_create_segment_enriches_with_strava_details(monkeypatch, app_client):
             }
         ),
     )
+    notify_mock = AsyncMock()
+    monkeypatch.setattr(segments_router, "notify_new_segment_submission", notify_mock)
 
     response = app_client.post(
         "/api/segments",
@@ -130,6 +132,12 @@ def test_create_segment_enriches_with_strava_details(monkeypatch, app_client):
             "ratings": DEFAULT_RATINGS,
             "rated_at": ANY,
         }
+    )
+    notify_mock.assert_awaited_once_with(
+        strava_url="https://www.strava.com/segments/123",
+        segment_name=None,
+        submitted_by_actor_id=actor_id,
+        created_at=ANY,
     )
 
 

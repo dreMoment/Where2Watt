@@ -17,6 +17,7 @@ services:
       - STRAVA_WEBHOOK_VERIFY_TOKEN=${STRAVA_WEBHOOK_VERIFY_TOKEN}
       - STRAVA_WEBHOOK_SECRET=${STRAVA_WEBHOOK_SECRET}
       - ADMIN_STRAVA_IDS=${ADMIN_STRAVA_IDS}
+      - ADMIN_DISCORD_WEBHOOK_URL=${ADMIN_DISCORD_WEBHOOK_URL}
       - CORS_ORIGIN=${CORS_ORIGIN}
       # Add this to ensure Uvicorn runs correctly inside docker compose locally
       - PORT=8080

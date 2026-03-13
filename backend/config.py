@@ -33,6 +33,9 @@ for raw_id in ADMIN_STRAVA_IDS_RAW.split(","):
 if not ADMIN_STRAVA_IDS:
     raise RuntimeError("ADMIN_STRAVA_IDS environment variable must include at least one Strava ID")
 
+# Notifications
+ADMIN_DISCORD_WEBHOOK_URL = os.getenv("ADMIN_DISCORD_WEBHOOK_URL")
+
 # CORS Config
 CORS_ORIGIN = os.getenv("CORS_ORIGIN")
 if not CORS_ORIGIN:
