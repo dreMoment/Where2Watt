@@ -1,4 +1,4 @@
-import re
+from urllib.parse import urlparse
 from datetime import datetime, timezone
 
 from bson import ObjectId
@@ -10,8 +10,21 @@ from schemas import RATING_FIELD_BOUNDS, RATING_FIELDS
 def extract_strava_id(strava_url: str) -> str | None:
     if not strava_url:
         return None
-    match = re.search(r"segments/(\d+)", strava_url)
-    return match.group(1) if match else None
+    path = urlparse(strava_url).path.strip("/")
+    parts = path.split("/")
+    if len(parts) >= 2 and parts[0] == "segments" and parts[1].isdigit():
+        return parts[1]
+    return None
+
+
+def extract_segment_effort_id(strava_url: str) -> str | None:
+    if not strava_url:
+        return None
+    path = urlparse(strava_url).path.strip("/")
+    parts = path.split("/")
+    if len(parts) >= 4 and parts[0] == "activities" and parts[1].isdigit() and parts[2] == "segments" and parts[3].isdigit():
+        return parts[3]
+    return None
 
 
 def parse_object_id(segment_id: str) -> ObjectId:

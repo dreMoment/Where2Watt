@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import httpx
 
 from config import STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN
+from services.segments import extract_segment_effort_id, extract_strava_id
 
 logger = logging.getLogger(__name__)
 
@@ -90,3 +91,36 @@ async def fetch_segment_details(segment_id: str, db=None, actor_id: str | None =
             }
         logger.warning("Failed to fetch segment from Strava")
     return None
+
+
+async def fetch_segment_id_from_effort(segment_effort_id: str, db=None, actor_id: str | None = None) -> str | None:
+    if not segment_effort_id:
+        return None
+
+    access_token = await get_strava_access_token(db=db, actor_id=actor_id)
+    if not access_token:
+        return None
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"https://www.strava.com/api/v3/segment_efforts/{segment_effort_id}",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        if response.status_code != 200:
+            logger.warning("Failed to fetch segment effort from Strava")
+            return None
+        segment = response.json().get("segment")
+        segment_id = segment.get("id") if isinstance(segment, dict) else None
+        return str(segment_id) if segment_id else None
+
+
+async def resolve_segment_id_from_strava_url(strava_url: str, db=None, actor_id: str | None = None) -> str | None:
+    segment_id = extract_strava_id(strava_url)
+    if segment_id:
+        return segment_id
+
+    segment_effort_id = extract_segment_effort_id(strava_url)
+    if not segment_effort_id:
+        return None
+
+    return await fetch_segment_id_from_effort(segment_effort_id, db=db, actor_id=actor_id)

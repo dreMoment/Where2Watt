@@ -18,14 +18,13 @@ from services.segments import (
     empty_segment_rating_stats,
     enrich_segments_with_rating_stats,
     enrich_admin_segment_users,
-    extract_strava_id,
     get_segment_rating_stats,
     now_iso,
     parse_object_id,
     serialize_segment,
     valid_rating_query,
 )
-from services.strava import fetch_segment_details
+from services.strava import fetch_segment_details, resolve_segment_id_from_strava_url
 
 router = APIRouter()
 
@@ -232,7 +231,7 @@ async def quick_add_segment(request: Request, data: QuickAddSchema):
     db = get_db()
     strava_url = data.strava_url
 
-    segment_id = extract_strava_id(strava_url)
+    segment_id = await resolve_segment_id_from_strava_url(strava_url)
     if not segment_id:
         raise HTTPException(status_code=400, detail="Invalid Strava URL")
 

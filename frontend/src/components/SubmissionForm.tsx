@@ -12,6 +12,9 @@ interface Props {
     onClose: () => void;
 }
 
+const STRAVA_SEGMENT_OR_EFFORT_URL_PATTERN =
+    /^https?:\/\/(?:www\.)?strava\.com\/(?:segments\/\d+|activities\/\d+\/segments\/\d+)(?:[/?#].*)?$/i;
+
 function StarIcon({ className }: { className?: string }) {
     return (
         <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
@@ -127,7 +130,7 @@ export default function SubmissionForm({ onClose }: Props) {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!formData.strava_url.includes("strava.com/segments/")) {
+        if (!STRAVA_SEGMENT_OR_EFFORT_URL_PATTERN.test(formData.strava_url.trim())) {
             setFormError("Please enter a valid Strava segment URL.");
             return;
         }
@@ -280,7 +283,7 @@ export default function SubmissionForm({ onClose }: Props) {
                         <div className="mt-2 flex items-start gap-1.5 text-neutral-500">
                             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                             <p className="text-xs leading-relaxed">
-                                Please submit only uninterrupted segments (no traffic lights or major intersections)
+                                Segment URLs and activity segment-effort URLs are supported. Submit only uninterrupted roads (no traffic lights or major intersections).
                             </p>
                         </div>
 

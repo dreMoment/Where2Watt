@@ -102,3 +102,33 @@ def test_fetch_segment_details_returns_none_when_segment_missing_or_request_fail
 
     assert asyncio.run(strava_service.fetch_segment_details("")) is None
     assert asyncio.run(strava_service.fetch_segment_details("11")) is None
+
+
+@pytest.mark.unit
+def test_fetch_segment_id_from_effort_returns_segment_id(monkeypatch):
+    monkeypatch.setattr(strava_service, "get_strava_access_token", AsyncMock(return_value="token-1"))
+    mock_response = SimpleNamespace(status_code=200, json=lambda: {"segment": {"id": 777}})
+    mock_client = SimpleNamespace(get=AsyncMock(return_value=mock_response))
+    monkeypatch.setattr(strava_service.httpx, "AsyncClient", lambda: MockAsyncClientContext(mock_client))
+
+    segment_id = asyncio.run(strava_service.fetch_segment_id_from_effort("3465746799772048188"))
+    assert segment_id == "777"
+
+
+@pytest.mark.unit
+def test_resolve_segment_id_from_strava_url_supports_segment_effort_urls(monkeypatch):
+    fetch_mock = AsyncMock(return_value="888")
+    monkeypatch.setattr(strava_service, "fetch_segment_id_from_effort", fetch_mock)
+
+    direct = asyncio.run(strava_service.resolve_segment_id_from_strava_url("https://www.strava.com/segments/123"))
+    resolved = asyncio.run(
+        strava_service.resolve_segment_id_from_strava_url(
+            "https://www.strava.com/activities/17650152462/segments/3465746799772048188"
+        )
+    )
+    invalid = asyncio.run(strava_service.resolve_segment_id_from_strava_url("https://www.strava.com/routes/42"))
+
+    assert direct == "123"
+    assert resolved == "888"
+    assert invalid is None
+    fetch_mock.assert_awaited_once_with("3465746799772048188", db=None, actor_id=None)

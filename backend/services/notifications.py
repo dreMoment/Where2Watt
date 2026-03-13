@@ -17,6 +17,7 @@ def _format_timestamp(timestamp: str | None) -> str:
 async def notify_new_segment_submission(
     *,
     strava_url: str | None,
+    strava_id: str | None,
     segment_name: str | None,
     submitted_by_actor_id: str,
     created_at: str | None = None,
@@ -27,7 +28,8 @@ async def notify_new_segment_submission(
 
     display_name = segment_name.strip() if isinstance(segment_name, str) else ""
     title = display_name if display_name else "Unnamed Segment"
-    link = (strava_url or "").strip() or "N/A"
+    canonical_segment_link = f"https://www.strava.com/segments/{strava_id}" if isinstance(strava_id, str) and strava_id else ""
+    link = canonical_segment_link or (strava_url or "").strip() or "N/A"
     submitted_at = _format_timestamp(created_at)
     content = (
         "New segment submitted for review\n"

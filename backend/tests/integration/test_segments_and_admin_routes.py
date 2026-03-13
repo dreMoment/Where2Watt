@@ -63,6 +63,7 @@ def test_create_segment_enriches_with_strava_details(monkeypatch, app_client):
                     {
                         "_id": created_id,
                         "strava_url": "https://www.strava.com/segments/123",
+                        "strava_id": "123",
                         "approved": False,
                     },
                 ]
@@ -100,6 +101,7 @@ def test_create_segment_enriches_with_strava_details(monkeypatch, app_client):
             }
         ),
     )
+    monkeypatch.setattr(segments_router, "resolve_segment_id_from_strava_url", AsyncMock(return_value="123"))
     notify_mock = AsyncMock()
     monkeypatch.setattr(segments_router, "notify_new_segment_submission", notify_mock)
 
@@ -135,6 +137,7 @@ def test_create_segment_enriches_with_strava_details(monkeypatch, app_client):
     )
     notify_mock.assert_awaited_once_with(
         strava_url="https://www.strava.com/segments/123",
+        strava_id="123",
         segment_name=None,
         submitted_by_actor_id=actor_id,
         created_at=ANY,
@@ -194,6 +197,7 @@ def test_create_segment_rejects_duplicate(monkeypatch, app_client):
     db = SimpleNamespace(segments=SimpleNamespace(find_one=AsyncMock(return_value={"_id": ObjectId()})))
     monkeypatch.setattr(segments_router, "get_db", lambda: db)
     monkeypatch.setattr(segments_router, "fetch_segment_details", AsyncMock(return_value=None))
+    monkeypatch.setattr(segments_router, "resolve_segment_id_from_strava_url", AsyncMock(return_value="123"))
 
     response = app_client.post(
         "/api/segments",
@@ -203,6 +207,119 @@ def test_create_segment_rejects_duplicate(monkeypatch, app_client):
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Segment already exists"
+
+
+@pytest.mark.integration
+def test_create_segment_rejects_invalid_strava_url(monkeypatch, app_client):
+    import routers.segments as segments_router
+
+    db = SimpleNamespace(
+        segments=SimpleNamespace(find_one=AsyncMock(), insert_one=AsyncMock()),
+        segment_ratings=SimpleNamespace(insert_one=AsyncMock()),
+    )
+    monkeypatch.setattr(segments_router, "get_db", lambda: db)
+    monkeypatch.setattr(segments_router, "resolve_segment_id_from_strava_url", AsyncMock(return_value=None))
+    monkeypatch.setattr(segments_router, "fetch_segment_details", AsyncMock())
+
+    response = app_client.post(
+        "/api/segments",
+        json={"strava_url": "https://www.strava.com/routes/123", "ratings": DEFAULT_RATINGS},
+        headers=user_auth_headers(),
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Something went wrong. Please check if the Strava URL is correct."
+    db.segments.insert_one.assert_not_awaited()
+    db.segment_ratings.insert_one.assert_not_awaited()
+
+
+@pytest.mark.integration
+def test_create_segment_resolves_activity_segment_effort_url(monkeypatch, app_client):
+    import routers.segments as segments_router
+
+    created_id = ObjectId()
+    actor_id = actor_id_from_strava_id(12345)
+    db = SimpleNamespace(
+        segments=SimpleNamespace(
+            find_one=AsyncMock(side_effect=[None, {"_id": created_id, "strava_url": "https://www.strava.com/activities/1/segments/2"}]),
+            insert_one=AsyncMock(return_value=SimpleNamespace(inserted_id=created_id)),
+        ),
+        segment_ratings=SimpleNamespace(
+            insert_one=AsyncMock(),
+            aggregate=Mock(
+                return_value=FindCursor(
+                    [
+                        {
+                            "ratings_count": 1,
+                            "overall_quality_total": DEFAULT_RATINGS["overall_quality"],
+                            "traffic_level_total": DEFAULT_RATINGS["traffic_level"],
+                            "road_surface_total": DEFAULT_RATINGS["road_surface"],
+                            "gradient_profile_total": DEFAULT_RATINGS["gradient_profile"],
+                            "sketchy_left_turns_total": DEFAULT_RATINGS["sketchy_left_turns"],
+                        }
+                    ]
+                )
+            ),
+        ),
+    )
+    monkeypatch.setattr(segments_router, "get_db", lambda: db)
+    monkeypatch.setattr(segments_router, "resolve_segment_id_from_strava_url", AsyncMock(return_value="987"))
+    monkeypatch.setattr(
+        segments_router,
+        "fetch_segment_details",
+        AsyncMock(
+            return_value={
+                "polyline": "polyline-987",
+                "name": "Effort Segment",
+                "distance_km": 2.4,
+                "gradient_pct": 3.1,
+            }
+        ),
+    )
+    monkeypatch.setattr(segments_router, "notify_new_segment_submission", AsyncMock())
+
+    response = app_client.post(
+        "/api/segments",
+        json={"strava_url": "https://www.strava.com/activities/17650152462/segments/3465746799772048188", "ratings": DEFAULT_RATINGS},
+        headers=user_auth_headers(),
+    )
+
+    assert response.status_code == 201
+    db.segments.insert_one.assert_awaited_once()
+    inserted_doc = db.segments.insert_one.await_args.args[0]
+    assert inserted_doc["strava_id"] == "987"
+    db.segment_ratings.insert_one.assert_awaited_once_with(
+        {
+            "segment_id": created_id,
+            "rated_by_actor_id": actor_id,
+            "ratings": DEFAULT_RATINGS,
+            "rated_at": ANY,
+        }
+    )
+
+
+@pytest.mark.integration
+def test_create_segment_rejects_when_strava_segment_details_cannot_be_fetched(monkeypatch, app_client):
+    import routers.segments as segments_router
+
+    db = SimpleNamespace(
+        segments=SimpleNamespace(find_one=AsyncMock(return_value=None), insert_one=AsyncMock()),
+        segment_ratings=SimpleNamespace(insert_one=AsyncMock()),
+    )
+    monkeypatch.setattr(segments_router, "get_db", lambda: db)
+    monkeypatch.setattr(segments_router, "resolve_segment_id_from_strava_url", AsyncMock(return_value="123"))
+    monkeypatch.setattr(segments_router, "fetch_segment_details", AsyncMock(return_value=None))
+
+    response = app_client.post(
+        "/api/segments",
+        json={"strava_url": "https://www.strava.com/segments/123", "ratings": DEFAULT_RATINGS},
+        headers=user_auth_headers(),
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Something went wrong. Please check if the Strava URL is correct."
+    db.segments.insert_one.assert_not_awaited()
+    db.segment_ratings.insert_one.assert_not_awaited()
 
 
 @pytest.mark.integration
@@ -540,6 +657,11 @@ def test_admin_quickadd_invalid_url_existing_and_success(monkeypatch, app_client
         )
     )
     monkeypatch.setattr(admin_router, "get_db", lambda: db)
+    monkeypatch.setattr(
+        admin_router,
+        "resolve_segment_id_from_strava_url",
+        AsyncMock(side_effect=[None, "111", "222"]),
+    )
     monkeypatch.setattr(
         admin_router,
         "fetch_segment_details",

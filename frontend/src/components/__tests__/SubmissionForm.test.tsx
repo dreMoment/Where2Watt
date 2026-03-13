@@ -27,7 +27,7 @@ describe('SubmissionForm', () => {
     it('renders form fields correctly', () => {
         render(<SubmissionForm onClose={mockOnClose} />);
         expect(screen.getByText('Add a Segment')).toBeInTheDocument();
-        expect(screen.getByText('Please submit only uninterrupted segments (no traffic lights or major intersections)')).toBeInTheDocument();
+        expect(screen.getByText(/Segment URLs and activity segment-effort URLs are supported/i)).toBeInTheDocument();
         expect(screen.getByLabelText(/Strava Segment URL/i)).toBeInTheDocument();
         expect(screen.queryByLabelText(/Safety Notes/i)).not.toBeInTheDocument();
     });
@@ -79,5 +79,24 @@ describe('SubmissionForm', () => {
         await waitFor(() => {
             expect(mockOnClose).toHaveBeenCalled();
         }, { timeout: 2500 });
+    });
+
+    it('accepts activity segment-effort URLs', async () => {
+        (submitSegment as jest.Mock).mockResolvedValueOnce(undefined);
+        render(<SubmissionForm onClose={mockOnClose} />);
+
+        fireEvent.change(screen.getByLabelText(/Strava Segment URL/i), {
+            target: { value: 'https://www.strava.com/activities/17650152462/segments/3465746799772048188' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: /Overall Quality star 1/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Traffic Level: Low/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Road Surface: Patchy/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Gradient Profile: Flowing/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Sketchy Left Turns: 1/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Submit Segment/i }));
+
+        await waitFor(() => {
+            expect(submitSegment).toHaveBeenCalled();
+        });
     });
 });

@@ -16,13 +16,12 @@ from schemas import (
 from services.segments import (
     get_segment_rating_stats,
     enrich_segments_with_rating_stats,
-    extract_strava_id,
     now_iso,
     parse_object_id,
     serialize_segment,
 )
 from services.notifications import notify_new_segment_submission
-from services.strava import fetch_segment_details
+from services.strava import fetch_segment_details, resolve_segment_id_from_strava_url
 
 router = APIRouter()
 
@@ -37,26 +36,40 @@ async def create_segment(request: Request, segment: SegmentCreateSchema, identit
     segment_dict["approved"] = False
 
     strava_url = segment_dict.get("strava_url")
-    if strava_url:
-        segment_id = extract_strava_id(strava_url)
-        if segment_id:
-            existing = await db.segments.find_one(
-                {
-                    "$or": [
-                        {"strava_id": segment_id},
-                        {"strava_url": {"$regex": f"segments/{segment_id}(?![0-9])"}},
-                    ]
-                }
-            )
-            if existing:
-                raise HTTPException(status_code=400, detail="Segment already exists")
-            segment_dict["strava_id"] = segment_id
+    if not strava_url:
+        raise HTTPException(
+            status_code=400,
+            detail="Something went wrong. Please check if the Strava URL is correct.",
+        )
 
-            details = await fetch_segment_details(segment_id, db=db, actor_id=identity.actor_id)
-            if details:
-                for key in ["polyline", "name", "distance_km", "gradient_pct"]:
-                    if not segment_dict.get(key):
-                        segment_dict[key] = details.get(key)
+    segment_id = await resolve_segment_id_from_strava_url(strava_url, db=db, actor_id=identity.actor_id)
+    if not segment_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Something went wrong. Please check if the Strava URL is correct.",
+        )
+
+    existing = await db.segments.find_one(
+        {
+            "$or": [
+                {"strava_id": segment_id},
+                {"strava_url": {"$regex": f"segments/{segment_id}(?![0-9])"}},
+            ]
+        }
+    )
+    if existing:
+        raise HTTPException(status_code=400, detail="Segment already exists")
+    segment_dict["strava_id"] = segment_id
+
+    details = await fetch_segment_details(segment_id, db=db, actor_id=identity.actor_id)
+    if not details:
+        raise HTTPException(
+            status_code=400,
+            detail="Something went wrong. Please check if the Strava URL is correct.",
+        )
+    for key in ["polyline", "name", "distance_km", "gradient_pct"]:
+        if not segment_dict.get(key):
+            segment_dict[key] = details.get(key)
 
     result = await db.segments.insert_one(segment_dict)
     await db.segment_ratings.insert_one(
@@ -71,6 +84,7 @@ async def create_segment(request: Request, segment: SegmentCreateSchema, identit
     created_segment.update(await get_segment_rating_stats(db, result.inserted_id))
     await notify_new_segment_submission(
         strava_url=created_segment.get("strava_url"),
+        strava_id=created_segment.get("strava_id"),
         segment_name=created_segment.get("name"),
         submitted_by_actor_id=identity.actor_id,
         created_at=created_segment.get("created_at"),

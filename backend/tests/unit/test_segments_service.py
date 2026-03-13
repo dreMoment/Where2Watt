@@ -2,7 +2,7 @@ import pytest
 from bson import ObjectId
 from fastapi import HTTPException
 
-from services.segments import extract_strava_id, parse_object_id, serialize_segment
+from services.segments import extract_segment_effort_id, extract_strava_id, parse_object_id, serialize_segment
 
 
 @pytest.mark.unit
@@ -14,7 +14,20 @@ def test_extract_strava_id_from_valid_url():
 @pytest.mark.unit
 def test_extract_strava_id_returns_none_for_invalid_url():
     assert extract_strava_id("https://www.strava.com/routes/123") is None
+    assert extract_strava_id("https://www.strava.com/activities/17650152462/segments/3465746799772048188") is None
     assert extract_strava_id("") is None
+
+
+@pytest.mark.unit
+def test_extract_segment_effort_id_from_activity_segment_effort_url():
+    url = "https://www.strava.com/activities/17650152462/segments/3465746799772048188"
+    assert extract_segment_effort_id(url) == "3465746799772048188"
+
+
+@pytest.mark.unit
+def test_extract_segment_effort_id_returns_none_for_non_effort_urls():
+    assert extract_segment_effort_id("https://www.strava.com/segments/123456") is None
+    assert extract_segment_effort_id("https://www.strava.com/routes/123") is None
 
 
 @pytest.mark.unit
