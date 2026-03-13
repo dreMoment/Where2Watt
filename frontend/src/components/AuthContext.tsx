@@ -56,7 +56,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     localStorage.setItem("auth_user", JSON.stringify(u));
                     setIsLoading(false);
                 })
-                .catch(() => {
+                .catch((error: unknown) => {
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    const debugPayload = {
+                        reason: "auth-bootstrap-validation-failed",
+                        error: errorMessage,
+                        origin: window.location.origin,
+                        apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? null,
+                        timestamp: new Date().toISOString(),
+                    };
+                    // Keep a small local breadcrumb to inspect after redirects/reloads.
+                    sessionStorage.setItem("auth_debug_last_failure", JSON.stringify(debugPayload));
+                    console.warn("[auth] Clearing local auth after /auth/me validation failure", debugPayload);
                     // Token is invalid, clear everything
                     localStorage.removeItem("auth_token");
                     localStorage.removeItem("auth_user");
