@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Map, { Popup, Source, Layer, NavigationControl } from "react-map-gl/maplibre";
+import type { MapRef } from "react-map-gl/maplibre";
 import SegmentCard from "./SegmentCard";
 import CommunityRatingsPanel from "./CommunityRatingsPanel";
 import { decodePolyline } from "@/utils/polyline";
@@ -24,6 +25,9 @@ interface MapProps {
   filterTime?: string;
   onSegmentBlocked?: (segmentId: string, report: { blocked: boolean }) => void;
   onSegmentRated?: (segmentId: string, rating: { ratings_count: number; average_ratings: SegmentAverageRatings }) => void;
+  focusSegmentId?: string;
+  autoSelectFocusedSegment?: boolean;
+  persistViewport?: boolean;
 }
 
 const MAP_VIEWPORT_STORAGE_KEY = "where2watt:lastMapViewport";
@@ -93,15 +97,38 @@ function getMarginColor(ratio: number): string {
   return `hsl(${hue}, 65%, 45%)`;
 }
 
-export default function InteractiveMap({ segments, riderPower, riderWeight, bikeWeight, isFiltered, filterPower, filterTime, onSegmentBlocked, onSegmentRated }: MapProps) {
-  const [selectedSegment, setSelectedSegment] = useState<Segment | null>(null);
-  const [clickedCoordinate, setClickedCoordinate] = useState<[number, number] | null>(null);
+export default function InteractiveMap({
+  segments,
+  riderPower,
+  riderWeight,
+  bikeWeight,
+  isFiltered,
+  filterPower,
+  filterTime,
+  onSegmentBlocked,
+  onSegmentRated,
+  focusSegmentId,
+  autoSelectFocusedSegment = false,
+  persistViewport = true,
+}: MapProps) {
+  const initialFocusedSegment =
+    autoSelectFocusedSegment && focusSegmentId
+      ? segments.find((segment) => segment.id === focusSegmentId) ?? null
+      : null;
+  const initialFocusedCoordinate =
+    initialFocusedSegment?.polyline ? decodePolyline(initialFocusedSegment.polyline)[0] ?? null : null;
+
+  const [selectedSegment, setSelectedSegment] = useState<Segment | null>(initialFocusedSegment);
+  const [clickedCoordinate, setClickedCoordinate] = useState<[number, number] | null>(initialFocusedCoordinate);
   const [hoveredSegment, setHoveredSegment] = useState<Segment | null>(null);
   const [hoveredCoordinate, setHoveredCoordinate] = useState<[number, number] | null>(null);
   const [cursor, setCursor] = useState("grab");
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [isRatingsVisible, setIsRatingsVisible] = useState(true);
+  const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [initialViewport] = useState<MapViewport>(() => getInitialViewport());
+  const mapRef = useRef<MapRef | null>(null);
+  const lastFocusedSegmentIdRef = useRef<string | null>(null);
 
   const filteredSegments = segments;
 
@@ -175,9 +202,47 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
     setIsRatingsVisible(!isMobileViewport);
   }, [selectedSegment, isMobileViewport]);
 
+  useEffect(() => {
+    if (!isMapLoaded || !mapRef.current) return;
+    if (!focusSegmentId || focusSegmentId === lastFocusedSegmentIdRef.current) return;
+    const focusSegment = filteredSegments.find((segment) => segment.id === focusSegmentId);
+    if (!focusSegment?.polyline) return;
+
+    const coordinates = decodePolyline(focusSegment.polyline);
+    if (coordinates.length === 0) return;
+
+    const [firstLng, firstLat] = coordinates[0];
+    let minLng = firstLng;
+    let maxLng = firstLng;
+    let minLat = firstLat;
+    let maxLat = firstLat;
+
+    for (const [lng, lat] of coordinates) {
+      if (lng < minLng) minLng = lng;
+      if (lng > maxLng) maxLng = lng;
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+    }
+
+    if (minLng === maxLng && minLat === maxLat) {
+      mapRef.current.flyTo({ center: [minLng, minLat], zoom: 16, duration: 0 });
+    } else {
+      mapRef.current.fitBounds(
+        [
+          [minLng, minLat],
+          [maxLng, maxLat],
+        ],
+        { padding: 80, duration: 0 }
+      );
+    }
+
+    lastFocusedSegmentIdRef.current = focusSegmentId;
+  }, [focusSegmentId, filteredSegments, isMapLoaded]);
+
   return (
     <div className="h-full w-full shadow-lg overflow-hidden relative">
       <Map
+        ref={mapRef}
         initialViewState={{
           longitude: initialViewport.longitude,
           latitude: initialViewport.latitude,
@@ -189,6 +254,7 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
         terrain={{ source: "terrain-source", exaggeration: 2 }}
         mapStyle={mapStyle}
         style={{ width: "100%", height: "100%" }}
+        onLoad={() => setIsMapLoaded(true)}
         interactiveLayerIds={interactiveLayerIds}
         onClick={(e) => {
           if (e.features && e.features.length > 0) {
@@ -227,6 +293,7 @@ export default function InteractiveMap({ segments, riderPower, riderWeight, bike
           setHoveredCoordinate(null);
         }}
         onMoveEnd={(event) => {
+          if (!persistViewport) return;
           const { longitude, latitude, zoom, bearing, pitch } = event.viewState;
           localStorage.setItem(
             MAP_VIEWPORT_STORAGE_KEY,

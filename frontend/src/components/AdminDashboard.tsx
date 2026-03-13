@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import AdminFilters from "@/components/AdminFilters";
 import AdminSummary from "@/components/AdminSummary";
 import SegmentsTable from "@/components/SegmentsTable";
+import AdminSegmentPreviewModal from "@/components/AdminSegmentPreviewModal";
 import { useAdminSegments } from "@/hooks/useAdminSegments";
+import type { Segment } from "@/types";
 
 interface AdminDashboardProps {
   token: string;
@@ -12,6 +15,8 @@ interface AdminDashboardProps {
 }
 
 export default function AdminDashboard({ token, onLogout }: AdminDashboardProps) {
+  const [previewSegment, setPreviewSegment] = useState<Segment | null>(null);
+
   const {
     activeTab,
     setActiveTab,
@@ -159,9 +164,11 @@ export default function AdminDashboard({ token, onLogout }: AdminDashboardProps)
             segmentRatingsErrorById={segmentRatingsErrorById}
             onToggleRatings={handleToggleRatings}
             onDeleteRating={handleDeleteRating}
+            onPreview={setPreviewSegment}
           />
         </div>
       </main>
+      <AdminSegmentPreviewModal segment={previewSegment} onClose={() => setPreviewSegment(null)} />
     </div>
   );
 }
