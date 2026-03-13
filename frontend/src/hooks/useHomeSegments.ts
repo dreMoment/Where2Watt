@@ -13,6 +13,7 @@ export function useHomeSegments() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Initial public segment load for the map/list landing view.
     fetchSegments()
       .then((data) => {
         setSegments(data);
@@ -26,6 +27,7 @@ export function useHomeSegments() {
       });
   }, []);
 
+  // Applies local blocked/unblocked status updates after a report action.
   const handleSegmentBlocked = useCallback((segmentId: string, report: { blocked: boolean }) => {
     setSegments((prev) =>
       prev.map((segment) =>
@@ -39,6 +41,7 @@ export function useHomeSegments() {
     );
   }, []);
 
+  // Applies local aggregate rating updates after a vote create/delete.
   const handleSegmentRated = useCallback((segmentId: string, rating: SegmentRatingUpdate) => {
     setSegments((prev) =>
       prev.map((segment) =>

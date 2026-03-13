@@ -13,12 +13,14 @@ export type IntervalProfile = {
   bikeWeightKg: number;
 };
 
+// Converts mixed UI input (number/string/empty) into a number for filter math.
 function parseNumericInput(value: NumericInput): number {
   if (typeof value === "number") return value;
   if (typeof value === "string") return parseFloat(value);
   return Number.NaN;
 }
 
+// Uses fallback defaults when rider or bike weight is missing/invalid.
 function parsePositiveOrDefault(value: NumericInput, fallback: number): number {
   const parsed = parseNumericInput(value);
   return parsed > 0 ? parsed : fallback;
@@ -46,6 +48,7 @@ export function createIntervalProfile(
 
 type SegmentTimingInput = Pick<Segment, "distance_km" | "gradient_pct">;
 
+// Estimates completion time for one segment at the rider profile's power and mass.
 export function estimateSegmentDurationSeconds(
   segment: SegmentTimingInput,
   profile: IntervalProfile
@@ -97,15 +100,18 @@ export function filterSegmentsByInterval(
     minRatio = DEFAULT_FILTER_MIN_RATIO,
   }: FilterSegmentsOptions
 ): Segment[] {
+  // Fast path: skip any math when the filter toggle is off.
   if (!isFiltered) return segments;
 
   const profile = createIntervalProfile(filterPower, riderWeight, bikeWeight);
   const targetMinutes = parseIntervalMinutes(filterTimeMinutes);
+  // If filter inputs are not usable, keep the unfiltered list to avoid hiding data unexpectedly.
   if (!profile || !targetMinutes) return segments;
 
   return segments.filter((segment) => passesIntervalFilter(segment, profile, targetMinutes, minRatio));
 }
 
+// Returns how far above/below the target interval time a segment is (1.0 = exactly at target).
 export function getIntervalMarginRatio(
   segment: SegmentTimingInput,
   profile: IntervalProfile,

@@ -24,6 +24,7 @@ export function useHomePreferences({
 }: UseHomePreferencesParams) {
   const isClient = typeof window !== "undefined";
   const preferencesReady = isClient;
+  // Seed UI state from localStorage so controls render immediately before network hydration finishes.
   const [weightStr, setWeightStr] = useState(() => {
     if (!isClient) {
       return "";
@@ -70,6 +71,7 @@ export function useHomePreferences({
   });
   const [preferencesHydrated, setPreferencesHydrated] = useState(false);
 
+  // Canonical payload used by debounced preference syncing.
   const preferencePayload = useMemo(() => {
     const riderWeight = Number.parseFloat(weightStr);
     const bikeWeight = Number.parseFloat(bikeWeightStr);
@@ -99,6 +101,7 @@ export function useHomePreferences({
 
     let cancelled = false;
 
+    // Logged-in users override local defaults with server preferences for cross-device consistency.
     fetchUserPreferences(token)
       .then((preferences) => {
         if (cancelled) {
@@ -144,6 +147,7 @@ export function useHomePreferences({
     };
   }, [authLoading, isLoggedIn, token, isMobileViewport, setPersistedSnapshot]);
 
+  // Each input writes to state + localStorage so anonymous sessions still preserve values.
   const handleWeightChange = useCallback((nextWeight: string) => {
     setWeightStr(nextWeight);
     localStorage.setItem(RIDER_WEIGHT_STORAGE_KEY, nextWeight);
@@ -165,6 +169,7 @@ export function useHomePreferences({
   }, []);
 
   const closeInfoScreen = useCallback(async () => {
+    // Persist onboarding-dismiss preference locally and remotely when authenticated.
     localStorage.setItem(HIDE_INFO_SCREEN_STORAGE_KEY, hideInfoScreenNextTime ? "true" : "false");
 
     if (isLoggedIn && token) {

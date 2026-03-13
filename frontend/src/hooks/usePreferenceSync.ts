@@ -34,8 +34,11 @@ export function usePreferenceSync<TPayload>({
   minIntervalMs = 2500,
   cooldownOn429Ms = 60000,
 }: UsePreferenceSyncParams<TPayload>) {
+  // Tracks the last payload we know is persisted to avoid duplicate writes.
   const lastPersistedSnapshotRef = useRef<string | null>(null);
+  // Ensures writes are spaced out even when UI changes rapidly.
   const lastPersistAtRef = useRef(0);
+  // Adds a temporary retry cooldown after a 429 response.
   const blockedUntilRef = useRef(0);
 
   const setPersistedSnapshot = useCallback((snapshot: string) => {
