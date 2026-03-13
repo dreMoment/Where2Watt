@@ -45,7 +45,7 @@ export default function Home() {
     },
   });
 
-  const { error, handleSegmentBlocked, handleSegmentRated, loading, segments } = useHomeSegments();
+  const { error, handleSegmentBlocked, handleSegmentRated, loading, reloadSegments, segments } = useHomeSegments();
   const [showSubmissionContent, setShowSubmissionContent] = useState(false);
 
   // Filter state
@@ -127,6 +127,7 @@ export default function Home() {
           isMobileViewport={isMobileViewport}
           hideInfoScreenNextTime={hideInfoScreenNextTime}
           onCloseSubmission={() => setShowSubmissionContent(false)}
+          onExistingSegmentRated={reloadSegments}
           onHideInfoScreenNextTimeChange={setHideInfoScreenNextTime}
           onContinueInfo={closeInfoScreen}
         />

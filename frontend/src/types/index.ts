@@ -50,6 +50,7 @@ export type Segment = {
   created_at?: string;
   blocked?: boolean;
   block_message?: string | null;
+  aliases?: string[];
   ratings_count?: number;
   average_ratings?: SegmentAverageRatings;
   reported_by_actor_ids?: string[];

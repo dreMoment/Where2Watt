@@ -6,7 +6,7 @@ import {
 import type { Segment } from "@/types";
 import { useUiFeedback } from "@/components/ui/UiFeedbackProvider";
 import { matchesAdminFilters } from "@/hooks/adminFilters";
-import { getErrorMessage, isAuthFailure } from "@/hooks/adminErrors";
+import { getErrorMessage } from "@/hooks/adminErrors";
 import { useAdminRatingsModeration } from "@/hooks/useAdminRatingsModeration";
 import { useAdminSegmentActions } from "@/hooks/useAdminSegmentActions";
 
@@ -101,6 +101,8 @@ export function useAdminSegments({ token, onLogout }: UseAdminSegmentsParams) {
     handleQuickAdd,
     handleBlock,
     handleUnblock,
+    handleMerge,
+    handleSplit,
     handleRefresh,
   } = useAdminSegmentActions({
     token,
@@ -117,6 +119,13 @@ export function useAdminSegments({ token, onLogout }: UseAdminSegmentsParams) {
     loadPendingSegments,
     loadAllSegments,
   });
+
+  const ensureAllSegmentsLoaded = useCallback(async () => {
+    if (allLoaded) {
+      return;
+    }
+    await loadAllSegments();
+  }, [allLoaded, loadAllSegments]);
 
   const currentLoading = activeTab === "pending" ? pendingLoading : allLoading;
   const currentError = activeTab === "pending" ? pendingError : allError;
@@ -185,6 +194,9 @@ export function useAdminSegments({ token, onLogout }: UseAdminSegmentsParams) {
     handleApprove,
     handleBlock,
     handleUnblock,
+    handleMerge,
+    handleSplit,
+    ensureAllSegmentsLoaded,
     handleToggleRatings,
     handleDeleteRating,
   };

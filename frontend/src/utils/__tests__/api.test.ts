@@ -6,8 +6,10 @@ import {
   fetchMySegmentReportStatus,
   fetchCurrentUser,
   fetchUserPreferences,
+  mergeSegment,
   reportSegmentBlocked,
   reportSegmentUnblocked,
+  splitSegment,
   stravaLoginCallback,
   updateUserPreferences,
   verifyAdminAccess,
@@ -159,6 +161,29 @@ describe("api utils", () => {
       "/segments/seg-1/ratings",
       expect.objectContaining({
         method: "DELETE",
+      })
+    );
+  });
+
+  it("mergeSegment calls expected endpoint with target segment payload", async () => {
+    (request as jest.Mock).mockResolvedValue({ status: "merged" });
+    await mergeSegment("seg-1", "seg-2", "token-1");
+    expect(request).toHaveBeenCalledWith(
+      "/admin/segments/seg-1/merge",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ target_segment_id: "seg-2" }),
+      })
+    );
+  });
+
+  it("splitSegment calls expected endpoint", async () => {
+    (request as jest.Mock).mockResolvedValue({ status: "split" });
+    await splitSegment("seg-1", "token-1");
+    expect(request).toHaveBeenCalledWith(
+      "/admin/segments/seg-1/split",
+      expect.objectContaining({
+        method: "POST",
       })
     );
   });

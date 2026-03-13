@@ -12,20 +12,24 @@ export function useHomeSegments() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const loadSegments = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await fetchSegments();
+      setSegments(data);
+      setError(null);
+    } catch (err) {
+      console.error("Failed to fetch segments:", err);
+      setError("Could not connect to the database. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     // Initial public segment load for the map/list landing view.
-    fetchSegments()
-      .then((data) => {
-        setSegments(data);
-        setLoading(false);
-        setError(null);
-      })
-      .catch((err) => {
-        console.error("Failed to fetch segments:", err);
-        setError("Could not connect to the database. Please try again later.");
-        setLoading(false);
-      });
-  }, []);
+    void loadSegments();
+  }, [loadSegments]);
 
   // Applies local blocked/unblocked status updates after a report action.
   const handleSegmentBlocked = useCallback((segmentId: string, report: { blocked: boolean }) => {
@@ -61,6 +65,7 @@ export function useHomeSegments() {
     handleSegmentBlocked,
     handleSegmentRated,
     loading,
+    reloadSegments: loadSegments,
     segments,
   };
 }

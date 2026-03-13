@@ -42,6 +42,7 @@ class SegmentSchema(BaseModel):
     created_at: str | None = None
     blocked: bool | None = False
     block_message: str | None = None
+    aliases: list[str] = Field(default_factory=list)
     ratings_count: int = 0
     average_ratings: SegmentAverageRatingSchema = Field(default_factory=SegmentAverageRatingSchema)
 
@@ -94,6 +95,12 @@ class SegmentPublicResponseSchema(SegmentSchema):
     id: str
 
 
+class SegmentSubmitResponseSchema(SegmentPublicResponseSchema):
+    status: Literal["created", "existing"]
+    duplicate_reason: Literal["already_in_database", "under_review", "similar_segment"] | None = None
+    rating_status: Literal["added", "updated"]
+
+
 class SegmentResponseSchema(SegmentPublicResponseSchema):
     reported_by_actor_ids: list[str] = Field(default_factory=list)
     reported_by_users: list[UserSummarySchema] = Field(default_factory=list)
@@ -110,6 +117,25 @@ class AdminDeleteSegmentRatingResponseSchema(BaseModel):
     status: Literal["deleted"]
     ratings_count: int
     average_ratings: SegmentAverageRatingSchema
+
+
+class AdminMergeSegmentSchema(BaseModel):
+    target_segment_id: str
+
+
+class AdminMergeSegmentResponseSchema(BaseModel):
+    status: Literal["merged"]
+    merged_from_segment_id: str
+    merged_into_segment_id: str
+    moved_ratings: int
+    aliases: list[str] = Field(default_factory=list)
+
+
+class AdminSplitSegmentResponseSchema(BaseModel):
+    status: Literal["split"]
+    source_segment_id: str
+    created_segments: list[SegmentPublicResponseSchema] = Field(default_factory=list)
+    skipped_aliases: list[str] = Field(default_factory=list)
 
 
 class StravaCallbackSchema(BaseModel):

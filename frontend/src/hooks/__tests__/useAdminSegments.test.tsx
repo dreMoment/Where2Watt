@@ -9,7 +9,9 @@ import {
   fetchAdminSegmentRatings,
   fetchAllSegments,
   fetchUnapprovedSegments,
+  mergeSegment,
   quickAddSegment,
+  splitSegment,
   unblockSegment,
 } from "@/utils/api";
 
@@ -25,6 +27,8 @@ jest.mock("@/utils/api", () => ({
   approveSegment: jest.fn(),
   blockSegment: jest.fn(),
   unblockSegment: jest.fn(),
+  mergeSegment: jest.fn(),
+  splitSegment: jest.fn(),
   quickAddSegment: jest.fn(),
 }));
 
@@ -54,6 +58,19 @@ describe("useAdminSegments", () => {
     (fetchUnapprovedSegments as jest.Mock).mockResolvedValue([sampleSegment]);
     (fetchAllSegments as jest.Mock).mockResolvedValue([sampleSegment]);
     (fetchAdminSegmentRatings as jest.Mock).mockResolvedValue([]);
+    (mergeSegment as jest.Mock).mockResolvedValue({
+      status: "merged",
+      merged_from_segment_id: "s1",
+      merged_into_segment_id: "s2",
+      moved_ratings: 1,
+      aliases: ["2"],
+    });
+    (splitSegment as jest.Mock).mockResolvedValue({
+      status: "split",
+      source_segment_id: "s1",
+      created_segments: [],
+      skipped_aliases: [],
+    });
   });
 
   afterEach(() => {
@@ -131,6 +148,22 @@ describe("useAdminSegments", () => {
       await result.current.handleUnblock("s1");
     });
     expect(unblockSegment).toHaveBeenCalledWith("s1", "token-1");
+  });
+
+  it("handles merge and split mutations", async () => {
+    confirmMock.mockResolvedValue(true);
+    const { result } = renderHook(() => useAdminSegments({ token: "token-1", onLogout: jest.fn() }));
+    await waitFor(() => expect(result.current.currentLoading).toBe(false));
+
+    await act(async () => {
+      await result.current.handleMerge("s1", "s2");
+    });
+    expect(mergeSegment).toHaveBeenCalledWith("s1", "s2", "token-1");
+
+    await act(async () => {
+      await result.current.handleSplit("s1", 2);
+    });
+    expect(splitSegment).toHaveBeenCalledWith("s1", "token-1");
   });
 
   it("loads and deletes ratings from moderation panel", async () => {

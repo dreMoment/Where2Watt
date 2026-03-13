@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pymongo.errors import DuplicateKeyError
 
 from database import get_db
@@ -12,6 +12,7 @@ from schemas import (
     SegmentPublicResponseSchema,
     SegmentRatingResponseSchema,
     SegmentReportSchema,
+    SegmentSubmitResponseSchema,
 )
 from services.segments import (
     get_segment_rating_stats,
@@ -26,9 +27,51 @@ from services.strava import fetch_segment_details, resolve_segment_id_from_strav
 router = APIRouter()
 
 
-@router.post("/api/segments", response_model=SegmentPublicResponseSchema, status_code=201)
+async def _upsert_actor_rating_for_segment(
+    db,
+    segment_obj_id,
+    actor_id: str,
+    submitted_ratings: dict,
+) -> str:
+    existing_rating = await db.segment_ratings.find_one(
+        {"segment_id": segment_obj_id, "rated_by_actor_id": actor_id},
+        {"_id": 1},
+    )
+    timestamp = now_iso()
+    if existing_rating:
+        await db.segment_ratings.update_one(
+            {"_id": existing_rating["_id"]},
+            {"$set": {"ratings": submitted_ratings, "rated_at": timestamp}},
+        )
+        return "updated"
+
+    await db.segment_ratings.insert_one(
+        {
+            "segment_id": segment_obj_id,
+            "rated_by_actor_id": actor_id,
+            "ratings": submitted_ratings,
+            "rated_at": timestamp,
+        }
+    )
+    return "added"
+
+
+def _existing_submission_reason(existing_segment: dict, segment_id: str) -> str:
+    if not bool(existing_segment.get("approved", False)):
+        return "under_review"
+    if str(existing_segment.get("strava_id", "")).strip() == segment_id:
+        return "already_in_database"
+    return "similar_segment"
+
+
+@router.post("/api/segments", response_model=SegmentSubmitResponseSchema)
 @limiter.limit("10/minute")
-async def create_segment(request: Request, segment: SegmentCreateSchema, identity: ActorIdentity = Depends(verify_active_user)):
+async def create_segment(
+    request: Request,
+    response: Response,
+    segment: SegmentCreateSchema,
+    identity: ActorIdentity = Depends(verify_active_user),
+):
     db = get_db()
     segment_dict = segment.model_dump()
     submitted_ratings = segment_dict.pop("ratings")
@@ -53,13 +96,23 @@ async def create_segment(request: Request, segment: SegmentCreateSchema, identit
         {
             "$or": [
                 {"strava_id": segment_id},
+                {"aliases": segment_id},
                 {"strava_url": {"$regex": f"segments/{segment_id}(?![0-9])"}},
             ]
         }
     )
     if existing:
-        raise HTTPException(status_code=400, detail="Segment already exists")
+        rating_status = await _upsert_actor_rating_for_segment(db, existing["_id"], identity.actor_id, submitted_ratings)
+        existing.update(await get_segment_rating_stats(db, existing["_id"]))
+        serialized = serialize_segment(existing)
+        return {
+            **serialized,
+            "status": "existing",
+            "duplicate_reason": _existing_submission_reason(existing, segment_id),
+            "rating_status": rating_status,
+        }
     segment_dict["strava_id"] = segment_id
+    segment_dict["aliases"] = []
 
     details = await fetch_segment_details(segment_id, db=db, actor_id=identity.actor_id)
     if not details:
@@ -71,15 +124,9 @@ async def create_segment(request: Request, segment: SegmentCreateSchema, identit
         if not segment_dict.get(key):
             segment_dict[key] = details.get(key)
 
+    response.status_code = 201
     result = await db.segments.insert_one(segment_dict)
-    await db.segment_ratings.insert_one(
-        {
-            "segment_id": result.inserted_id,
-            "rated_by_actor_id": identity.actor_id,
-            "ratings": submitted_ratings,
-            "rated_at": now_iso(),
-        }
-    )
+    rating_status = await _upsert_actor_rating_for_segment(db, result.inserted_id, identity.actor_id, submitted_ratings)
     created_segment = await db.segments.find_one({"_id": result.inserted_id})
     created_segment.update(await get_segment_rating_stats(db, result.inserted_id))
     await notify_new_segment_submission(
@@ -89,7 +136,13 @@ async def create_segment(request: Request, segment: SegmentCreateSchema, identit
         submitted_by_actor_id=identity.actor_id,
         created_at=created_segment.get("created_at"),
     )
-    return serialize_segment(created_segment)
+    serialized = serialize_segment(created_segment)
+    return {
+        **serialized,
+        "status": "created",
+        "duplicate_reason": None,
+        "rating_status": rating_status,
+    }
 
 
 @router.get("/api/segments", response_model=List[SegmentPublicResponseSchema])

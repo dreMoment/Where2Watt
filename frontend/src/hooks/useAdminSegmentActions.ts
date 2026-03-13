@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import type { Dispatch, FormEvent, SetStateAction } from "react";
-import { approveSegment, blockSegment, deleteSegment, quickAddSegment, unblockSegment } from "@/utils/api";
+import { approveSegment, blockSegment, deleteSegment, mergeSegment, quickAddSegment, splitSegment, unblockSegment } from "@/utils/api";
 import type { Segment } from "@/types";
 import { getErrorMessage, isAuthFailure } from "@/hooks/adminErrors";
 
@@ -184,12 +184,69 @@ export function useAdminSegmentActions({
     loadAllSegments();
   }, [activeTab, loadAllSegments, loadPendingSegments]);
 
+  const handleMerge = useCallback(
+    async (sourceSegmentId: string, targetSegmentId: string) => {
+      if (!sourceSegmentId || !targetSegmentId || sourceSegmentId === targetSegmentId) {
+        showToast("Please choose a different target segment", { type: "error" });
+        return;
+      }
+      try {
+        const result = await mergeSegment(sourceSegmentId, targetSegmentId, token);
+        showToast(`Segment merged. Moved ${result.moved_ratings} ratings.`, { type: "success" });
+        loadPendingSegments();
+        loadAllSegments();
+      } catch (err: unknown) {
+        const message = getErrorMessage(err, "Failed to merge segment");
+        showToast(message, { type: "error" });
+        if (isAuthFailure(message)) {
+          onLogout();
+        }
+      }
+    },
+    [loadAllSegments, loadPendingSegments, onLogout, showToast, token]
+  );
+
+  const handleSplit = useCallback(
+    async (segmentId: string, aliasCount: number) => {
+      const confirmed = await confirm({
+        title: "Split segment aliases?",
+        description: `This will create up to ${aliasCount} new segment entries from aliases.`,
+        confirmLabel: "Split",
+        cancelLabel: "Cancel",
+      });
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        const result = await splitSegment(segmentId, token);
+        const skippedCount = result.skipped_aliases.length;
+        const baseMessage = `Split complete. Created ${result.created_segments.length} segments.`;
+        showToast(
+          skippedCount > 0 ? `${baseMessage} Skipped ${skippedCount} aliases that already existed.` : baseMessage,
+          { type: "success" }
+        );
+        loadPendingSegments();
+        loadAllSegments();
+      } catch (err: unknown) {
+        const message = getErrorMessage(err, "Failed to split segment");
+        showToast(message, { type: "error" });
+        if (isAuthFailure(message)) {
+          onLogout();
+        }
+      }
+    },
+    [confirm, loadAllSegments, loadPendingSegments, onLogout, showToast, token]
+  );
+
   return {
     handleDelete,
     handleApprove,
     handleQuickAdd,
     handleBlock,
     handleUnblock,
+    handleMerge,
+    handleSplit,
     handleRefresh,
   };
 }

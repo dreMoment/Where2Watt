@@ -7,6 +7,7 @@ interface HomeOverlaysProps {
   isMobileViewport: boolean;
   hideInfoScreenNextTime: boolean;
   onCloseSubmission: () => void;
+  onExistingSegmentRated: () => Promise<void>;
   onHideInfoScreenNextTimeChange: (checked: boolean) => void;
   onContinueInfo: () => void;
 }
@@ -17,6 +18,7 @@ export default function HomeOverlays({
   isMobileViewport,
   hideInfoScreenNextTime,
   onCloseSubmission,
+  onExistingSegmentRated,
   onHideInfoScreenNextTimeChange,
   onContinueInfo,
 }: HomeOverlaysProps) {
@@ -24,7 +26,7 @@ export default function HomeOverlays({
     <>
       {showSubmissionContent && (
         <div className="absolute inset-0 z-[9999] flex items-center justify-center bg-neutral-900/40 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-          <SubmissionForm onClose={onCloseSubmission} />
+          <SubmissionForm onClose={onCloseSubmission} onExistingSegmentRated={onExistingSegmentRated} />
         </div>
       )}
 

@@ -40,8 +40,14 @@ export interface SubmissionData {
     ratings: SegmentRatingValues;
 }
 
-export async function submitSegment(data: SubmissionData, token: string): Promise<void> {
-    await request("/segments", {
+export interface SegmentSubmitResponse extends Segment {
+    status: "created" | "existing";
+    duplicate_reason: "already_in_database" | "under_review" | "similar_segment" | null;
+    rating_status: "added" | "updated";
+}
+
+export async function submitSegment(data: SubmissionData, token: string): Promise<SegmentSubmitResponse> {
+    return request<SegmentSubmitResponse>("/segments", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -144,6 +150,38 @@ export async function unblockSegment(id: string, token: string): Promise<void> {
         method: "PATCH",
         headers: withBearerAuth(token),
         errorMessage: "Failed to unblock segment",
+    });
+}
+
+export interface AdminMergeSegmentResponse {
+    status: "merged";
+    merged_from_segment_id: string;
+    merged_into_segment_id: string;
+    moved_ratings: number;
+    aliases: string[];
+}
+
+export async function mergeSegment(sourceSegmentId: string, targetSegmentId: string, token: string): Promise<AdminMergeSegmentResponse> {
+    return request<AdminMergeSegmentResponse>(`/admin/segments/${sourceSegmentId}/merge`, {
+        method: "POST",
+        headers: withBearerAuth(token, { "Content-Type": "application/json" }),
+        body: JSON.stringify({ target_segment_id: targetSegmentId }),
+        errorMessage: "Failed to merge segment",
+    });
+}
+
+export interface AdminSplitSegmentResponse {
+    status: "split";
+    source_segment_id: string;
+    created_segments: Segment[];
+    skipped_aliases: string[];
+}
+
+export async function splitSegment(id: string, token: string): Promise<AdminSplitSegmentResponse> {
+    return request<AdminSplitSegmentResponse>(`/admin/segments/${id}/split`, {
+        method: "POST",
+        headers: withBearerAuth(token),
+        errorMessage: "Failed to split segment",
     });
 }
 

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import AdminFilters from "@/components/AdminFilters";
 import AdminSummary from "@/components/AdminSummary";
 import SegmentsTable from "@/components/SegmentsTable";
 import AdminSegmentPreviewModal from "@/components/AdminSegmentPreviewModal";
+import AdminMergeModal from "@/components/AdminMergeModal";
 import { useAdminSegments } from "@/hooks/useAdminSegments";
 import type { Segment } from "@/types";
 
@@ -16,6 +17,8 @@ interface AdminDashboardProps {
 
 export default function AdminDashboard({ token, onLogout }: AdminDashboardProps) {
   const [previewSegment, setPreviewSegment] = useState<Segment | null>(null);
+  const [mergeSourceSegment, setMergeSourceSegment] = useState<Segment | null>(null);
+  const [isPreparingMerge, setIsPreparingMerge] = useState(false);
 
   const {
     activeTab,
@@ -51,9 +54,26 @@ export default function AdminDashboard({ token, onLogout }: AdminDashboardProps)
     handleApprove,
     handleBlock,
     handleUnblock,
+    handleMerge,
+    handleSplit,
+    ensureAllSegmentsLoaded,
     handleToggleRatings,
     handleDeleteRating,
   } = useAdminSegments({ token, onLogout });
+
+  const mergeTargetSegments = useMemo(() => {
+    if (!mergeSourceSegment?.id) {
+      return [];
+    }
+    return allSegments.filter((segment) => segment.id && segment.id !== mergeSourceSegment.id);
+  }, [allSegments, mergeSourceSegment]);
+
+  const handleOpenMerge = async (segment: Segment) => {
+    setIsPreparingMerge(true);
+    await ensureAllSegmentsLoaded();
+    setMergeSourceSegment(segment);
+    setIsPreparingMerge(false);
+  };
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -158,6 +178,8 @@ export default function AdminDashboard({ token, onLogout }: AdminDashboardProps)
             onApprove={handleApprove}
             onBlock={handleBlock}
             onUnblock={handleUnblock}
+            onMerge={handleOpenMerge}
+            onSplit={handleSplit}
             expandedRatingsSegmentId={expandedRatingsSegmentId}
             segmentRatingsById={segmentRatingsById}
             segmentRatingsLoadingById={segmentRatingsLoadingById}
@@ -169,6 +191,20 @@ export default function AdminDashboard({ token, onLogout }: AdminDashboardProps)
         </div>
       </main>
       <AdminSegmentPreviewModal segment={previewSegment} onClose={() => setPreviewSegment(null)} />
+      <AdminMergeModal
+        open={!!mergeSourceSegment}
+        sourceSegment={mergeSourceSegment}
+        targetSegments={mergeTargetSegments}
+        loadingTargets={isPreparingMerge}
+        onClose={() => setMergeSourceSegment(null)}
+        onConfirm={async (targetSegmentId) => {
+          if (!mergeSourceSegment?.id) {
+            return;
+          }
+          await handleMerge(mergeSourceSegment.id, targetSegmentId);
+          setMergeSourceSegment(null);
+        }}
+      />
     </div>
   );
 }

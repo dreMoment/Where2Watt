@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { X, Send, Loader2, LogIn, MapPin, Info } from "lucide-react";
-import { submitSegment, type SubmissionData } from "@/utils/api";
+import { submitSegment, type SegmentSubmitResponse, type SubmissionData } from "@/utils/api";
 import type { SegmentRatingValues } from "@/types";
 import { useAuth } from "@/components/AuthContext";
 import StravaConnectButton from "@/components/StravaConnectButton";
@@ -10,6 +10,7 @@ import { DEFAULT_RATING_INPUT, RATING_FIELDS, type NullableSegmentRatings } from
 
 interface Props {
     onClose: () => void;
+    onExistingSegmentRated?: () => Promise<void>;
 }
 
 const STRAVA_SEGMENT_OR_EFFORT_URL_PATTERN =
@@ -109,7 +110,7 @@ function RatingChoiceInput({ fieldKey, label, value, options, onChange }: Rating
     );
 }
 
-export default function SubmissionForm({ onClose }: Props) {
+export default function SubmissionForm({ onClose, onExistingSegmentRated }: Props) {
     const { isLoggedIn, login, token } = useAuth();
     const overallRatingField = RATING_FIELDS.find((field) => field.key === "overall_quality");
     const detailRatingFields = RATING_FIELDS.filter((field) => field.key !== "overall_quality");
@@ -124,7 +125,7 @@ export default function SubmissionForm({ onClose }: Props) {
     });
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
-    const [alreadyExists, setAlreadyExists] = useState(false);
+    const [existingSubmission, setExistingSubmission] = useState<SegmentSubmitResponse | null>(null);
     const [formError, setFormError] = useState<string | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -162,16 +163,25 @@ export default function SubmissionForm({ onClose }: Props) {
         setLoading(true);
 
         try {
-            await submitSegment(payload, token);
-            setSuccess(true);
-            setTimeout(() => {
-                onClose();
-            }, 2000);
+            const result = await submitSegment(payload, token);
+            if (result.status === "existing") {
+                if (onExistingSegmentRated) {
+                    try {
+                        await onExistingSegmentRated();
+                    } catch (reloadError) {
+                        console.error("Failed to refresh segment list after duplicate submission:", reloadError);
+                    }
+                }
+                setExistingSubmission(result);
+            } else {
+                setSuccess(true);
+                setTimeout(() => {
+                    onClose();
+                }, 2000);
+            }
         } catch (err) {
             console.error(err);
-            if (err instanceof Error && err.message === "Segment already exists") {
-                setAlreadyExists(true);
-            } else if (err instanceof Error) {
+            if (err instanceof Error) {
                 setFormError(err.message);
             } else {
                 setFormError("Error submitting segment. Check backend is running.");
@@ -181,7 +191,12 @@ export default function SubmissionForm({ onClose }: Props) {
         }
     };
 
-    if (alreadyExists) {
+    if (existingSubmission) {
+        const reasonMessage = existingSubmission.duplicate_reason === "under_review"
+            ? "This segment is already in our database and is still under review."
+            : existingSubmission.duplicate_reason === "similar_segment"
+                ? "A very similar segment is already present in our database."
+                : "This segment is already in our database.";
         return (
             <div className="contribution-popup relative rounded-2xl border border-blue-100/50 bg-white/90 p-5 text-center shadow-2xl backdrop-blur-xl transition-all animate-in fade-in zoom-in duration-300 sm:rounded-3xl sm:p-8">
                 <button
@@ -195,7 +210,7 @@ export default function SubmissionForm({ onClose }: Props) {
                 </div>
                 <h2 className="text-3xl font-black text-neutral-900 mb-3 tracking-tight">Already Here!</h2>
                 <p className="text-neutral-500 font-medium leading-relaxed">
-                    This segment is already in our database - it may be live on the map or currently under review and appearing soon.
+                    {reasonMessage} Your rating has still been added.
                 </p>
                 <button
                     onClick={onClose}

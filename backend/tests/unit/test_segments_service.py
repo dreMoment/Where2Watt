@@ -2,7 +2,7 @@ import pytest
 from bson import ObjectId
 from fastapi import HTTPException
 
-from services.segments import extract_segment_effort_id, extract_strava_id, parse_object_id, serialize_segment
+from services.segments import extract_segment_effort_id, extract_strava_id, normalize_aliases, parse_object_id, serialize_segment
 
 
 @pytest.mark.unit
@@ -88,3 +88,23 @@ def test_serialize_segment_uses_existing_average_ratings():
 
     assert result["average_ratings"]["overall_quality"] == 4.5
     assert result["average_ratings"]["traffic_level"] == 2.5
+
+
+@pytest.mark.unit
+def test_serialize_segment_normalizes_aliases_and_removes_canonical_strava_id():
+    obj_id = ObjectId()
+    segment = {
+        "_id": obj_id,
+        "strava_id": "123",
+        "aliases": ["123", "456", "456", "789", ""],
+    }
+
+    result = serialize_segment(segment)
+
+    assert result["aliases"] == ["456", "789"]
+
+
+@pytest.mark.unit
+def test_normalize_aliases_accepts_numeric_values_and_dedupes():
+    aliases = normalize_aliases([123, "123", "456", None, " ", 789])
+    assert aliases == ["123", "456", "789"]

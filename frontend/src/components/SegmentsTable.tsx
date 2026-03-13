@@ -69,6 +69,8 @@ interface SegmentsTableProps {
   onApprove: (id: string) => void;
   onBlock: (id: string) => void;
   onUnblock: (id: string) => void;
+  onMerge: (segment: Segment) => void;
+  onSplit: (id: string, aliasCount: number) => void;
   onToggleRatings: (segmentId: string) => void;
   onDeleteRating: (segmentId: string, ratingId: string) => void;
   onPreview: (segment: Segment) => void;
@@ -88,6 +90,8 @@ export default function SegmentsTable({
   onApprove,
   onBlock,
   onUnblock,
+  onMerge,
+  onSplit,
   onToggleRatings,
   onDeleteRating,
   onPreview,
@@ -167,6 +171,7 @@ export default function SegmentsTable({
                   : [];
             const segmentId = segment.id;
             const ratingsCount = segment.ratings_count ?? 0;
+            const aliasCount = segment.aliases?.length ?? 0;
             const isRatingsExpanded = !!segmentId && expandedRatingsSegmentId === segmentId;
             const ratings = segmentId ? segmentRatingsById[segmentId] || [] : [];
             const ratingsLoading = segmentId ? !!segmentRatingsLoadingById[segmentId] : false;
@@ -179,6 +184,7 @@ export default function SegmentsTable({
                     <div className="font-medium text-white">{segment.name || "Unnamed Segment"}</div>
                     <div className="text-xs text-gray-500 mt-1 flex flex-col gap-0.5">
                       <span>ID: {segment.id}</span>
+                      {aliasCount > 0 && <span>Aliases: {aliasCount}</span>}
                     </div>
                   </td>
                   <td className="p-5">
@@ -212,6 +218,12 @@ export default function SegmentsTable({
                             </div>
                           )}
                         </>
+                      )}
+                      {aliasCount > 0 && (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-300 text-xs font-semibold border border-indigo-500/20">
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-300"></span>
+                          {aliasCount} alias{aliasCount === 1 ? "" : "es"}
+                        </span>
                       )}
                     </div>
                   </td>
@@ -314,6 +326,24 @@ export default function SegmentsTable({
                         >
                           <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                           Block
+                        </button>
+                      )}
+                      {segment.id && (
+                        <button
+                          onClick={() => onMerge(segment)}
+                          className="inline-flex items-center px-4 py-2 bg-violet-500/10 text-violet-300 hover:bg-violet-500 hover:text-white rounded-lg text-sm font-semibold transition-all shadow-sm focus:opacity-100"
+                        >
+                          <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h8m-8 10h8M6 7l-2 2 2 2m12 6l2-2-2-2" /></svg>
+                          Merge
+                        </button>
+                      )}
+                      {segment.id && aliasCount > 0 && (
+                        <button
+                          onClick={() => onSplit(segment.id, aliasCount)}
+                          className="inline-flex items-center px-4 py-2 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500 hover:text-white rounded-lg text-sm font-semibold transition-all shadow-sm focus:opacity-100"
+                        >
+                          <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 6l-4 6 4 6m8-12l4 6-4 6M13 6l-2 12" /></svg>
+                          Split
                         </button>
                       )}
                       <button

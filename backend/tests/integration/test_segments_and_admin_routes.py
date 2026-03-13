@@ -71,6 +71,8 @@ def test_create_segment_enriches_with_strava_details(monkeypatch, app_client):
             insert_one=AsyncMock(return_value=SimpleNamespace(inserted_id=created_id)),
         ),
         segment_ratings=SimpleNamespace(
+            find_one=AsyncMock(return_value=None),
+            update_one=AsyncMock(),
             insert_one=AsyncMock(),
             aggregate=Mock(
                 return_value=FindCursor(
@@ -119,6 +121,9 @@ def test_create_segment_enriches_with_strava_details(monkeypatch, app_client):
     assert "submitted_by_user" not in body
     assert "reported_by_users" not in body
     assert "block_reports" not in body
+    assert body["status"] == "created"
+    assert body["rating_status"] == "added"
+    assert body["duplicate_reason"] is None
     db.segments.insert_one.assert_awaited_once()
     inserted_doc = db.segments.insert_one.await_args.args[0]
     assert inserted_doc["strava_id"] == "123"
@@ -194,7 +199,39 @@ def test_list_segments_hides_actor_ids_for_public_response(monkeypatch, app_clie
 def test_create_segment_rejects_duplicate(monkeypatch, app_client):
     import routers.segments as segments_router
 
-    db = SimpleNamespace(segments=SimpleNamespace(find_one=AsyncMock(return_value={"_id": ObjectId()})))
+    existing_segment_id = ObjectId()
+    actor_id = actor_id_from_strava_id(12345)
+    db = SimpleNamespace(
+        segments=SimpleNamespace(
+            find_one=AsyncMock(
+                return_value={
+                    "_id": existing_segment_id,
+                    "strava_id": "123",
+                    "strava_url": "https://www.strava.com/segments/123",
+                    "approved": False,
+                }
+            )
+        ),
+        segment_ratings=SimpleNamespace(
+            find_one=AsyncMock(return_value=None),
+            update_one=AsyncMock(),
+            insert_one=AsyncMock(),
+            aggregate=Mock(
+                return_value=FindCursor(
+                    [
+                        {
+                            "ratings_count": 1,
+                            "overall_quality_total": DEFAULT_RATINGS["overall_quality"],
+                            "traffic_level_total": DEFAULT_RATINGS["traffic_level"],
+                            "road_surface_total": DEFAULT_RATINGS["road_surface"],
+                            "gradient_profile_total": DEFAULT_RATINGS["gradient_profile"],
+                            "sketchy_left_turns_total": DEFAULT_RATINGS["sketchy_left_turns"],
+                        }
+                    ]
+                )
+            ),
+        ),
+    )
     monkeypatch.setattr(segments_router, "get_db", lambda: db)
     monkeypatch.setattr(segments_router, "fetch_segment_details", AsyncMock(return_value=None))
     monkeypatch.setattr(segments_router, "resolve_segment_id_from_strava_url", AsyncMock(return_value="123"))
@@ -205,8 +242,21 @@ def test_create_segment_rejects_duplicate(monkeypatch, app_client):
         headers=user_auth_headers(),
     )
 
-    assert response.status_code == 400
-    assert response.json()["detail"] == "Segment already exists"
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "existing"
+    assert payload["duplicate_reason"] == "under_review"
+    assert payload["rating_status"] == "added"
+    duplicate_query = db.segments.find_one.await_args.args[0]
+    assert {"aliases": "123"} in duplicate_query["$or"]
+    db.segment_ratings.insert_one.assert_awaited_once_with(
+        {
+            "segment_id": existing_segment_id,
+            "rated_by_actor_id": actor_id,
+            "ratings": DEFAULT_RATINGS,
+            "rated_at": ANY,
+        }
+    )
 
 
 @pytest.mark.integration
@@ -245,6 +295,8 @@ def test_create_segment_resolves_activity_segment_effort_url(monkeypatch, app_cl
             insert_one=AsyncMock(return_value=SimpleNamespace(inserted_id=created_id)),
         ),
         segment_ratings=SimpleNamespace(
+            find_one=AsyncMock(return_value=None),
+            update_one=AsyncMock(),
             insert_one=AsyncMock(),
             aggregate=Mock(
                 return_value=FindCursor(
@@ -644,6 +696,7 @@ def test_admin_quickadd_invalid_url_existing_and_success(monkeypatch, app_client
     import routers.admin as admin_router
 
     created_id = ObjectId()
+    admin_actor_id = actor_id_from_strava_id(987654)
     db = SimpleNamespace(
         segments=SimpleNamespace(
             find_one=AsyncMock(
@@ -657,15 +710,17 @@ def test_admin_quickadd_invalid_url_existing_and_success(monkeypatch, app_client
         )
     )
     monkeypatch.setattr(admin_router, "get_db", lambda: db)
+    resolve_mock = AsyncMock(side_effect=[None, "111", "222"])
     monkeypatch.setattr(
         admin_router,
         "resolve_segment_id_from_strava_url",
-        AsyncMock(side_effect=[None, "111", "222"]),
+        resolve_mock,
     )
+    fetch_mock = AsyncMock(return_value={"name": "Admin Segment", "polyline": "poly", "distance_km": 2.2, "gradient_pct": 5.1})
     monkeypatch.setattr(
         admin_router,
         "fetch_segment_details",
-        AsyncMock(return_value={"name": "Admin Segment", "polyline": "poly", "distance_km": 2.2, "gradient_pct": 5.1}),
+        fetch_mock,
     )
 
     invalid = app_client.post(
@@ -694,6 +749,11 @@ def test_admin_quickadd_invalid_url_existing_and_success(monkeypatch, app_client
     assert db.segments.insert_one.await_count == 1
     inserted_doc = db.segments.insert_one.await_args.args[0]
     assert "ratings_count" not in inserted_doc
+    assert resolve_mock.await_count == 3
+    assert resolve_mock.await_args_list[0].kwargs == {"db": db, "actor_id": admin_actor_id}
+    assert resolve_mock.await_args_list[1].kwargs == {"db": db, "actor_id": admin_actor_id}
+    assert resolve_mock.await_args_list[2].kwargs == {"db": db, "actor_id": admin_actor_id}
+    fetch_mock.assert_awaited_once_with("222", db=db, actor_id=admin_actor_id)
 
 
 @pytest.mark.integration
@@ -819,3 +879,190 @@ def test_admin_can_list_and_delete_segment_ratings(monkeypatch, app_client):
         "sketchy_left_turns": 1.0,
     }
     db.segment_ratings.delete_one.assert_awaited_once_with({"_id": rating_id, "segment_id": segment_id})
+
+
+@pytest.mark.integration
+def test_admin_merge_segment_moves_ratings_and_carries_aliases(monkeypatch, app_client):
+    import routers.admin as admin_router
+
+    source_segment_id = ObjectId()
+    target_segment_id = ObjectId()
+    source_rating_1 = ObjectId()
+    source_rating_2 = ObjectId()
+
+    db = SimpleNamespace(
+        segments=SimpleNamespace(
+            find_one=AsyncMock(
+                side_effect=[
+                    {"_id": source_segment_id, "strava_id": "111", "aliases": ["444", "555"]},
+                    {"_id": target_segment_id, "strava_id": "222", "aliases": ["333", "444"]},
+                ]
+            ),
+            update_one=AsyncMock(return_value=SimpleNamespace(matched_count=1)),
+            delete_one=AsyncMock(return_value=SimpleNamespace(deleted_count=1)),
+        ),
+        segment_ratings=SimpleNamespace(
+            find=Mock(
+                side_effect=[
+                    FindCursor(
+                        [
+                            {"_id": source_rating_1, "segment_id": source_segment_id, "rated_by_actor_id": "actor-1"},
+                            {"_id": source_rating_2, "segment_id": source_segment_id, "rated_by_actor_id": "actor-2"},
+                        ]
+                    ),
+                    FindCursor([]),
+                ]
+            ),
+            delete_one=AsyncMock(),
+            update_one=AsyncMock(return_value=SimpleNamespace(modified_count=1)),
+        ),
+        segment_block_reports=SimpleNamespace(delete_many=AsyncMock()),
+    )
+    monkeypatch.setattr(admin_router, "get_db", lambda: db)
+
+    response = app_client.post(
+        f"/api/admin/segments/{source_segment_id}/merge",
+        json={"target_segment_id": str(target_segment_id)},
+        headers=admin_auth_headers(),
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "merged",
+        "merged_from_segment_id": str(source_segment_id),
+        "merged_into_segment_id": str(target_segment_id),
+        "moved_ratings": 2,
+        "aliases": ["333", "444", "111", "555"],
+    }
+    db.segment_ratings.delete_one.assert_not_awaited()
+    db.segment_ratings.update_one.assert_any_await(
+        {"_id": source_rating_1, "segment_id": source_segment_id},
+        {"$set": {"segment_id": target_segment_id}},
+    )
+    db.segment_ratings.update_one.assert_any_await(
+        {"_id": source_rating_2, "segment_id": source_segment_id},
+        {"$set": {"segment_id": target_segment_id}},
+    )
+    db.segments.update_one.assert_awaited_once_with(
+        {"_id": target_segment_id},
+        {"$set": {"aliases": ["333", "444", "111", "555"]}},
+    )
+    db.segments.delete_one.assert_awaited_once_with({"_id": source_segment_id})
+    db.segment_block_reports.delete_many.assert_awaited_once_with({"segment_id": source_segment_id})
+
+
+@pytest.mark.integration
+def test_admin_merge_segment_keeps_target_rating_when_actor_exists_on_both_segments(monkeypatch, app_client):
+    import routers.admin as admin_router
+
+    source_segment_id = ObjectId()
+    target_segment_id = ObjectId()
+    source_rating_1 = ObjectId()
+    source_rating_2 = ObjectId()
+
+    db = SimpleNamespace(
+        segments=SimpleNamespace(
+            find_one=AsyncMock(
+                side_effect=[
+                    {"_id": source_segment_id, "strava_id": "111", "aliases": []},
+                    {"_id": target_segment_id, "strava_id": "222", "aliases": []},
+                ]
+            ),
+            update_one=AsyncMock(return_value=SimpleNamespace(matched_count=1)),
+            delete_one=AsyncMock(return_value=SimpleNamespace(deleted_count=1)),
+        ),
+        segment_ratings=SimpleNamespace(
+            find=Mock(
+                side_effect=[
+                    FindCursor(
+                        [
+                            {"_id": source_rating_1, "segment_id": source_segment_id, "rated_by_actor_id": "actor-1"},
+                            {"_id": source_rating_2, "segment_id": source_segment_id, "rated_by_actor_id": "actor-2"},
+                        ]
+                    ),
+                    FindCursor([{"rated_by_actor_id": "actor-1"}]),
+                ]
+            ),
+            delete_one=AsyncMock(return_value=SimpleNamespace(deleted_count=1)),
+            update_one=AsyncMock(return_value=SimpleNamespace(modified_count=1)),
+        ),
+        segment_block_reports=SimpleNamespace(delete_many=AsyncMock()),
+    )
+    monkeypatch.setattr(admin_router, "get_db", lambda: db)
+
+    response = app_client.post(
+        f"/api/admin/segments/{source_segment_id}/merge",
+        json={"target_segment_id": str(target_segment_id)},
+        headers=admin_auth_headers(),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["moved_ratings"] == 1
+    db.segment_ratings.delete_one.assert_awaited_once_with({"_id": source_rating_1, "segment_id": source_segment_id})
+    db.segment_ratings.update_one.assert_awaited_once_with(
+        {"_id": source_rating_2, "segment_id": source_segment_id},
+        {"$set": {"segment_id": target_segment_id}},
+    )
+
+
+@pytest.mark.integration
+def test_admin_split_segment_creates_alias_segments_and_clears_aliases(monkeypatch, app_client):
+    import routers.admin as admin_router
+
+    source_segment_id = ObjectId()
+    created_segment_id = ObjectId()
+    admin_actor_id = actor_id_from_strava_id(987654)
+
+    db = SimpleNamespace(
+        segments=SimpleNamespace(
+            find_one=AsyncMock(
+                side_effect=[
+                    {"_id": source_segment_id, "strava_id": "999", "aliases": ["111", "222"], "approved": True, "blocked": False},
+                    {
+                        "_id": created_segment_id,
+                        "strava_id": "111",
+                        "strava_url": "https://www.strava.com/segments/111",
+                        "name": "Alias Segment",
+                        "polyline": "poly-111",
+                        "distance_km": 1.8,
+                        "gradient_pct": 3.2,
+                        "approved": True,
+                        "blocked": False,
+                        "aliases": [],
+                        "created_at": "2026-03-12T12:00:00+00:00",
+                    },
+                ]
+            ),
+            find=Mock(return_value=FindCursor([{"_id": ObjectId(), "strava_id": "222"}])),
+            insert_one=AsyncMock(return_value=SimpleNamespace(inserted_id=created_segment_id)),
+            update_one=AsyncMock(return_value=SimpleNamespace(matched_count=1)),
+        )
+    )
+    monkeypatch.setattr(admin_router, "get_db", lambda: db)
+    fetch_mock = AsyncMock(return_value={"name": "Alias Segment", "polyline": "poly-111", "distance_km": 1.8, "gradient_pct": 3.2})
+    monkeypatch.setattr(
+        admin_router,
+        "fetch_segment_details",
+        fetch_mock,
+    )
+
+    response = app_client.post(
+        f"/api/admin/segments/{source_segment_id}/split",
+        headers=admin_auth_headers(),
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "split"
+    assert payload["source_segment_id"] == str(source_segment_id)
+    assert payload["skipped_aliases"] == ["222"]
+    assert len(payload["created_segments"]) == 1
+    assert payload["created_segments"][0]["id"] == str(created_segment_id)
+    assert payload["created_segments"][0]["strava_id"] == "111"
+    assert payload["created_segments"][0]["ratings_count"] == 0
+    inserted_doc = db.segments.insert_one.await_args.args[0]
+    assert inserted_doc["strava_id"] == "111"
+    assert inserted_doc["strava_url"] == "https://www.strava.com/segments/111"
+    assert inserted_doc["aliases"] == []
+    fetch_mock.assert_awaited_once_with("111", db=db, actor_id=admin_actor_id)
+    db.segments.update_one.assert_awaited_once_with({"_id": source_segment_id}, {"$set": {"aliases": []}})

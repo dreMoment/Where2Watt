@@ -78,6 +78,28 @@ def ensure_segment_rating_stats(segment: dict) -> None:
     segment.pop("rating_totals", None)
 
 
+def normalize_aliases(raw_aliases: object, *, exclude: set[str] | None = None) -> list[str]:
+    normalized: list[str] = []
+    seen: set[str] = set()
+    excluded = exclude or set()
+
+    if not isinstance(raw_aliases, list):
+        return normalized
+
+    for alias in raw_aliases:
+        if isinstance(alias, str):
+            candidate = alias.strip()
+        elif isinstance(alias, (int, float)):
+            candidate = str(int(alias))
+        else:
+            continue
+        if not candidate or candidate in excluded or candidate in seen:
+            continue
+        seen.add(candidate)
+        normalized.append(candidate)
+    return normalized
+
+
 def _stats_from_aggregated_payload(payload: dict | None) -> dict:
     if not payload:
         return empty_segment_rating_stats()
@@ -135,6 +157,9 @@ async def enrich_segments_with_rating_stats(db, segments: list[dict]) -> None:
 
 def serialize_segment(segment: dict) -> dict:
     ensure_segment_rating_stats(segment)
+    segment_strava_id = segment.get("strava_id")
+    excluded = {segment_strava_id.strip()} if isinstance(segment_strava_id, str) and segment_strava_id.strip() else set()
+    segment["aliases"] = normalize_aliases(segment.get("aliases"), exclude=excluded)
     segment["id"] = str(segment["_id"])
     del segment["_id"]
     return segment
