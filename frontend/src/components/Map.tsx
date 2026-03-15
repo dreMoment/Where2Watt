@@ -26,6 +26,7 @@ interface MapProps {
   onSegmentBlocked?: (segmentId: string, report: { blocked: boolean }) => void;
   onSegmentRated?: (segmentId: string, rating: { ratings_count: number; average_ratings: SegmentAverageRatings }) => void;
   focusSegmentId?: string;
+  focusSegmentNonce?: number;
   autoSelectFocusedSegment?: boolean;
   persistViewport?: boolean;
 }
@@ -108,6 +109,7 @@ export default function InteractiveMap({
   onSegmentBlocked,
   onSegmentRated,
   focusSegmentId,
+  focusSegmentNonce,
   autoSelectFocusedSegment = false,
   persistViewport = true,
 }: MapProps) {
@@ -128,7 +130,7 @@ export default function InteractiveMap({
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [initialViewport] = useState<MapViewport>(() => getInitialViewport());
   const mapRef = useRef<MapRef | null>(null);
-  const lastFocusedSegmentIdRef = useRef<string | null>(null);
+  const lastFocusRequestRef = useRef<string | null>(null);
 
   const filteredSegments = segments;
 
@@ -204,7 +206,11 @@ export default function InteractiveMap({
 
   useEffect(() => {
     if (!isMapLoaded || !mapRef.current) return;
-    if (!focusSegmentId || focusSegmentId === lastFocusedSegmentIdRef.current) return;
+    if (!focusSegmentId) return;
+
+    const focusRequestKey = `${focusSegmentId}:${focusSegmentNonce ?? 0}`;
+    if (focusRequestKey === lastFocusRequestRef.current) return;
+
     const focusSegment = filteredSegments.find((segment) => segment.id === focusSegmentId);
     if (!focusSegment?.polyline) return;
 
@@ -225,19 +231,19 @@ export default function InteractiveMap({
     }
 
     if (minLng === maxLng && minLat === maxLat) {
-      mapRef.current.flyTo({ center: [minLng, minLat], zoom: 16, duration: 0 });
+      mapRef.current.flyTo({ center: [minLng, minLat], zoom: 8, duration: 1200, essential: true });
     } else {
       mapRef.current.fitBounds(
         [
           [minLng, minLat],
           [maxLng, maxLat],
         ],
-        { padding: 80, duration: 0 }
+        { padding: 260, maxZoom: 15, duration: 1200, essential: true }
       );
     }
 
-    lastFocusedSegmentIdRef.current = focusSegmentId;
-  }, [focusSegmentId, filteredSegments, isMapLoaded]);
+    lastFocusRequestRef.current = focusRequestKey;
+  }, [focusSegmentId, focusSegmentNonce, filteredSegments, isMapLoaded]);
 
   return (
     <div className="h-full w-full shadow-lg overflow-hidden relative">

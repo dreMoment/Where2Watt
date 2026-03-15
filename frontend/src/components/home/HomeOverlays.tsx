@@ -7,7 +7,7 @@ interface HomeOverlaysProps {
   isMobileViewport: boolean;
   hideInfoScreenNextTime: boolean;
   onCloseSubmission: () => void;
-  onExistingSegmentRated: () => Promise<void>;
+  onExistingSegmentRated: (segmentId?: string) => Promise<void>;
   onHideInfoScreenNextTimeChange: (checked: boolean) => void;
   onContinueInfo: () => void;
 }

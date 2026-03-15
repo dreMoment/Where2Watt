@@ -104,6 +104,7 @@ describe('SubmissionForm', () => {
 
     it('shows existing-segment message and confirms rating was added', async () => {
         (submitSegment as jest.Mock).mockResolvedValueOnce({
+            id: "segment-123",
             status: 'existing',
             duplicate_reason: 'under_review',
             rating_status: 'added',
@@ -125,5 +126,6 @@ describe('SubmissionForm', () => {
             expect(screen.getByText(/rating has still been added/i)).toBeInTheDocument();
         });
         expect(mockOnExistingSegmentRated).toHaveBeenCalledTimes(1);
+        expect(mockOnExistingSegmentRated).toHaveBeenCalledWith("segment-123");
     });
 });

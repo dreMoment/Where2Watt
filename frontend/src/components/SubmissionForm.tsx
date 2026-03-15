@@ -10,7 +10,7 @@ import { DEFAULT_RATING_INPUT, RATING_FIELDS, type NullableSegmentRatings } from
 
 interface Props {
     onClose: () => void;
-    onExistingSegmentRated?: () => Promise<void>;
+    onExistingSegmentRated?: (segmentId?: string) => Promise<void>;
 }
 
 const STRAVA_SEGMENT_OR_EFFORT_URL_PATTERN =
@@ -167,7 +167,7 @@ export default function SubmissionForm({ onClose, onExistingSegmentRated }: Prop
             if (result.status === "existing") {
                 if (onExistingSegmentRated) {
                     try {
-                        await onExistingSegmentRated();
+                        await onExistingSegmentRated(result.id);
                     } catch (reloadError) {
                         console.error("Failed to refresh segment list after duplicate submission:", reloadError);
                     }

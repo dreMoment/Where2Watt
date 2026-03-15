@@ -47,6 +47,8 @@ export default function Home() {
 
   const { error, handleSegmentBlocked, handleSegmentRated, loading, reloadSegments, segments } = useHomeSegments();
   const [showSubmissionContent, setShowSubmissionContent] = useState(false);
+  const [focusSegmentId, setFocusSegmentId] = useState<string | null>(null);
+  const [focusSegmentNonce, setFocusSegmentNonce] = useState(0);
 
   // Filter state
   const [isFiltered, setIsFiltered] = useState(false);
@@ -98,6 +100,17 @@ export default function Home() {
     }
   }, [confirm, disconnect, showToast]);
 
+  const handleExistingSegmentRated = useCallback(
+    async (segmentId?: string) => {
+      await reloadSegments();
+      if (segmentId) {
+        setFocusSegmentId(segmentId);
+        setFocusSegmentNonce((previous) => previous + 1);
+      }
+    },
+    [reloadSegments]
+  );
+
   return (
     <HomeShell
       sidebarOpen={sidebarOpen}
@@ -119,6 +132,8 @@ export default function Home() {
           filterTime={filterTimeStr}
           onSegmentBlocked={handleSegmentBlocked}
           onSegmentRated={handleSegmentRated}
+          focusSegmentId={focusSegmentId}
+          focusSegmentNonce={focusSegmentNonce}
         />
 
         <HomeOverlays
@@ -127,7 +142,7 @@ export default function Home() {
           isMobileViewport={isMobileViewport}
           hideInfoScreenNextTime={hideInfoScreenNextTime}
           onCloseSubmission={() => setShowSubmissionContent(false)}
-          onExistingSegmentRated={reloadSegments}
+          onExistingSegmentRated={handleExistingSegmentRated}
           onHideInfoScreenNextTimeChange={setHideInfoScreenNextTime}
           onContinueInfo={closeInfoScreen}
         />

@@ -30,6 +30,8 @@ interface HomeMapPanelProps {
     segmentId: string,
     rating: { ratings_count: number; average_ratings: SegmentAverageRatings }
   ) => void;
+  focusSegmentId?: string | null;
+  focusSegmentNonce?: number;
 }
 
 export default function HomeMapPanel({
@@ -45,6 +47,8 @@ export default function HomeMapPanel({
   filterTime,
   onSegmentBlocked,
   onSegmentRated,
+  focusSegmentId,
+  focusSegmentNonce,
 }: HomeMapPanelProps) {
   return (
     <>
@@ -74,6 +78,8 @@ export default function HomeMapPanel({
           filterTime={filterTime}
           onSegmentBlocked={onSegmentBlocked}
           onSegmentRated={onSegmentRated}
+          focusSegmentId={focusSegmentId ?? undefined}
+          focusSegmentNonce={focusSegmentNonce}
         />
       </div>
     </>
