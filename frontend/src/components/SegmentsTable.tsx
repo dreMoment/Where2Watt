@@ -181,9 +181,16 @@ export default function SegmentsTable({
               <Fragment key={segment.id || segment.strava_id || segment.name}>
                 <tr className="hover:bg-gray-800/50 transition-colors group">
                   <td className="p-5 pl-6">
-                    <div className="font-medium text-white">{segment.name || "Unnamed Segment"}</div>
+                    <button
+                      type="button"
+                      onClick={() => onPreview(segment)}
+                      className="font-medium text-white text-left hover:text-blue-200 hover:underline transition-colors"
+                      title="Preview segment"
+                    >
+                      {segment.name || "Unnamed Segment"}
+                    </button>
                     <div className="text-xs text-gray-500 mt-1 flex flex-col gap-0.5">
-                      <span>ID: {segment.id}</span>
+                      <span>ID: {segment.id || "-"}</span>
                       {aliasCount > 0 && <span>Aliases: {aliasCount}</span>}
                     </div>
                   </td>
@@ -303,15 +310,7 @@ export default function SegmentsTable({
                   </td>
                   <td className="p-5 pr-6 text-right">
                     <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {activeTab === "pending" ? (
-                        <button
-                          onClick={() => onPreview(segment)}
-                          className="inline-flex items-center px-4 py-2 bg-blue-500/10 text-blue-300 hover:bg-blue-500 hover:text-white rounded-lg text-sm font-semibold transition-all shadow-sm focus:opacity-100"
-                        >
-                          <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14m-10 5h8a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                          Preview
-                        </button>
-                      ) : segment.blocked ? (
+                      {segment.blocked ? (
                         <button
                           onClick={() => segment.id && onUnblock(segment.id)}
                           className="inline-flex items-center px-4 py-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-lg text-sm font-semibold transition-all shadow-sm focus:opacity-100"
