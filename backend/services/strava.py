@@ -3,10 +3,14 @@ from datetime import datetime, timezone
 
 import httpx
 
-from config import STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN
+from config import STRAVA_API_BASE_URL, STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN
 from services.segments import extract_segment_effort_id, extract_strava_id
 
 logger = logging.getLogger(__name__)
+
+
+def _response_body(response) -> str:
+    return str(getattr(response, "text", ""))[:500]
 
 
 def _is_unexpired(expires_at: object) -> bool:
@@ -15,7 +19,7 @@ def _is_unexpired(expires_at: object) -> bool:
     return int(expires_at) > int(datetime.now(timezone.utc).timestamp()) + 30
 
 
-async def _refresh_access_token(refresh_token: str) -> str | None:
+async def _refresh_token_data(refresh_token: str) -> dict | None:
     if not all([STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, refresh_token]):
         return None
 
@@ -30,8 +34,10 @@ async def _refresh_access_token(refresh_token: str) -> str | None:
             },
         )
         if response.status_code != 200:
+            logger.warning("Failed to refresh Strava token: status=%s body=%s", response.status_code, _response_body(response))
             return None
-        return response.json().get("access_token")
+        token_data = response.json()
+        return token_data if isinstance(token_data.get("access_token"), str) else None
 
 
 async def get_strava_access_token(db=None, actor_id: str | None = None):
@@ -44,9 +50,17 @@ async def get_strava_access_token(db=None, actor_id: str | None = None):
 
             refresh_token = auth_doc.get("refresh_token")
             if isinstance(refresh_token, str) and refresh_token:
-                refreshed = await _refresh_access_token(refresh_token)
-                if refreshed:
-                    return refreshed
+                token_data = await _refresh_token_data(refresh_token)
+                if token_data:
+                    update = {
+                        "access_token": token_data.get("access_token"),
+                        "expires_at": token_data.get("expires_at"),
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                    }
+                    if token_data.get("refresh_token"):
+                        update["refresh_token"] = token_data.get("refresh_token")
+                    await db.strava_auth.update_one({"actor_id": actor_id}, {"$set": update})
+                    return token_data.get("access_token")
 
     if not all([STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN]):
         logger.warning("Missing Strava credentials")
@@ -64,7 +78,7 @@ async def get_strava_access_token(db=None, actor_id: str | None = None):
         )
         if response.status_code == 200:
             return response.json().get("access_token")
-        logger.warning("Failed to get Strava token")
+        logger.warning("Failed to get Strava token: status=%s body=%s", response.status_code, _response_body(response))
     return None
 
 
@@ -78,7 +92,7 @@ async def fetch_segment_details(segment_id: str, db=None, actor_id: str | None =
 
     async with httpx.AsyncClient() as client:
         response = await client.get(
-            f"https://www.strava.com/api/v3/segments/{segment_id}",
+            f"{STRAVA_API_BASE_URL}/segments/{segment_id}",
             headers={"Authorization": f"Bearer {access_token}"},
         )
         if response.status_code == 200:
@@ -89,7 +103,7 @@ async def fetch_segment_details(segment_id: str, db=None, actor_id: str | None =
                 "distance_km": round(data.get("distance", 0) / 1000 if data.get("distance") else 0, 2),
                 "gradient_pct": round(data.get("average_grade", data.get("avg_grade", 0)), 1),
             }
-        logger.warning("Failed to fetch segment from Strava")
+        logger.warning("Failed to fetch segment from Strava: status=%s body=%s", response.status_code, _response_body(response))
     return None
 
 
@@ -103,11 +117,11 @@ async def fetch_segment_id_from_effort(segment_effort_id: str, db=None, actor_id
 
     async with httpx.AsyncClient() as client:
         response = await client.get(
-            f"https://www.strava.com/api/v3/segment_efforts/{segment_effort_id}",
+            f"{STRAVA_API_BASE_URL}/segment_efforts/{segment_effort_id}",
             headers={"Authorization": f"Bearer {access_token}"},
         )
         if response.status_code != 200:
-            logger.warning("Failed to fetch segment effort from Strava")
+            logger.warning("Failed to fetch segment effort from Strava: status=%s body=%s", response.status_code, _response_body(response))
             return None
         segment = response.json().get("segment")
         segment_id = segment.get("id") if isinstance(segment, dict) else None
