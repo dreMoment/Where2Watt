@@ -10,6 +10,7 @@ import {
 import { useAuth } from "@/components/AuthContext";
 import { useUiFeedback } from "@/components/ui/UiFeedbackProvider";
 import { createIntervalProfile, estimateSegmentDurationSeconds, formatDuration } from "@/utils/intervals";
+import SegmentElevationProfile, { type ElevationProfilePoint } from "./SegmentElevationProfile";
 
 interface Props {
     segment: Segment;
@@ -18,6 +19,8 @@ interface Props {
     bikeWeight?: string;
     clickedCoordinate?: [number, number] | null;
     onSegmentBlocked?: (segmentId: string, report: { blocked: boolean }) => void;
+    elevationProfile?: ElevationProfilePoint[] | null;
+    isElevationProfileLoading?: boolean;
 }
 
 const REPORT_NOTE_MAX_LENGTH = 500;
@@ -68,6 +71,8 @@ export default function SegmentCard({
     bikeWeight = "9",
     clickedCoordinate = null,
     onSegmentBlocked,
+    elevationProfile = null,
+    isElevationProfileLoading = false,
 }: Props) {
     const { isLoggedIn, token, login } = useAuth();
     const { showToast } = useUiFeedback();
@@ -295,6 +300,12 @@ export default function SegmentCard({
                     <span className="text-[10px] text-neutral-400 uppercase tracking-widest font-medium">Avg Gradient</span>
                 </div>
             </div>
+
+            <SegmentElevationProfile
+                points={elevationProfile}
+                isLoading={isElevationProfileLoading}
+                elevationGainM={Math.max(0, (segment.distance_km ?? 0) * (segment.gradient_pct ?? 0) * 10)}
+            />
 
             <div className="bg-gradient-to-br from-neutral-50 to-neutral-100/50 p-3.5 rounded-xl border border-neutral-200/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] mt-1">
                 <div className="flex items-center gap-1.5 mb-2">

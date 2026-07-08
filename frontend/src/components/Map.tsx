@@ -5,6 +5,7 @@ import Map, { Popup, Source, Layer, NavigationControl } from "react-map-gl/mapli
 import type { MapRef } from "react-map-gl/maplibre";
 import SegmentCard from "./SegmentCard";
 import CommunityRatingsPanel from "./CommunityRatingsPanel";
+import type { ElevationProfilePoint } from "./SegmentElevationProfile";
 import { decodePolyline } from "@/utils/polyline";
 import type { Segment, SegmentAverageRatings } from "@/types";
 import {
@@ -48,6 +49,25 @@ const DEFAULT_VIEWPORT: MapViewport = {
   bearing: 0,
   pitch: 0,
 };
+
+function distanceKmBetween(a: [number, number], b: [number, number]): number {
+  const toRad = (degrees: number) => (degrees * Math.PI) / 180;
+  const earthRadiusKm = 6371;
+  const dLat = toRad(b[1] - a[1]);
+  const dLng = toRad(b[0] - a[0]);
+  const lat1 = toRad(a[1]);
+  const lat2 = toRad(b[1]);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
+function downsampleCoordinates(coordinates: [number, number][], maxPoints = 50): [number, number][] {
+  if (coordinates.length <= maxPoints) return coordinates;
+  return Array.from({ length: maxPoints }, (_, index) => {
+    const sourceIndex = Math.round((index / (maxPoints - 1)) * (coordinates.length - 1));
+    return coordinates[sourceIndex];
+  });
+}
 
 function getInitialViewport(): MapViewport {
   if (typeof window === "undefined") {
@@ -128,6 +148,8 @@ export default function InteractiveMap({
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [isRatingsVisible, setIsRatingsVisible] = useState(true);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
+  const [elevationProfile, setElevationProfile] = useState<ElevationProfilePoint[] | null>(null);
+  const [isElevationProfileLoading, setIsElevationProfileLoading] = useState(false);
   const [initialViewport] = useState<MapViewport>(() => getInitialViewport());
   const mapRef = useRef<MapRef | null>(null);
   const lastFocusRequestRef = useRef<string | null>(null);
@@ -203,6 +225,61 @@ export default function InteractiveMap({
     if (!selectedSegment) return;
     setIsRatingsVisible(!isMobileViewport);
   }, [selectedSegment, isMobileViewport]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadElevationProfile() {
+      if (!selectedSegment?.polyline || !isMapLoaded || !mapRef.current) {
+        setElevationProfile(null);
+        setIsElevationProfileLoading(false);
+        return;
+      }
+
+      const map = mapRef.current.getMap();
+      if (typeof map.queryTerrainElevation !== "function") {
+        setElevationProfile(null);
+        setIsElevationProfileLoading(false);
+        return;
+      }
+
+      const coordinates = downsampleCoordinates(decodePolyline(selectedSegment.polyline));
+      if (coordinates.length < 2) {
+        setElevationProfile(null);
+        setIsElevationProfileLoading(false);
+        return;
+      }
+
+      setIsElevationProfileLoading(true);
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+      if (cancelled) return;
+
+      let cumulativeDistanceKm = 0;
+      const profile: ElevationProfilePoint[] = [];
+
+      for (let index = 0; index < coordinates.length; index += 1) {
+        const coordinate = coordinates[index];
+        if (index > 0) {
+          cumulativeDistanceKm += distanceKmBetween(coordinates[index - 1], coordinate);
+        }
+        const elevation = map.queryTerrainElevation(coordinate);
+        if (typeof elevation === "number" && Number.isFinite(elevation)) {
+          profile.push({ distanceKm: cumulativeDistanceKm, elevationM: elevation });
+        }
+      }
+
+      if (!cancelled) {
+        setElevationProfile(profile.length >= 2 ? profile : null);
+        setIsElevationProfileLoading(false);
+      }
+    }
+
+    loadElevationProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedSegment?.id, selectedSegment?.polyline, isMapLoaded]);
 
   useEffect(() => {
     if (!isMapLoaded || !mapRef.current) return;
@@ -451,6 +528,8 @@ export default function InteractiveMap({
                   riderWeight={riderWeight}
                   bikeWeight={bikeWeight}
                   clickedCoordinate={clickedCoordinate}
+                  elevationProfile={elevationProfile}
+                  isElevationProfileLoading={isElevationProfileLoading}
                   onSegmentBlocked={(segmentId, report) => {
                     onSegmentBlocked?.(segmentId, report);
                     setSelectedSegment((prev) => {
