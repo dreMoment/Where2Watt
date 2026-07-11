@@ -52,6 +52,10 @@ def test_fetch_segment_details_returns_normalized_payload(monkeypatch):
 
     details = asyncio.run(strava_service.fetch_segment_details("42"))
 
+    mock_client.get.assert_awaited_once_with(
+        "https://www.strava.com/api/v3/segments/42",
+        headers={"Authorization": "Bearer token-1"},
+    )
     assert details == {
         "polyline": "xyz",
         "name": "Segment A",
@@ -123,7 +127,7 @@ def test_resolve_segment_id_from_strava_url_supports_segment_effort_urls(monkeyp
     direct = asyncio.run(strava_service.resolve_segment_id_from_strava_url("https://www.strava.com/segments/123"))
     resolved = asyncio.run(
         strava_service.resolve_segment_id_from_strava_url(
-            "https://www.strava.com/activities/17650152462/segments/3465746799772048188"
+            "https://www.strava.com/activities/19268839605/segments/3511011627260237700"
         )
     )
     invalid = asyncio.run(strava_service.resolve_segment_id_from_strava_url("https://www.strava.com/routes/42"))
@@ -131,4 +135,4 @@ def test_resolve_segment_id_from_strava_url_supports_segment_effort_urls(monkeyp
     assert direct == "123"
     assert resolved == "888"
     assert invalid is None
-    fetch_mock.assert_awaited_once_with("3465746799772048188", db=None, actor_id=None)
+    fetch_mock.assert_awaited_once_with("3511011627260237700", db=None, actor_id=None)

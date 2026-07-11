@@ -25,6 +25,17 @@ const AuthContext = createContext<AuthContextType>({
     disconnect: async () => null,
 });
 
+export function buildStravaAuthUrl(origin: string): string {
+    const params = new URLSearchParams({
+        client_id: STRAVA_CLIENT_ID,
+        redirect_uri: `${origin}/auth/callback`,
+        response_type: "code",
+        // Required to resolve activity segment-effort URLs owned by the athlete.
+        scope: "read,activity:read",
+    });
+    return `https://www.strava.com/oauth/authorize?${params.toString()}`;
+}
+
 export function useAuth() {
     return useContext(AuthContext);
 }
@@ -81,10 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const login = useCallback(() => {
-        const redirectUri = `${window.location.origin}/auth/callback`;
-        const scope = "read";
-        const stravaAuthUrl = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}`;
-        window.location.href = stravaAuthUrl;
+        window.location.href = buildStravaAuthUrl(window.location.origin);
     }, []);
 
     const logout = useCallback(() => {

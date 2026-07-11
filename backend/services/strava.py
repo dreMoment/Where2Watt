@@ -24,15 +24,19 @@ async def _refresh_token_data(refresh_token: str) -> dict | None:
         return None
 
     async with httpx.AsyncClient() as client:
-        response = await client.post(
-            "https://www.strava.com/oauth/token",
-            data={
-                "client_id": STRAVA_CLIENT_ID,
-                "client_secret": STRAVA_CLIENT_SECRET,
-                "refresh_token": refresh_token,
-                "grant_type": "refresh_token",
-            },
-        )
+        try:
+            response = await client.post(
+                "https://www.strava.com/oauth/token",
+                data={
+                    "client_id": STRAVA_CLIENT_ID,
+                    "client_secret": STRAVA_CLIENT_SECRET,
+                    "refresh_token": refresh_token,
+                    "grant_type": "refresh_token",
+                },
+            )
+        except httpx.RequestError as exc:
+            logger.warning("Failed to refresh Strava token: request_error=%s", exc)
+            return None
         if response.status_code != 200:
             logger.warning("Failed to refresh Strava token: status=%s body=%s", response.status_code, _response_body(response))
             return None
@@ -67,15 +71,19 @@ async def get_strava_access_token(db=None, actor_id: str | None = None):
         return None
 
     async with httpx.AsyncClient() as client:
-        response = await client.post(
-            "https://www.strava.com/oauth/token",
-            data={
-                "client_id": STRAVA_CLIENT_ID,
-                "client_secret": STRAVA_CLIENT_SECRET,
-                "refresh_token": STRAVA_REFRESH_TOKEN,
-                "grant_type": "refresh_token",
-            },
-        )
+        try:
+            response = await client.post(
+                "https://www.strava.com/oauth/token",
+                data={
+                    "client_id": STRAVA_CLIENT_ID,
+                    "client_secret": STRAVA_CLIENT_SECRET,
+                    "refresh_token": STRAVA_REFRESH_TOKEN,
+                    "grant_type": "refresh_token",
+                },
+            )
+        except httpx.RequestError as exc:
+            logger.warning("Failed to get Strava token: request_error=%s", exc)
+            return None
         if response.status_code == 200:
             return response.json().get("access_token")
         logger.warning("Failed to get Strava token: status=%s body=%s", response.status_code, _response_body(response))
@@ -91,10 +99,14 @@ async def fetch_segment_details(segment_id: str, db=None, actor_id: str | None =
         return None
 
     async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f"{STRAVA_API_BASE_URL}/segments/{segment_id}",
-            headers={"Authorization": f"Bearer {access_token}"},
-        )
+        try:
+            response = await client.get(
+                f"{STRAVA_API_BASE_URL}/segments/{segment_id}",
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+        except httpx.RequestError as exc:
+            logger.warning("Failed to fetch segment from Strava: request_error=%s", exc)
+            return None
         if response.status_code == 200:
             data = response.json()
             return {
@@ -116,10 +128,14 @@ async def fetch_segment_id_from_effort(segment_effort_id: str, db=None, actor_id
         return None
 
     async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f"{STRAVA_API_BASE_URL}/segment_efforts/{segment_effort_id}",
-            headers={"Authorization": f"Bearer {access_token}"},
-        )
+        try:
+            response = await client.get(
+                f"{STRAVA_API_BASE_URL}/segment_efforts/{segment_effort_id}",
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+        except httpx.RequestError as exc:
+            logger.warning("Failed to fetch segment effort from Strava: request_error=%s", exc)
+            return None
         if response.status_code != 200:
             logger.warning("Failed to fetch segment effort from Strava: status=%s body=%s", response.status_code, _response_body(response))
             return None

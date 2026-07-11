@@ -88,7 +88,7 @@ describe('SubmissionForm', () => {
         render(<SubmissionForm onClose={mockOnClose} />);
 
         fireEvent.change(screen.getByLabelText(/Strava Segment URL/i), {
-            target: { value: 'https://www.strava.com/activities/17650152462/segments/3465746799772048188' },
+            target: { value: 'https://www.strava.com/activities/19268839605/segments/3511011627260237700' },
         });
         fireEvent.click(screen.getByRole('button', { name: /Overall Quality star 1/i }));
         fireEvent.click(screen.getByRole('button', { name: /Traffic Level: Low/i }));

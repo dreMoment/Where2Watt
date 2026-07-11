@@ -1,5 +1,5 @@
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
-import { AuthProvider, useAuth } from "@/components/AuthContext";
+import { AuthProvider, buildStravaAuthUrl, useAuth } from "@/components/AuthContext";
 import { disconnectStrava, fetchCurrentUser } from "@/utils/api";
 
 jest.mock("@/utils/api", () => ({
@@ -73,6 +73,13 @@ describe("AuthProvider", () => {
     fireEvent.click(screen.getByText("logout"));
     expect(localStorage.getItem("auth_token")).toBeNull();
     expect(screen.getByTestId("logged")).toHaveTextContent("false");
+  });
+
+  it("requests activity read access when starting Strava login", () => {
+    const authorizeUrl = new URL(buildStravaAuthUrl("https://where2watt.example"));
+    expect(authorizeUrl.origin + authorizeUrl.pathname).toBe("https://www.strava.com/oauth/authorize");
+    expect(authorizeUrl.searchParams.get("scope")).toBe("read,activity:read");
+    expect(authorizeUrl.searchParams.get("redirect_uri")).toBe("https://where2watt.example/auth/callback");
   });
 
   it("disconnect calls backend endpoint and clears auth state", async () => {

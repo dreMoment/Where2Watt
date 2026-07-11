@@ -20,8 +20,8 @@ def test_extract_strava_id_returns_none_for_invalid_url():
 
 @pytest.mark.unit
 def test_extract_segment_effort_id_from_activity_segment_effort_url():
-    url = "https://www.strava.com/activities/17650152462/segments/3465746799772048188"
-    assert extract_segment_effort_id(url) == "3465746799772048188"
+    url = "https://www.strava.com/activities/19268839605/segments/3511011627260237700"
+    assert extract_segment_effort_id(url) == "3511011627260237700"
 
 
 @pytest.mark.unit
