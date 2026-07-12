@@ -59,6 +59,14 @@ describe("CommunityRatingsPanel", () => {
         });
     });
 
+    it("starts folded when requested and can be expanded", () => {
+        render(<CommunityRatingsPanel segment={mockSegment} initiallyFolded />);
+
+        expect(screen.queryByText(/No ratings yet/i)).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "Expand ratings popup" }));
+        expect(screen.getByText(/No ratings yet/i)).toBeInTheDocument();
+    });
+
     it("submits the new mixed rating inputs", async () => {
         authState.isLoggedIn = true;
         authState.token = "mock-token";

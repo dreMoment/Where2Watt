@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Map, { Popup, Source, Layer, NavigationControl } from "react-map-gl/maplibre";
 import type { MapRef } from "react-map-gl/maplibre";
 import SegmentCard from "./SegmentCard";
 import CommunityRatingsPanel from "./CommunityRatingsPanel";
-import type { ElevationProfilePoint } from "./SegmentElevationProfile";
+import SegmentElevationProfile, { type ElevationProfilePoint } from "./SegmentElevationProfile";
 import { decodePolyline } from "@/utils/polyline";
-import type { Segment, SegmentAverageRatings } from "@/types";
+import type { ExploreCandidate, Segment, SegmentAverageRatings } from "@/types";
 import {
   createIntervalProfile,
   estimateSegmentDurationSeconds,
@@ -30,6 +30,12 @@ interface MapProps {
   focusSegmentNonce?: number;
   autoSelectFocusedSegment?: boolean;
   persistViewport?: boolean;
+  communityRatingsInitiallyFolded?: boolean;
+  showCommunityRatings?: boolean;
+  elevationProfileAsPopup?: boolean;
+  segmentDetailsAsTopLeftOverlay?: boolean;
+  showSegmentReportAction?: boolean;
+  exploreCandidates?: ExploreCandidate[];
 }
 
 const MAP_VIEWPORT_STORAGE_KEY = "where2watt:lastMapViewport";
@@ -41,6 +47,46 @@ type MapViewport = {
   bearing: number;
   pitch: number;
 };
+
+function ElevationProfilePopup({
+  segment,
+  points,
+  isLoading,
+}: {
+  segment: Segment;
+  points: ElevationProfilePoint[] | null;
+  isLoading: boolean;
+}) {
+  const [isFolded, setIsFolded] = useState(false);
+
+  return (
+    <div className="w-[min(92vw,380px)] rounded-xl border border-neutral-200 bg-white/95 p-3 shadow-lg backdrop-blur-sm">
+      <div className={`${isFolded ? "" : "mb-2"} flex items-start justify-between gap-2`}>
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="text-xs font-bold uppercase tracking-wide text-neutral-600">Elevation Profile</span>
+          <span className="truncate text-sm font-semibold text-neutral-800">{segment.name}</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsFolded((previous) => !previous)}
+          aria-label={isFolded ? "Expand elevation profile" : "Fold elevation profile"}
+          title={isFolded ? "Expand elevation profile" : "Fold elevation profile"}
+          className="hidden shrink-0 rounded-md border border-neutral-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-neutral-600 transition-colors hover:bg-neutral-100 sm:inline-flex"
+        >
+          {isFolded ? "Show" : "Hide"}
+        </button>
+      </div>
+      {!isFolded ? (
+        <SegmentElevationProfile
+          points={points}
+          isLoading={isLoading}
+          showHeader={false}
+          elevationGainM={Math.max(0, (segment.distance_km ?? 0) * (segment.gradient_pct ?? 0) * 10)}
+        />
+      ) : null}
+    </div>
+  );
+}
 
 const DEFAULT_VIEWPORT: MapViewport = {
   longitude: 8.5417,
@@ -132,6 +178,12 @@ export default function InteractiveMap({
   focusSegmentNonce,
   autoSelectFocusedSegment = false,
   persistViewport = true,
+  communityRatingsInitiallyFolded = false,
+  showCommunityRatings = true,
+  elevationProfileAsPopup = false,
+  segmentDetailsAsTopLeftOverlay = false,
+  showSegmentReportAction = true,
+  exploreCandidates = [],
 }: MapProps) {
   const initialFocusedSegment =
     autoSelectFocusedSegment && focusSegmentId
@@ -141,6 +193,7 @@ export default function InteractiveMap({
     initialFocusedSegment?.polyline ? decodePolyline(initialFocusedSegment.polyline)[0] ?? null : null;
 
   const [selectedSegment, setSelectedSegment] = useState<Segment | null>(initialFocusedSegment);
+  const [selectedCandidate, setSelectedCandidate] = useState<ExploreCandidate | null>(null);
   const [clickedCoordinate, setClickedCoordinate] = useState<[number, number] | null>(initialFocusedCoordinate);
   const [hoveredSegment, setHoveredSegment] = useState<Segment | null>(null);
   const [hoveredCoordinate, setHoveredCoordinate] = useState<[number, number] | null>(null);
@@ -188,10 +241,10 @@ export default function InteractiveMap({
   // We use Carto Light (Voyager) as a free vector tile source that looks similar to the previous leaflet map
   const mapStyle = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
 
-  const interactiveLayerIds = useMemo(
-    () => filteredSegments.map((s, idx) => `route-hit-${s.id || idx}`),
-    [filteredSegments]
-  );
+  const interactiveLayerIds = useMemo(() => [
+    ...filteredSegments.map((s, idx) => `route-hit-${s.id || idx}`),
+    ...exploreCandidates.map((candidate) => `candidate-hit-${candidate.id}`),
+  ], [filteredSegments, exploreCandidates]);
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
@@ -342,8 +395,15 @@ export default function InteractiveMap({
         onClick={(e) => {
           if (e.features && e.features.length > 0) {
             const featureId = e.features[0].properties?.id;
+            const candidate = exploreCandidates.find((item) => item.id === featureId);
+            if (candidate) {
+              setSelectedCandidate(candidate);
+              setSelectedSegment(null);
+              return;
+            }
             const clickedSegment = filteredSegments.find(s => s.id === featureId);
             if (clickedSegment) {
+              setSelectedCandidate(null);
               setSelectedSegment(clickedSegment);
               if (e.lngLat) {
                 setClickedCoordinate([e.lngLat.lng, e.lngLat.lat]);
@@ -352,6 +412,7 @@ export default function InteractiveMap({
             }
           }
           setSelectedSegment(null);
+          setSelectedCandidate(null);
           setClickedCoordinate(null);
         }}
         onMouseEnter={() => setCursor("pointer")}
@@ -395,6 +456,17 @@ export default function InteractiveMap({
         />
 
         <NavigationControl position="bottom-right" visualizePitch={true} />
+
+        {exploreCandidates.map((candidate) => {
+          const data = { type: "Feature" as const, properties: { id: candidate.id }, geometry: { type: "LineString" as const, coordinates: candidate.coordinates } };
+          const selected = selectedCandidate?.id === candidate.id;
+          return (
+            <Source key={candidate.id} id={`candidate-${candidate.id}`} type="geojson" data={data}>
+              <Layer id={`candidate-hit-${candidate.id}`} type="line" layout={{ "line-join": "round", "line-cap": "round" }} paint={{ "line-color": "#000", "line-opacity": 0.01, "line-width": 18 }} />
+              <Layer id={`candidate-line-${candidate.id}`} type="line" layout={{ "line-join": "round", "line-cap": "round" }} paint={{ "line-color": selected ? "#047857" : "#10b981", "line-width": selected ? 6 : 4, "line-opacity": 0.85, "line-dasharray": [2, 1] }} />
+            </Source>
+          );
+        })}
 
         {filteredSegments.map((segment, idx) => {
           if (!segment.polyline) return null;
@@ -500,7 +572,19 @@ export default function InteractiveMap({
           </Popup>
         )}
 
-        {selectedSegment && (() => {
+        {selectedCandidate && (
+          <Popup longitude={selectedCandidate.coordinates[0][0]} latitude={selectedCandidate.coordinates[0][1]} anchor="bottom" closeOnClick={false} onClose={() => setSelectedCandidate(null)} maxWidth="310px">
+            <div className="p-1 text-sm text-neutral-800">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Potential Strava segment · Category {selectedCandidate.climb_category_description ?? selectedCandidate.climb_category}</div>
+              <h3 className="mt-1 text-base font-black">{selectedCandidate.name}</h3>
+              <div className="mt-2 flex flex-wrap gap-2 text-xs"><span className="rounded bg-neutral-100 px-2 py-1">{selectedCandidate.distance_km} km</span><span className="rounded bg-neutral-100 px-2 py-1">{Math.round(selectedCandidate.elevation_difference_m)} m elevation</span><span className="rounded bg-neutral-100 px-2 py-1">{selectedCandidate.average_grade_pct}% avg</span></div>
+              <p className="mt-2 text-xs leading-relaxed text-neutral-600">Automatically discovered and not yet community-approved. Check the segment before riding.</p>
+              <a href={selectedCandidate.strava_url} target="_blank" rel="noreferrer" className="mt-3 inline-block text-xs font-bold text-emerald-700 hover:underline">View on Strava ↗</a>
+            </div>
+          </Popup>
+        )}
+
+        {selectedSegment && !segmentDetailsAsTopLeftOverlay && (() => {
           const coordinates = selectedSegment.polyline ? decodePolyline(selectedSegment.polyline) : [];
           const startPoint = clickedCoordinate || (coordinates.length > 0 ? coordinates[0] : [
             8.5417 + filteredSegments.indexOf(selectedSegment) * 0.01,
@@ -530,6 +614,8 @@ export default function InteractiveMap({
                   clickedCoordinate={clickedCoordinate}
                   elevationProfile={elevationProfile}
                   isElevationProfileLoading={isElevationProfileLoading}
+                  showElevationProfile={!elevationProfileAsPopup}
+                  showReportAction={showSegmentReportAction}
                   onSegmentBlocked={(segmentId, report) => {
                     onSegmentBlocked?.(segmentId, report);
                     setSelectedSegment((prev) => {
@@ -543,7 +629,39 @@ export default function InteractiveMap({
           );
         })()}
       </Map>
-      {selectedSegment && isMobileViewport && (
+      {selectedSegment && segmentDetailsAsTopLeftOverlay && (
+        <div className="pointer-events-auto absolute left-4 top-4 z-20 max-h-[calc(100%-2rem)] w-[min(92vw,350px)] overflow-y-auto rounded-xl border border-neutral-200 bg-white/95 p-4 shadow-lg backdrop-blur-sm">
+          <SegmentCard
+            segment={selectedSegment}
+            riderPower={riderPower}
+            riderWeight={riderWeight}
+            bikeWeight={bikeWeight}
+            clickedCoordinate={clickedCoordinate}
+            elevationProfile={elevationProfile}
+            isElevationProfileLoading={isElevationProfileLoading}
+            showElevationProfile={!elevationProfileAsPopup}
+            showReportAction={showSegmentReportAction}
+            onSegmentBlocked={(segmentId, report) => {
+              onSegmentBlocked?.(segmentId, report);
+              setSelectedSegment((previous) => {
+                if (!previous || previous.id !== segmentId) return previous;
+                return { ...previous, blocked: report.blocked };
+              });
+            }}
+          />
+        </div>
+      )}
+      {selectedSegment && elevationProfileAsPopup && (
+        <div className="pointer-events-auto absolute bottom-4 right-4 z-20 sm:right-20">
+          <ElevationProfilePopup
+            key={selectedSegment.id || selectedSegment.strava_id || selectedSegment.name}
+            segment={selectedSegment}
+            points={elevationProfile}
+            isLoading={isElevationProfileLoading}
+          />
+        </div>
+      )}
+      {showCommunityRatings && selectedSegment && isMobileViewport && (
         <button
           type="button"
           onClick={() => setIsRatingsVisible((prev) => !prev)}
@@ -552,7 +670,7 @@ export default function InteractiveMap({
           {isRatingsVisible ? "Hide ratings" : "Show ratings"}
         </button>
       )}
-      {selectedSegment && (!isMobileViewport || isRatingsVisible) && (
+      {showCommunityRatings && selectedSegment && (!isMobileViewport || isRatingsVisible) && (
         <div
           className={`pointer-events-auto absolute z-20 ${
             isMobileViewport ? "left-1/2 bottom-16 w-[min(92vw,340px)] -translate-x-1/2" : "right-20 bottom-4"
@@ -560,6 +678,7 @@ export default function InteractiveMap({
         >
           <CommunityRatingsPanel
             segment={selectedSegment}
+            initiallyFolded={communityRatingsInitiallyFolded}
             onSegmentRated={(segmentId, rating) => {
               onSegmentRated?.(segmentId, rating);
               setSelectedSegment((prev) => {

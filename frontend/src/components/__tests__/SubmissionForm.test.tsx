@@ -1,8 +1,10 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import SubmissionForm from '../SubmissionForm';
-import { submitSegment } from '@/utils/api';
+import { fetchStarredStravaSegments, fetchStravaSegmentPreview, submitSegment } from '@/utils/api';
 
 jest.mock('@/utils/api', () => ({
+    fetchStarredStravaSegments: jest.fn(),
+    fetchStravaSegmentPreview: jest.fn(),
     submitSegment: jest.fn(),
 }));
 
@@ -15,6 +17,11 @@ jest.mock('@/components/AuthContext', () => ({
         logout: jest.fn(),
         isLoading: false,
     }),
+}));
+
+jest.mock('@/components/AdminSegmentPreviewModal', () => ({
+    __esModule: true,
+    default: ({ segment }: { segment: { name: string } | null }) => segment ? <div>Segment Preview: {segment.name}</div> : null,
 }));
 
 describe('SubmissionForm', () => {
@@ -32,6 +39,47 @@ describe('SubmissionForm', () => {
         expect(screen.getByText(/Segment URLs and activity segment-effort URLs are supported/i)).toBeInTheDocument();
         expect(screen.getByLabelText(/Strava Segment URL/i)).toBeInTheDocument();
         expect(screen.queryByLabelText(/Safety Notes/i)).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Choose from your starred Strava segments/i })).toBeInTheDocument();
+    });
+
+    it('loads starred Strava segments and selects one', async () => {
+        (fetchStarredStravaSegments as jest.Mock).mockResolvedValueOnce([
+            { id: '456', name: 'Hawk Hill', distance_km: 2.68, elevation_m: 153 },
+        ]);
+        render(<SubmissionForm onClose={mockOnClose} />);
+
+        fireEvent.click(screen.getByRole('button', { name: /Choose from your starred Strava segments/i }));
+
+        expect(await screen.findByText('Hawk Hill')).toBeInTheDocument();
+        expect(screen.getByText(/2.68 km · 153 m elevation/i)).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Select Hawk Hill' }));
+
+        expect(screen.getByLabelText(/Strava Segment URL/i)).toHaveValue('https://www.strava.com/segments/456');
+        expect(fetchStarredStravaSegments).toHaveBeenCalledWith('mock-token');
+    });
+
+    it('fetches full segment details only when preview is requested', async () => {
+        (fetchStarredStravaSegments as jest.Mock).mockResolvedValueOnce([
+            { id: '456', name: 'Hawk Hill', distance_km: 2.68, elevation_m: 153 },
+        ]);
+        (fetchStravaSegmentPreview as jest.Mock).mockResolvedValueOnce({
+            id: '456',
+            strava_id: '456',
+            name: 'Hawk Hill',
+            strava_url: 'https://www.strava.com/segments/456',
+            distance_km: 2.68,
+            gradient_pct: 5.7,
+            polyline: '_p~iF~ps|U_ulLnnqC_mqNvxq`@',
+            approved: false,
+            completion_times: { beginner: '', intermediate: '', advanced: '' },
+        });
+        render(<SubmissionForm onClose={mockOnClose} />);
+
+        fireEvent.click(screen.getByRole('button', { name: /Choose from your starred Strava segments/i }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Preview Hawk Hill' }));
+
+        await waitFor(() => expect(fetchStravaSegmentPreview).toHaveBeenCalledWith('456', 'mock-token'));
+        expect(await screen.findByText(/Segment Preview: Hawk Hill/)).toBeInTheDocument();
     });
 
     it('prevents submit when required ratings are missing', async () => {

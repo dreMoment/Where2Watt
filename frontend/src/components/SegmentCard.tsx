@@ -21,6 +21,8 @@ interface Props {
     onSegmentBlocked?: (segmentId: string, report: { blocked: boolean }) => void;
     elevationProfile?: ElevationProfilePoint[] | null;
     isElevationProfileLoading?: boolean;
+    showElevationProfile?: boolean;
+    showReportAction?: boolean;
 }
 
 const REPORT_NOTE_MAX_LENGTH = 500;
@@ -73,6 +75,8 @@ export default function SegmentCard({
     onSegmentBlocked,
     elevationProfile = null,
     isElevationProfileLoading = false,
+    showElevationProfile = true,
+    showReportAction = true,
 }: Props) {
     const { isLoggedIn, token, login } = useAuth();
     const { showToast } = useUiFeedback();
@@ -109,7 +113,7 @@ export default function SegmentCard({
     useEffect(() => {
         let cancelled = false;
         async function loadReportStatus() {
-            if (!isLoggedIn || !token || !segment.id) {
+            if (!showReportAction || !isLoggedIn || !token || !segment.id) {
                 setHasReportedCurrentState(false);
                 return;
             }
@@ -128,7 +132,7 @@ export default function SegmentCard({
         return () => {
             cancelled = true;
         };
-    }, [isLoggedIn, token, segment.id, segment.blocked]);
+    }, [showReportAction, isLoggedIn, token, segment.id, segment.blocked]);
 
     const handleReport = async () => {
         if (!segment.id) return;
@@ -184,7 +188,7 @@ export default function SegmentCard({
                         <p className="mt-1 text-[11px] text-neutral-500">Overall quality: no ratings yet</p>
                     )}
                 </div>
-                <div className="shrink-0 flex flex-col items-end gap-1">
+                {showReportAction && <div className="shrink-0 flex flex-col items-end gap-1">
                     <button
                         onClick={() => {
                             if (isLoggedIn) {
@@ -215,10 +219,10 @@ export default function SegmentCard({
                     >
                         <Flag className={`w-4 h-4 ${hasReportedCurrentState || segment.blocked ? "fill-current" : ""}`} />
                     </button>
-                </div>
+                </div>}
             </div>
 
-            {showLoginPrompt && (
+            {showReportAction && showLoginPrompt && (
                 <div className="bg-blue-50 border border-blue-200 rounded-xl px-3.5 py-2.5 flex flex-col gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="flex flex-col gap-1">
                         <span className="text-blue-800 font-semibold text-xs">Login Required</span>
@@ -243,7 +247,7 @@ export default function SegmentCard({
                 </div>
             )}
 
-            {showReportForm && (
+            {showReportAction && showReportForm && (
                 <div className={`rounded-xl px-3.5 py-2.5 flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-200 ${
                     segment.blocked
                         ? "bg-green-50 border border-green-200"
@@ -301,11 +305,13 @@ export default function SegmentCard({
                 </div>
             </div>
 
-            <SegmentElevationProfile
-                points={elevationProfile}
-                isLoading={isElevationProfileLoading}
-                elevationGainM={Math.max(0, (segment.distance_km ?? 0) * (segment.gradient_pct ?? 0) * 10)}
-            />
+            {showElevationProfile ? (
+                <SegmentElevationProfile
+                    points={elevationProfile}
+                    isLoading={isElevationProfileLoading}
+                    elevationGainM={Math.max(0, (segment.distance_km ?? 0) * (segment.gradient_pct ?? 0) * 10)}
+                />
+            ) : null}
 
             <div className="bg-gradient-to-br from-neutral-50 to-neutral-100/50 p-3.5 rounded-xl border border-neutral-200/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] mt-1">
                 <div className="flex items-center gap-1.5 mb-2">

@@ -58,6 +58,42 @@ export async function submitSegment(data: SubmissionData, token: string): Promis
     });
 }
 
+export interface StarredStravaSegment {
+    id: string;
+    name: string;
+    distance_km: number | null;
+    elevation_m: number | null;
+}
+
+export async function fetchStarredStravaSegments(token: string): Promise<StarredStravaSegment[]> {
+    return request<StarredStravaSegment[]>("/strava/segments/starred?per_page=100", {
+        headers: withBearerAuth(token),
+        errorMessage: "Could not load your starred Strava segments",
+    });
+}
+
+type StravaSegmentPreviewResponse = {
+    id: string;
+    name: string;
+    strava_url: string;
+    polyline: string;
+    distance_km: number;
+    gradient_pct: number;
+};
+
+export async function fetchStravaSegmentPreview(id: string, token: string): Promise<Segment> {
+    const segment = await request<StravaSegmentPreviewResponse>(`/strava/segments/${id}/preview`, {
+        headers: withBearerAuth(token),
+        errorMessage: "Could not load segment preview",
+    });
+    return {
+        ...segment,
+        strava_id: segment.id,
+        approved: false,
+        completion_times: { beginner: "", intermediate: "", advanced: "" },
+    };
+}
+
 export async function verifyAdminAccess(token: string): Promise<boolean> {
     try {
         await request("/admin/verify", {

@@ -9,6 +9,7 @@ export type ElevationProfilePoint = {
 interface Props {
   points: ElevationProfilePoint[] | null;
   isLoading?: boolean;
+  showHeader?: boolean;
   /** Prefer authoritative segment metadata for displayed gain; DEM samples are only used for chart shape. */
   elevationGainM?: number | null;
 }
@@ -193,15 +194,15 @@ function ElevationSvg({ points, large = false }: { points: ElevationProfilePoint
   );
 }
 
-export default function SegmentElevationProfile({ points, isLoading = false, elevationGainM = null }: Props) {
+export default function SegmentElevationProfile({ points, isLoading = false, showHeader = true, elevationGainM = null }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
   const validPoints = points?.filter((point) => Number.isFinite(point.distanceKm) && Number.isFinite(point.elevationM)) ?? [];
 
   if (isLoading) {
     return (
       <div className="rounded-xl border border-stone-200 bg-stone-50/80 p-3">
-        <div className="mb-2 flex items-center justify-between">
-          <span className="text-xs font-bold uppercase tracking-wide text-stone-600">Elevation profile</span>
+        <div className={`flex items-center justify-between ${showHeader ? "mb-2" : "mb-1"}`}>
+          {showHeader ? <span className="text-xs font-bold uppercase tracking-wide text-stone-600">Elevation profile</span> : null}
           <span className="text-[11px] text-stone-400">Loading…</span>
         </div>
         <div className="h-28 animate-pulse rounded-lg bg-stone-200/70" />
@@ -253,8 +254,8 @@ export default function SegmentElevationProfile({ points, isLoading = false, ele
         className="w-full rounded-xl border border-stone-200 bg-[#fffdfa] p-3 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] transition hover:border-orange-200 hover:bg-orange-50/20"
         aria-label="Open larger elevation profile"
       >
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <span className="text-xs font-bold uppercase tracking-wide text-stone-600">Elevation profile</span>
+        <div className={`flex items-center justify-between gap-3 ${showHeader ? "mb-2" : "mb-1"}`}>
+          {showHeader ? <span className="text-xs font-bold uppercase tracking-wide text-stone-600">Elevation profile</span> : null}
           <span className="text-[11px] font-semibold text-stone-500">↗ {formatElevation(elevationGain)} · Expand</span>
         </div>
         <ElevationSvg points={validPoints} />

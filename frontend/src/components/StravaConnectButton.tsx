@@ -3,9 +3,10 @@ import Image from "next/image";
 interface StravaConnectButtonProps {
   onClick: () => void;
   className?: string;
+  imageClassName?: string;
 }
 
-export default function StravaConnectButton({ onClick, className = "" }: StravaConnectButtonProps) {
+export default function StravaConnectButton({ onClick, className = "", imageClassName = "" }: StravaConnectButtonProps) {
   return (
     <button
       type="button"
@@ -18,7 +19,7 @@ export default function StravaConnectButton({ onClick, className = "" }: StravaC
         alt="Connect with Strava"
         width={237}
         height={48}
-        className="h-auto w-[237px] max-w-full"
+        className={`h-auto w-[237px] max-w-full ${imageClassName}`}
       />
     </button>
   );

@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { X, Send, Loader2, LogIn, MapPin, Info } from "lucide-react";
-import { submitSegment, type SegmentSubmitResponse, type SubmissionData } from "@/utils/api";
-import type { SegmentRatingValues } from "@/types";
+import { X, Send, Loader2, LogIn, MapPin, Info, ChevronLeft, Search, Star, Eye } from "lucide-react";
+import { fetchStarredStravaSegments, fetchStravaSegmentPreview, submitSegment, type SegmentSubmitResponse, type StarredStravaSegment, type SubmissionData } from "@/utils/api";
+import type { Segment, SegmentRatingValues } from "@/types";
 import { useAuth } from "@/components/AuthContext";
 import StravaConnectButton from "@/components/StravaConnectButton";
 import { DEFAULT_RATING_INPUT, RATING_FIELDS, type NullableSegmentRatings } from "@/constants/ratings";
+import AdminSegmentPreviewModal from "@/components/AdminSegmentPreviewModal";
 
 interface Props {
     onClose: () => void;
@@ -20,6 +21,15 @@ function StarIcon({ className }: { className?: string }) {
     return (
         <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
             <path d="M12 2.5 14.94 8.46 21.5 9.41 16.75 14.03 17.88 20.56 12 17.47 6.12 20.56 7.25 14.03 2.5 9.41 9.06 8.46 12 2.5Z" />
+        </svg>
+    );
+}
+
+function StravaMark({ className }: { className?: string }) {
+    return (
+        <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+            <path fill="currentColor" d="M10.3 2 4.8 13h3.3l2.2-4.4 2.2 4.4h3.3L10.3 2Z" />
+            <path fill="currentColor" d="m15.8 13-1.65 3.3L12.5 13H10l4.15 8.3L18.3 13h-2.5Z" />
         </svg>
     );
 }
@@ -127,6 +137,47 @@ export default function SubmissionForm({ onClose, onExistingSegmentRated }: Prop
     const [success, setSuccess] = useState(false);
     const [existingSubmission, setExistingSubmission] = useState<SegmentSubmitResponse | null>(null);
     const [formError, setFormError] = useState<string | null>(null);
+    const [showStarredSegments, setShowStarredSegments] = useState(false);
+    const [starredSegments, setStarredSegments] = useState<StarredStravaSegment[]>([]);
+    const [starredLoading, setStarredLoading] = useState(false);
+    const [starredError, setStarredError] = useState<string | null>(null);
+    const [starredSearch, setStarredSearch] = useState("");
+    const [previewSegment, setPreviewSegment] = useState<Segment | null>(null);
+    const [previewLoadingId, setPreviewLoadingId] = useState<string | null>(null);
+    const [previewError, setPreviewError] = useState<string | null>(null);
+
+    const openStarredSegments = async () => {
+        setShowStarredSegments(true);
+        if (!token || starredSegments.length > 0) return;
+        setStarredLoading(true);
+        setStarredError(null);
+        try {
+            setStarredSegments(await fetchStarredStravaSegments(token));
+        } catch (error) {
+            setStarredError(error instanceof Error ? error.message : "Could not load your starred Strava segments.");
+        } finally {
+            setStarredLoading(false);
+        }
+    };
+
+    const selectStarredSegment = (segment: StarredStravaSegment) => {
+        setFormData({ ...formData, strava_url: `https://www.strava.com/segments/${segment.id}` });
+        setFormError(null);
+        setShowStarredSegments(false);
+    };
+
+    const previewStarredSegment = async (segment: StarredStravaSegment) => {
+        if (!token) return;
+        setPreviewLoadingId(segment.id);
+        setPreviewError(null);
+        try {
+            setPreviewSegment(await fetchStravaSegmentPreview(segment.id, token));
+        } catch (error) {
+            setPreviewError(error instanceof Error ? error.message : "Could not load segment preview.");
+        } finally {
+            setPreviewLoadingId(null);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -255,10 +306,66 @@ export default function SubmissionForm({ onClose, onExistingSegmentRated }: Prop
                     <p className="text-sm text-neutral-500 font-medium mb-6">
                         You need to log in with Strava to submit segments.
                     </p>
-                    <StravaConnectButton onClick={login} className="w-full" />
+                    <StravaConnectButton onClick={login} className="w-full" imageClassName="w-[260px]" />
                 </div>
             </div>
         );
+    }
+
+    if (showStarredSegments) {
+        const query = starredSearch.trim().toLocaleLowerCase();
+        const filteredSegments = query
+            ? starredSegments.filter((segment) => segment.name.toLocaleLowerCase().includes(query))
+            : starredSegments;
+
+        return (<>
+            <div className="contribution-popup relative flex min-h-0 flex-col rounded-2xl border border-white/50 bg-white/95 p-5 shadow-2xl backdrop-blur-2xl sm:rounded-3xl sm:p-8">
+                <button onClick={onClose} aria-label="Close" className="absolute right-3 top-3 rounded-full bg-neutral-100/50 p-2 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-900 sm:right-5 sm:top-5">
+                    <X className="h-5 w-5" />
+                </button>
+                <button type="button" onClick={() => setShowStarredSegments(false)} className="mb-4 flex w-fit items-center gap-1 text-sm font-bold text-neutral-600 hover:text-neutral-900">
+                    <ChevronLeft className="h-4 w-4" /> Back
+                </button>
+                <div className="mb-4 pr-8">
+                    <h2 className="text-2xl font-black tracking-tight text-neutral-900">Your starred segments</h2>
+                    <p className="mt-1 text-sm font-medium text-neutral-500">Choose a Strava segment to add.</p>
+                </div>
+                {!starredLoading && !starredError && starredSegments.length > 0 ? (
+                    <label className="relative mb-3 block">
+                        <span className="sr-only">Search starred segments</span>
+                        <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+                        <input value={starredSearch} onChange={(event) => setStarredSearch(event.target.value)} placeholder="Search segments" className="w-full rounded-xl border border-neutral-200 bg-neutral-50 py-3 pl-10 pr-4 text-sm text-black placeholder:text-neutral-400 outline-none focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900" />
+                    </label>
+                ) : null}
+                {previewError ? <div role="alert" className="mb-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">{previewError}</div> : null}
+                <div className="contribution-popup-form min-h-0 flex-1 overflow-y-auto">
+                    {starredLoading ? (
+                        <div className="flex items-center justify-center gap-2 py-12 text-sm font-medium text-neutral-500"><Loader2 className="h-5 w-5 animate-spin" /> Loading starred segments…</div>
+                    ) : starredError ? (
+                        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-700">{starredError}</div>
+                    ) : starredSegments.length === 0 ? (
+                        <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-6 text-center"><Star className="mx-auto mb-2 h-7 w-7 text-neutral-300" /><p className="font-bold text-neutral-800">No starred segments yet</p><p className="mt-1 text-sm text-neutral-500">Star segments in Strava, then come back here.</p></div>
+                    ) : filteredSegments.length === 0 ? (
+                        <p className="py-8 text-center text-sm font-medium text-neutral-500">No segments match your search.</p>
+                    ) : (
+                        <div className="flex flex-col gap-2">
+                            {filteredSegments.map((segment) => (
+                                <div key={segment.id} className="flex w-full items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-white p-3.5 text-left transition hover:border-[#fc4c02] hover:bg-orange-50">
+                                    <span className="min-w-0"><span className="block truncate text-sm font-bold text-neutral-900">{segment.name}</span><span className="mt-1 block text-xs font-medium text-neutral-500">{segment.distance_km != null ? `${segment.distance_km.toFixed(2)} km` : "Distance unavailable"} · {segment.elevation_m != null ? `${segment.elevation_m} m elevation` : "Elevation unavailable"}</span></span>
+                                    <span className="flex shrink-0 gap-2">
+                                        <button type="button" aria-label={`Preview ${segment.name}`} onClick={() => previewStarredSegment(segment)} disabled={previewLoadingId === segment.id} className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-300 bg-white px-3 py-2 text-xs font-bold text-neutral-700 hover:bg-neutral-100 disabled:cursor-wait disabled:opacity-60">
+                                            {previewLoadingId === segment.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />} Preview
+                                        </button>
+                                        <button type="button" aria-label={`Select ${segment.name}`} onClick={() => selectStarredSegment(segment)} className="rounded-lg bg-neutral-900 px-3 py-2 text-xs font-bold text-white hover:bg-neutral-700">Select</button>
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+            <AdminSegmentPreviewModal segment={previewSegment} onClose={() => setPreviewSegment(null)} />
+        </>);
     }
 
     return (
@@ -283,18 +390,29 @@ export default function SubmissionForm({ onClose, onExistingSegmentRated }: Prop
                         <label htmlFor="strava_url" className="block text-xs font-bold text-neutral-400 uppercase tracking-widest mb-2 group-focus-within:text-neutral-900 transition-colors">
                             Strava Segment URL
                         </label>
-                        <input
-                            id="strava_url"
-                            type="url"
-                            required
-                            placeholder="https://www.strava.com/segments/12345"
-                            className="w-full px-4 py-3.5 rounded-xl border border-neutral-200 bg-neutral-50/50 focus:bg-white focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900 outline-none transition-all text-neutral-900 font-medium placeholder:text-neutral-400 placeholder:font-normal shadow-sm"
-                            value={formData.strava_url}
-                            onChange={(e) => {
-                                setFormError(null);
-                                setFormData({ ...formData, strava_url: e.target.value });
-                            }}
-                        />
+                        <div className="flex items-stretch gap-2">
+                            <input
+                                id="strava_url"
+                                type="url"
+                                required
+                                placeholder="https://www.strava.com/segments/12345"
+                                className="min-w-0 flex-1 px-4 py-3.5 rounded-xl border border-neutral-200 bg-neutral-50/50 focus:bg-white focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900 outline-none transition-all text-neutral-900 font-medium placeholder:text-neutral-400 placeholder:font-normal shadow-sm"
+                                value={formData.strava_url}
+                                onChange={(e) => {
+                                    setFormError(null);
+                                    setFormData({ ...formData, strava_url: e.target.value });
+                                }}
+                            />
+                            <button
+                                type="button"
+                                onClick={openStarredSegments}
+                                aria-label="Choose from your starred Strava segments"
+                                title="Choose from your starred Strava segments"
+                                className="flex w-12 shrink-0 items-center justify-center rounded-xl border border-[#fc4c02]/30 bg-orange-50 text-[#fc4c02] shadow-sm transition hover:border-[#fc4c02] hover:bg-orange-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#fc4c02]"
+                            >
+                                <StravaMark className="h-6 w-6" />
+                            </button>
+                        </div>
                         <div className="mt-2 flex items-start gap-1.5 text-neutral-500">
                             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                             <p className="text-xs leading-relaxed">

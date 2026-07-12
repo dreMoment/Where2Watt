@@ -119,6 +119,68 @@ async def fetch_segment_details(segment_id: str, db=None, actor_id: str | None =
     return None
 
 
+async def fetch_starred_segments(db, actor_id: str, page: int = 1, per_page: int = 100) -> list[dict] | None:
+    """Return a normalized page of the authenticated athlete's starred segments."""
+    access_token = await get_strava_access_token(db=db, actor_id=actor_id)
+    if not access_token:
+        return None
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(
+                f"{STRAVA_API_BASE_URL}/segments/starred",
+                headers={"Authorization": f"Bearer {access_token}"},
+                params={"page": page, "per_page": per_page},
+            )
+        except httpx.RequestError as exc:
+            logger.warning("Failed to fetch starred Strava segments: request_error=%s", exc)
+            return None
+
+    if response.status_code != 200:
+        logger.warning(
+            "Failed to fetch starred Strava segments: status=%s body=%s",
+            response.status_code,
+            _response_body(response),
+        )
+        return None
+
+    payload = response.json()
+    if not isinstance(payload, list):
+        return None
+
+    segments = []
+    for item in payload:
+        if not isinstance(item, dict) or not item.get("id"):
+            continue
+        distance_m = item.get("distance")
+        elevation_m = item.get("elev_difference")
+        segments.append(
+            {
+                "id": str(item["id"]),
+                "name": str(item.get("name") or "Unnamed segment"),
+                "distance_km": round(float(distance_m) / 1000, 2) if isinstance(distance_m, (int, float)) else None,
+                "elevation_m": round(float(elevation_m)) if isinstance(elevation_m, (int, float)) else None,
+            }
+        )
+    return segments
+
+
+def exclude_existing_segments(starred_segments: list[dict], existing_segments: list[dict]) -> list[dict]:
+    existing_ids: set[str] = set()
+    for segment in existing_segments:
+        strava_id = segment.get("strava_id")
+        if strava_id is not None:
+            existing_ids.add(str(strava_id))
+        aliases = segment.get("aliases")
+        if isinstance(aliases, list):
+            existing_ids.update(str(alias) for alias in aliases if alias is not None)
+        url_id = extract_strava_id(str(segment.get("strava_url") or ""))
+        if url_id:
+            existing_ids.add(url_id)
+
+    return [segment for segment in starred_segments if str(segment.get("id")) not in existing_ids]
+
+
 async def fetch_segment_id_from_effort(segment_effort_id: str, db=None, actor_id: str | None = None) -> str | None:
     if not segment_effort_id:
         return None
