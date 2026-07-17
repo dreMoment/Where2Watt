@@ -2,19 +2,17 @@ import os
 import uuid
 
 # Ensure required settings are available before importing app modules.
-os.environ.setdefault("JWT_SECRET", "test-jwt-secret-with-at-least-32-bytes")
-os.environ.setdefault("ADMIN_STRAVA_IDS", "987654")
-os.environ.setdefault("CORS_ORIGIN", "http://localhost:3000")
-os.environ.setdefault(
-    "MONGODB_URI",
-    "mongodb://user:password@localhost:27017/?authSource=admin",
-)
-os.environ.setdefault("MONGODB_DB_NAME", "where2watt_test")
-os.environ.setdefault("STRAVA_CLIENT_ID", "test-client-id")
-os.environ.setdefault("STRAVA_CLIENT_SECRET", "test-client-secret")
-os.environ.setdefault("STRAVA_REFRESH_TOKEN", "test-refresh-token")
-os.environ.setdefault("STRAVA_WEBHOOK_VERIFY_TOKEN", "test-webhook-verify-token")
-os.environ.setdefault("STRAVA_WEBHOOK_SECRET", "test-webhook-secret")
+os.environ["JWT_SECRET"] = "test-jwt-secret-with-at-least-32-bytes"
+os.environ["ADMIN_STRAVA_IDS"] = "987654"
+os.environ["CORS_ORIGIN"] = "http://localhost:3000"
+# Keep the configured Mongo server, but never allow tests to select the development database.
+os.environ.setdefault("MONGODB_URI", "mongodb://user:password@localhost:27017/?authSource=admin")
+os.environ["MONGODB_DB_NAME"] = f"where2watt_test_{uuid.uuid4().hex}"
+os.environ["STRAVA_CLIENT_ID"] = "test-client-id"
+os.environ["STRAVA_CLIENT_SECRET"] = "test-client-secret"
+os.environ["STRAVA_REFRESH_TOKEN"] = "test-refresh-token"
+os.environ["STRAVA_WEBHOOK_VERIFY_TOKEN"] = "test-webhook-verify-token"
+os.environ["STRAVA_WEBHOOK_SECRET"] = "test-webhook-secret"
 
 import pytest
 from fastapi.testclient import TestClient

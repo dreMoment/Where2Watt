@@ -22,54 +22,36 @@ export function useHomePreferences({
   isMobileViewport,
   onPreferencePersistError,
 }: UseHomePreferencesParams) {
-  const isClient = typeof window !== "undefined";
-  const preferencesReady = isClient;
-  // Seed UI state from localStorage so controls render immediately before network hydration finishes.
-  const [weightStr, setWeightStr] = useState(() => {
-    if (!isClient) {
-      return "";
-    }
-    return localStorage.getItem(RIDER_WEIGHT_STORAGE_KEY) ?? "75";
-  });
-  const [bikeWeightStr, setBikeWeightStr] = useState(() => {
-    if (!isClient) {
-      return "";
-    }
-    return localStorage.getItem(BIKE_WEIGHT_STORAGE_KEY) ?? "9";
-  });
-  const [filterPowerStr, setFilterPowerStr] = useState(() => {
-    if (!isClient) {
-      return "";
-    }
-    return localStorage.getItem(PLANNED_POWER_STORAGE_KEY) ?? "250";
-  });
-  const [filterTimeStr, setFilterTimeStr] = useState(() => {
-    if (!isClient) {
-      return "";
-    }
-    return localStorage.getItem(INTERVAL_FILTER_TIME_STORAGE_KEY) ?? "5";
-  });
-  const [hideInfoScreenNextTime, setHideInfoScreenNextTime] = useState(() => {
-    if (typeof window === "undefined") {
-      return false;
-    }
-    return localStorage.getItem(HIDE_INFO_SCREEN_STORAGE_KEY) === "true";
-  });
-  const [showInfoScreen, setShowInfoScreen] = useState(() => {
-    if (typeof window === "undefined") {
-      return false;
-    }
-    return localStorage.getItem(HIDE_INFO_SCREEN_STORAGE_KEY) !== "true";
-  });
-  const [sidebarOpen, setSidebarOpen] = useState(() => {
-    if (typeof window === "undefined") {
-      return true;
-    }
-    const shouldShowInfoScreen = localStorage.getItem(HIDE_INFO_SCREEN_STORAGE_KEY) !== "true";
-    const isMobile = window.matchMedia("(max-width: 768px)").matches;
-    return !isMobile && !shouldShowInfoScreen;
-  });
+  // Keep the server and first client render identical; browser preferences are applied after hydration.
+  const [preferencesReady, setPreferencesReady] = useState(false);
+  const [weightStr, setWeightStr] = useState("");
+  const [bikeWeightStr, setBikeWeightStr] = useState("");
+  const [filterPowerStr, setFilterPowerStr] = useState("");
+  const [filterTimeStr, setFilterTimeStr] = useState("");
+  const [hideInfoScreenNextTime, setHideInfoScreenNextTime] = useState(false);
+  const [showInfoScreen, setShowInfoScreen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [preferencesHydrated, setPreferencesHydrated] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      const shouldShowInfoScreen = localStorage.getItem(HIDE_INFO_SCREEN_STORAGE_KEY) !== "true";
+      const isMobile = window.matchMedia("(max-width: 768px)").matches;
+      setWeightStr(localStorage.getItem(RIDER_WEIGHT_STORAGE_KEY) ?? "75");
+      setBikeWeightStr(localStorage.getItem(BIKE_WEIGHT_STORAGE_KEY) ?? "9");
+      setFilterPowerStr(localStorage.getItem(PLANNED_POWER_STORAGE_KEY) ?? "250");
+      setFilterTimeStr(localStorage.getItem(INTERVAL_FILTER_TIME_STORAGE_KEY) ?? "5");
+      setHideInfoScreenNextTime(!shouldShowInfoScreen);
+      setShowInfoScreen(shouldShowInfoScreen);
+      setSidebarOpen(!isMobile && !shouldShowInfoScreen);
+      setPreferencesReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Canonical payload used by debounced preference syncing.
   const preferencePayload = useMemo(() => {
