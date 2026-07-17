@@ -85,6 +85,60 @@ def test_fetch_segment_details_supports_avg_grade_fallback(monkeypatch):
 
 
 @pytest.mark.unit
+def test_fetch_starred_segments_returns_normalized_payload(monkeypatch):
+    monkeypatch.setattr(strava_service, "get_strava_access_token", AsyncMock(return_value="athlete-token"))
+    mock_response = SimpleNamespace(
+        status_code=200,
+        json=lambda: [
+            {"id": 42, "name": "Hawk Hill", "distance": 2684.8, "elev_difference": 152.8},
+            {"id": 43, "name": "Flat Road", "distance": 5000},
+        ],
+    )
+    mock_client = SimpleNamespace(get=AsyncMock(return_value=mock_response))
+    monkeypatch.setattr(strava_service.httpx, "AsyncClient", lambda: MockAsyncClientContext(mock_client))
+
+    result = asyncio.run(strava_service.fetch_starred_segments(SimpleNamespace(), "actor-123"))
+
+    mock_client.get.assert_awaited_once_with(
+        "https://www.strava.com/api/v3/segments/starred",
+        headers={"Authorization": "Bearer athlete-token"},
+        params={"page": 1, "per_page": 100},
+    )
+    assert result == [
+        {"id": "42", "name": "Hawk Hill", "distance_km": 2.68, "elevation_m": 153},
+        {"id": "43", "name": "Flat Road", "distance_km": 5.0, "elevation_m": None},
+    ]
+
+
+@pytest.mark.unit
+def test_fetch_starred_segments_returns_none_when_strava_request_fails(monkeypatch):
+    monkeypatch.setattr(strava_service, "get_strava_access_token", AsyncMock(return_value="athlete-token"))
+    mock_client = SimpleNamespace(
+        get=AsyncMock(return_value=SimpleNamespace(status_code=500, text="upstream failed", json=lambda: {}))
+    )
+    monkeypatch.setattr(strava_service.httpx, "AsyncClient", lambda: MockAsyncClientContext(mock_client))
+
+    assert asyncio.run(strava_service.fetch_starred_segments(SimpleNamespace(), "actor-123")) is None
+
+
+@pytest.mark.unit
+def test_exclude_existing_segments_checks_ids_aliases_and_legacy_urls():
+    starred = [
+        {"id": "11", "name": "New"},
+        {"id": "22", "name": "Direct match"},
+        {"id": "33", "name": "Alias match"},
+        {"id": "44", "name": "URL match"},
+    ]
+    existing = [
+        {"strava_id": "22", "aliases": []},
+        {"strava_id": "99", "aliases": ["33"]},
+        {"strava_url": "https://www.strava.com/segments/44?source=legacy"},
+    ]
+
+    assert strava_service.exclude_existing_segments(starred, existing) == [{"id": "11", "name": "New"}]
+
+
+@pytest.mark.unit
 def test_get_strava_access_token_prefers_actor_token(monkeypatch):
     actor_id = "actor-123"
     valid_expires_at = int(time.time()) + 3600

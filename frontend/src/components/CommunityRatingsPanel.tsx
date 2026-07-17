@@ -14,6 +14,7 @@ import {
 
 interface CommunityRatingsPanelProps {
     segment: Segment;
+    initiallyFolded?: boolean;
     onSegmentRated?: (segmentId: string, rating: { ratings_count: number; average_ratings: SegmentAverageRatings }) => void;
 }
 
@@ -111,7 +112,7 @@ function RatingChoiceInput({ fieldKey, label, value, options, onChange }: Rating
     );
 }
 
-export default function CommunityRatingsPanel({ segment, onSegmentRated }: CommunityRatingsPanelProps) {
+export default function CommunityRatingsPanel({ segment, initiallyFolded = false, onSegmentRated }: CommunityRatingsPanelProps) {
     const { isLoggedIn, token, login } = useAuth();
     const { confirm, showToast } = useUiFeedback();
     const [showRatingForm, setShowRatingForm] = useState(false);
@@ -120,11 +121,11 @@ export default function CommunityRatingsPanel({ segment, onSegmentRated }: Commu
     const [ratingDraft, setRatingDraft] = useState<NullableSegmentRatings>({ ...DEFAULT_RATING_INPUT });
     const [showLoginPrompt, setShowLoginPrompt] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
-    const [isFolded, setIsFolded] = useState(false);
+    const [isFolded, setIsFolded] = useState(initiallyFolded);
 
     useEffect(() => {
-        setIsFolded(false);
-    }, [segment.id]);
+        setIsFolded(initiallyFolded);
+    }, [initiallyFolded, segment.id]);
 
     useEffect(() => {
         let cancelled = false;

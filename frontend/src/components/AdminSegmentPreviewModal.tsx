@@ -35,7 +35,7 @@ export default function AdminSegmentPreviewModal({ segment, onClose }: AdminSegm
         aria-label="Close segment preview"
         onClick={onClose}
       />
-      <div className={`relative w-full border border-neutral-200 bg-white shadow-2xl overflow-hidden ${isFullscreen ? "h-full rounded-none max-w-none" : "max-w-6xl rounded-2xl"}`}>
+      <div className={`relative w-full border border-neutral-200 bg-white shadow-2xl overflow-hidden ${isFullscreen ? "h-full rounded-none max-w-none" : "max-w-7xl rounded-2xl"}`}>
         <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-3 bg-white/95">
           <div>
             <h2 className="text-sm font-semibold text-neutral-900">Segment Preview</h2>
@@ -58,13 +58,18 @@ export default function AdminSegmentPreviewModal({ segment, onClose }: AdminSegm
             </button>
           </div>
         </div>
-        <div className={isFullscreen ? "h-[calc(100%-52px)]" : "h-[min(78vh,680px)]"}>
+        <div className={isFullscreen ? "h-[calc(100%-52px)]" : "h-[min(82vh,740px)]"}>
           <InteractiveMap
             key={segment.id || segment.strava_id || segment.name}
             segments={[segment]}
             focusSegmentId={segment.id}
             autoSelectFocusedSegment={true}
             persistViewport={false}
+            communityRatingsInitiallyFolded={true}
+            showCommunityRatings={false}
+            elevationProfileAsPopup={true}
+            segmentDetailsAsTopLeftOverlay={true}
+            showSegmentReportAction={false}
           />
         </div>
       </div>

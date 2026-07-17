@@ -1,6 +1,7 @@
 import logging
+import re
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 import httpx
 from config import ADMIN_STRAVA_IDS, STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET
@@ -10,12 +11,15 @@ from rate_limiter import limiter
 from schemas import (
     DisconnectResponseSchema,
     StravaCallbackSchema,
+    StravaSegmentPreviewResponseSchema,
+    StarredSegmentResponseSchema,
     UserPreferencesSchema,
     UserPreferencesUpdateSchema,
     UserResponseSchema,
 )
 from services.account_cleanup import purge_actor_data
 from services.segments import now_iso
+from services.strava import exclude_existing_segments, fetch_segment_details, fetch_starred_segments
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -114,6 +118,67 @@ async def get_current_user(request: Request, identity: ActorIdentity = Depends(v
     return {
         "actor_id": identity.actor_id,
         "is_admin": identity.is_admin,
+    }
+
+
+@router.get("/api/strava/segments/starred", response_model=list[StarredSegmentResponseSchema])
+@limiter.limit("30/minute")
+async def get_starred_strava_segments(
+    request: Request,
+    page: int = Query(default=1, ge=1),
+    per_page: int = Query(default=100, ge=1, le=100),
+    identity: ActorIdentity = Depends(verify_active_user),
+):
+    db = get_db()
+    segments = await fetch_starred_segments(
+        db=db,
+        actor_id=identity.actor_id,
+        page=page,
+        per_page=per_page,
+    )
+    if segments is None:
+        raise HTTPException(status_code=502, detail="Could not load your starred Strava segments. Please try again.")
+    if not segments:
+        return []
+
+    starred_ids = [segment["id"] for segment in segments]
+    stored_id_variants: list[str | int] = [*starred_ids, *(int(value) for value in starred_ids if value.isdigit())]
+    url_pattern = "segments/(?:" + "|".join(re.escape(value) for value in starred_ids) + ")(?![0-9])"
+    existing_segments = await db.segments.find(
+        {
+            "$or": [
+                {"strava_id": {"$in": stored_id_variants}},
+                {"aliases": {"$in": stored_id_variants}},
+                {"strava_url": {"$regex": url_pattern}},
+            ]
+        },
+        {"_id": 0, "strava_id": 1, "aliases": 1, "strava_url": 1, "approved": 1},
+    ).to_list(length=len(starred_ids))
+    approved_segments = [
+        segment for segment in existing_segments
+        if segment.get("approved", True) is not False
+    ]
+    return exclude_existing_segments(segments, approved_segments)
+
+
+@router.get("/api/strava/segments/{segment_id}/preview", response_model=StravaSegmentPreviewResponseSchema)
+@limiter.limit("30/minute")
+async def preview_strava_segment(
+    request: Request,
+    segment_id: str,
+    identity: ActorIdentity = Depends(verify_active_user),
+):
+    if not segment_id.isdigit():
+        raise HTTPException(status_code=400, detail="Invalid Strava segment ID.")
+
+    details = await fetch_segment_details(segment_id, db=get_db(), actor_id=identity.actor_id)
+    if not details or not details.get("polyline"):
+        raise HTTPException(status_code=502, detail="Could not load segment details from Strava. Please try again.")
+
+    return {
+        "id": segment_id,
+        "strava_url": f"https://www.strava.com/segments/{segment_id}",
+        **details,
     }
 
 

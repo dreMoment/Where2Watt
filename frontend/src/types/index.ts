@@ -57,3 +57,15 @@ export type Segment = {
   reported_by_users?: UserSummary[];
   block_reports?: SegmentAdminReport[];
 };
+
+export type ExploreCandidate = {
+  id: string;
+  strava_url: string;
+  name: string;
+  distance_km: number;
+  elevation_difference_m: number;
+  average_grade_pct: number;
+  climb_category: number;
+  climb_category_description?: string | null;
+  coordinates: [number, number][];
+};

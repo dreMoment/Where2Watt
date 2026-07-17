@@ -64,6 +64,22 @@ class QuickAddSchema(BaseModel):
     strava_url: str
 
 
+class StarredSegmentResponseSchema(BaseModel):
+    id: str
+    name: str
+    distance_km: float | None = None
+    elevation_m: int | None = None
+
+
+class StravaSegmentPreviewResponseSchema(BaseModel):
+    id: str
+    name: str
+    strava_url: str
+    polyline: str
+    distance_km: float
+    gradient_pct: float
+
+
 class SegmentReportSchema(BaseModel):
     note: str | None = Field(default=None, max_length=SEGMENT_REPORT_NOTE_MAX_LENGTH)
 
