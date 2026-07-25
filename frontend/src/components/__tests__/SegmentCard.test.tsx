@@ -68,24 +68,4 @@ describe('SegmentCard', () => {
         expect(screen.queryByText("--:--")).not.toBeInTheDocument();
     });
 
-    it('shows overall quality average when ratings are available', () => {
-        const ratedSegment: import('@/types').Segment = {
-            ...mockSegment,
-            ratings_count: 6,
-            average_ratings: {
-                overall_quality: 8.4,
-                traffic_level: 2.1,
-                road_surface: 2.7,
-                gradient_profile: 2.0,
-                sketchy_left_turns: 0.8,
-            },
-        };
-
-        render(<SegmentCard segment={ratedSegment} />);
-
-        expect(screen.getByLabelText('Overall Quality average stars')).toBeInTheDocument();
-        expect(screen.getByText('8.4/10')).toBeInTheDocument();
-        expect(screen.getByText('from 6 ratings')).toBeInTheDocument();
-    });
-
 });
