@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Map, { Popup, Source, Layer, NavigationControl } from "react-map-gl/maplibre";
 import type { MapRef } from "react-map-gl/maplibre";
 import SegmentCard from "./SegmentCard";
@@ -39,6 +39,10 @@ interface MapProps {
 }
 
 const MAP_VIEWPORT_STORAGE_KEY = "where2watt:lastMapViewport";
+const TERRAIN_SOURCE_ID = "terrain-source";
+const TERRAIN_EXAGGERATION = 2;
+
+type MapInstance = ReturnType<MapRef["getMap"]>;
 
 type MapViewport = {
   longitude: number;
@@ -112,6 +116,63 @@ function downsampleCoordinates(coordinates: [number, number][], maxPoints = 50):
   return Array.from({ length: maxPoints }, (_, index) => {
     const sourceIndex = Math.round((index / (maxPoints - 1)) * (coordinates.length - 1));
     return coordinates[sourceIndex];
+  });
+}
+
+function waitForTerrainToSettle(map: MapInstance, signal: AbortSignal): Promise<boolean> {
+  return new Promise((resolve) => {
+    let frameId: number | null = null;
+    let finished = false;
+
+    const terrainIsReady = () => {
+      if (!map.getSource(TERRAIN_SOURCE_ID) || map.isMoving()) return false;
+
+      try {
+        return map.isSourceLoaded(TERRAIN_SOURCE_ID) === true;
+      } catch {
+        return false;
+      }
+    };
+
+    const cleanup = () => {
+      map.off("idle", checkReadiness);
+      map.off("sourcedata", checkReadiness);
+      signal.removeEventListener("abort", handleAbort);
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+    };
+
+    const finish = (ready: boolean) => {
+      if (finished) return;
+      finished = true;
+      cleanup();
+      resolve(ready);
+    };
+
+    const checkReadiness = () => {
+      if (signal.aborted) {
+        finish(false);
+        return;
+      }
+      if (!terrainIsReady() || frameId !== null) return;
+
+      // Check again on the next frame. A focus request may start a camera
+      // transition later in the same React effect cycle.
+      frameId = window.requestAnimationFrame(() => {
+        frameId = null;
+        if (terrainIsReady()) {
+          finish(true);
+        }
+      });
+    };
+
+    const handleAbort = () => finish(false);
+
+    map.on("idle", checkReadiness);
+    map.on("sourcedata", checkReadiness);
+    signal.addEventListener("abort", handleAbort, { once: true });
+    checkReadiness();
   });
 }
 
@@ -276,11 +337,13 @@ export default function InteractiveMap({
 
   useEffect(() => {
     if (!selectedSegment) return;
+    // This resets a user-controlled panel when the selected segment or layout changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsRatingsVisible(!isMobileViewport);
   }, [selectedSegment, isMobileViewport]);
 
   useEffect(() => {
-    let cancelled = false;
+    const abortController = new AbortController();
 
     async function loadElevationProfile() {
       if (!selectedSegment?.polyline || !isMapLoaded || !mapRef.current) {
@@ -304,8 +367,8 @@ export default function InteractiveMap({
       }
 
       setIsElevationProfileLoading(true);
-      await new Promise((resolve) => window.requestAnimationFrame(resolve));
-      if (cancelled) return;
+      const terrainReady = await waitForTerrainToSettle(map, abortController.signal);
+      if (!terrainReady) return;
 
       let cumulativeDistanceKm = 0;
       const profile: ElevationProfilePoint[] = [];
@@ -315,13 +378,19 @@ export default function InteractiveMap({
         if (index > 0) {
           cumulativeDistanceKm += distanceKmBetween(coordinates[index - 1], coordinate);
         }
-        const elevation = map.queryTerrainElevation(coordinate);
-        if (typeof elevation === "number" && Number.isFinite(elevation)) {
-          profile.push({ distanceKm: cumulativeDistanceKm, elevationM: elevation });
+        const exaggeratedElevation = map.queryTerrainElevation(coordinate);
+        if (typeof exaggeratedElevation !== "number" || !Number.isFinite(exaggeratedElevation)) {
+          setElevationProfile(null);
+          setIsElevationProfileLoading(false);
+          return;
         }
+        profile.push({
+          distanceKm: cumulativeDistanceKm,
+          elevationM: exaggeratedElevation / TERRAIN_EXAGGERATION,
+        });
       }
 
-      if (!cancelled) {
+      if (!abortController.signal.aborted) {
         setElevationProfile(profile.length >= 2 ? profile : null);
         setIsElevationProfileLoading(false);
       }
@@ -330,7 +399,7 @@ export default function InteractiveMap({
     loadElevationProfile();
 
     return () => {
-      cancelled = true;
+      abortController.abort();
     };
   }, [selectedSegment?.id, selectedSegment?.polyline, isMapLoaded]);
 
@@ -387,7 +456,7 @@ export default function InteractiveMap({
           pitch: initialViewport.pitch,
         }}
         maxPitch={85}
-        terrain={{ source: "terrain-source", exaggeration: 2 }}
+        terrain={{ source: TERRAIN_SOURCE_ID, exaggeration: TERRAIN_EXAGGERATION }}
         mapStyle={mapStyle}
         style={{ width: "100%", height: "100%" }}
         onLoad={() => setIsMapLoaded(true)}
@@ -447,7 +516,7 @@ export default function InteractiveMap({
         cursor={cursor}
       >
         <Source
-          id="terrain-source"
+          id={TERRAIN_SOURCE_ID}
           type="raster-dem"
           tiles={["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"]}
           encoding="terrarium"

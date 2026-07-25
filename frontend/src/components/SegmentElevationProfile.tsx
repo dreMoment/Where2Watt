@@ -44,15 +44,15 @@ function getGradientFillColor(gradientPct: number): string {
   return "rgba(21, 128, 61, 0.13)";
 }
 
-const ELEVATION_SMOOTHING_WINDOW_KM = 0.2;
+// Smooth the chart over a 600 m rolling window. This only affects the visual
+// profile and gradient colors; displayed gain still uses the original data.
+const ELEVATION_SMOOTHING_WINDOW_KM = 0.6;
 const SMALL_DOWNHILL_THRESHOLD_M = 10;
 
 function smoothElevationPoints(points: ElevationProfilePoint[], windowKm = ELEVATION_SMOOTHING_WINDOW_KM): ElevationProfilePoint[] {
   const halfWindowKm = windowKm / 2;
 
-  return points.map((point, index) => {
-    if (index === 0 || index === points.length - 1) return point;
-
+  return points.map((point) => {
     let weightedElevationSum = 0;
     let weightSum = 0;
 
