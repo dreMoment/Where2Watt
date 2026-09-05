@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
+import { ApiError } from "@/utils/apiClient";
 
 interface UsePreferenceSyncParams<TPayload> {
   enabled: boolean;
@@ -11,17 +12,8 @@ interface UsePreferenceSyncParams<TPayload> {
   cooldownOn429Ms?: number;
 }
 
-function isRateLimitError(error: unknown): boolean {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  const normalizedMessage = error.message.toLowerCase();
-  return (
-    normalizedMessage.includes("429") ||
-    normalizedMessage.includes("rate limit") ||
-    normalizedMessage.includes("too many requests")
-  );
+export function isRateLimitError(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 429;
 }
 
 export function usePreferenceSync<TPayload>({

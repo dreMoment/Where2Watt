@@ -71,9 +71,7 @@ def test_create_segment_enriches_with_strava_details(monkeypatch, app_client):
             insert_one=AsyncMock(return_value=SimpleNamespace(inserted_id=created_id)),
         ),
         segment_ratings=SimpleNamespace(
-            find_one=AsyncMock(return_value=None),
-            update_one=AsyncMock(),
-            insert_one=AsyncMock(),
+            update_one=AsyncMock(return_value=SimpleNamespace(upserted_id=ObjectId())),
             aggregate=Mock(
                 return_value=FindCursor(
                     [
@@ -109,7 +107,11 @@ def test_create_segment_enriches_with_strava_details(monkeypatch, app_client):
 
     response = app_client.post(
         "/api/segments",
-        json={"strava_url": "https://www.strava.com/segments/123", "ratings": DEFAULT_RATINGS},
+        json={
+            "strava_url": "http://strava.com/segments/123?source=share",
+            "safety_notes": "  Watch the gravel near the finish.  ",
+            "ratings": DEFAULT_RATINGS,
+        },
         headers=user_auth_headers(),
     )
 
@@ -127,23 +129,25 @@ def test_create_segment_enriches_with_strava_details(monkeypatch, app_client):
     db.segments.insert_one.assert_awaited_once()
     inserted_doc = db.segments.insert_one.await_args.args[0]
     assert inserted_doc["strava_id"] == "123"
+    assert inserted_doc["strava_url"] == "https://www.strava.com/segments/123"
     assert inserted_doc["name"] == "Segment Name"
+    assert inserted_doc["safety_notes"] == "Watch the gravel near the finish."
     assert inserted_doc["approved"] is False
     assert "submitted_by_actor_id" not in inserted_doc
     assert "ratings_count" not in inserted_doc
     assert "rating_totals" not in inserted_doc
-    db.segment_ratings.insert_one.assert_awaited_once_with(
+    db.segment_ratings.update_one.assert_awaited_once_with(
+        {"segment_id": created_id, "rated_by_actor_id": actor_id},
         {
-            "segment_id": created_id,
-            "rated_by_actor_id": actor_id,
-            "ratings": DEFAULT_RATINGS,
-            "rated_at": ANY,
-        }
+            "$set": {"ratings": DEFAULT_RATINGS, "rated_at": ANY},
+            "$setOnInsert": {"segment_id": created_id, "rated_by_actor_id": actor_id},
+        },
+        upsert=True,
     )
     notify_mock.assert_awaited_once_with(
         strava_url="https://www.strava.com/segments/123",
         strava_id="123",
-        segment_name=None,
+        segment_name="Segment Name",
         submitted_by_actor_id=actor_id,
         created_at=ANY,
     )
@@ -213,9 +217,7 @@ def test_create_segment_rejects_duplicate(monkeypatch, app_client):
             )
         ),
         segment_ratings=SimpleNamespace(
-            find_one=AsyncMock(return_value=None),
-            update_one=AsyncMock(),
-            insert_one=AsyncMock(),
+            update_one=AsyncMock(return_value=SimpleNamespace(upserted_id=ObjectId())),
             aggregate=Mock(
                 return_value=FindCursor(
                     [
@@ -249,13 +251,13 @@ def test_create_segment_rejects_duplicate(monkeypatch, app_client):
     assert payload["rating_status"] == "added"
     duplicate_query = db.segments.find_one.await_args.args[0]
     assert {"aliases": "123"} in duplicate_query["$or"]
-    db.segment_ratings.insert_one.assert_awaited_once_with(
+    db.segment_ratings.update_one.assert_awaited_once_with(
+        {"segment_id": existing_segment_id, "rated_by_actor_id": actor_id},
         {
-            "segment_id": existing_segment_id,
-            "rated_by_actor_id": actor_id,
-            "ratings": DEFAULT_RATINGS,
-            "rated_at": ANY,
-        }
+            "$set": {"ratings": DEFAULT_RATINGS, "rated_at": ANY},
+            "$setOnInsert": {"segment_id": existing_segment_id, "rated_by_actor_id": actor_id},
+        },
+        upsert=True,
     )
 
 
@@ -265,7 +267,7 @@ def test_create_segment_rejects_invalid_strava_url(monkeypatch, app_client):
 
     db = SimpleNamespace(
         segments=SimpleNamespace(find_one=AsyncMock(), insert_one=AsyncMock()),
-        segment_ratings=SimpleNamespace(insert_one=AsyncMock()),
+        segment_ratings=SimpleNamespace(update_one=AsyncMock()),
     )
     monkeypatch.setattr(segments_router, "get_db", lambda: db)
     monkeypatch.setattr(segments_router, "resolve_segment_id_from_strava_url", AsyncMock(return_value=None))
@@ -280,7 +282,7 @@ def test_create_segment_rejects_invalid_strava_url(monkeypatch, app_client):
     assert response.status_code == 400
     assert response.json()["detail"] == "Something went wrong. Please check if the Strava URL is correct."
     db.segments.insert_one.assert_not_awaited()
-    db.segment_ratings.insert_one.assert_not_awaited()
+    db.segment_ratings.update_one.assert_not_awaited()
 
 
 @pytest.mark.integration
@@ -291,13 +293,11 @@ def test_create_segment_resolves_activity_segment_effort_url(monkeypatch, app_cl
     actor_id = actor_id_from_strava_id(12345)
     db = SimpleNamespace(
         segments=SimpleNamespace(
-            find_one=AsyncMock(side_effect=[None, {"_id": created_id, "strava_url": "https://www.strava.com/activities/1/segments/2"}]),
+            find_one=AsyncMock(return_value=None),
             insert_one=AsyncMock(return_value=SimpleNamespace(inserted_id=created_id)),
         ),
         segment_ratings=SimpleNamespace(
-            find_one=AsyncMock(return_value=None),
-            update_one=AsyncMock(),
-            insert_one=AsyncMock(),
+            update_one=AsyncMock(return_value=SimpleNamespace(upserted_id=ObjectId())),
             aggregate=Mock(
                 return_value=FindCursor(
                     [
@@ -340,13 +340,14 @@ def test_create_segment_resolves_activity_segment_effort_url(monkeypatch, app_cl
     db.segments.insert_one.assert_awaited_once()
     inserted_doc = db.segments.insert_one.await_args.args[0]
     assert inserted_doc["strava_id"] == "987"
-    db.segment_ratings.insert_one.assert_awaited_once_with(
+    assert inserted_doc["strava_url"] == "https://www.strava.com/segments/987"
+    db.segment_ratings.update_one.assert_awaited_once_with(
+        {"segment_id": created_id, "rated_by_actor_id": actor_id},
         {
-            "segment_id": created_id,
-            "rated_by_actor_id": actor_id,
-            "ratings": DEFAULT_RATINGS,
-            "rated_at": ANY,
-        }
+            "$set": {"ratings": DEFAULT_RATINGS, "rated_at": ANY},
+            "$setOnInsert": {"segment_id": created_id, "rated_by_actor_id": actor_id},
+        },
+        upsert=True,
     )
 
 
@@ -356,7 +357,7 @@ def test_create_segment_rejects_when_strava_segment_details_cannot_be_fetched(mo
 
     db = SimpleNamespace(
         segments=SimpleNamespace(find_one=AsyncMock(return_value=None), insert_one=AsyncMock()),
-        segment_ratings=SimpleNamespace(insert_one=AsyncMock()),
+        segment_ratings=SimpleNamespace(update_one=AsyncMock()),
     )
     monkeypatch.setattr(segments_router, "get_db", lambda: db)
     monkeypatch.setattr(segments_router, "resolve_segment_id_from_strava_url", AsyncMock(return_value="123"))
@@ -371,7 +372,7 @@ def test_create_segment_rejects_when_strava_segment_details_cannot_be_fetched(mo
     assert response.status_code == 400
     assert response.json()["detail"] == "Something went wrong. Please check if the Strava URL is correct."
     db.segments.insert_one.assert_not_awaited()
-    db.segment_ratings.insert_one.assert_not_awaited()
+    db.segment_ratings.update_one.assert_not_awaited()
 
 
 @pytest.mark.integration
@@ -402,9 +403,13 @@ def test_rate_segment_accepts_first_rating_and_updates_existing(monkeypatch, app
             ),
         ),
         segment_ratings=SimpleNamespace(
-            find_one=AsyncMock(side_effect=[None, {"_id": ObjectId()}, {"ratings": DEFAULT_RATINGS, "rated_at": "2026-03-06T10:00:00+00:00"}]),
-            insert_one=AsyncMock(),
-            update_one=AsyncMock(),
+            find_one=AsyncMock(return_value={"ratings": DEFAULT_RATINGS, "rated_at": "2026-03-06T10:00:00+00:00"}),
+            update_one=AsyncMock(
+                side_effect=[
+                    SimpleNamespace(upserted_id=ObjectId()),
+                    SimpleNamespace(upserted_id=None),
+                ]
+            ),
             aggregate=Mock(
                 return_value=FindCursor(
                     [
@@ -432,14 +437,10 @@ def test_rate_segment_accepts_first_rating_and_updates_existing(monkeypatch, app
     assert first.json()["status"] == "rated"
     assert first.json()["ratings_count"] == 1
     assert first.json()["average_ratings"]["overall_quality"] == 4.0
-    db.segment_ratings.insert_one.assert_awaited_once_with(
-        {
-            "segment_id": segment_id,
-            "rated_by_actor_id": actor_id,
-            "ratings": DEFAULT_RATINGS,
-            "rated_at": ANY,
-        }
-    )
+    first_upsert = db.segment_ratings.update_one.await_args_list[0]
+    assert first_upsert.args[0] == {"segment_id": segment_id, "rated_by_actor_id": actor_id}
+    assert first_upsert.args[1]["$set"]["ratings"] == DEFAULT_RATINGS
+    assert first_upsert.kwargs == {"upsert": True}
     updated_ratings = {
         **DEFAULT_RATINGS,
         "overall_quality": 9,
@@ -451,8 +452,8 @@ def test_rate_segment_accepts_first_rating_and_updates_existing(monkeypatch, app
     )
     assert second.status_code == 200
     assert second.json()["status"] == "rated"
-    db.segment_ratings.update_one.assert_awaited_once()
-    update_set = db.segment_ratings.update_one.await_args.args[1]["$set"]
+    assert db.segment_ratings.update_one.await_count == 2
+    update_set = db.segment_ratings.update_one.await_args_list[1].args[1]["$set"]
     assert update_set["ratings"] == updated_ratings
     assert "rated_at" in update_set
 

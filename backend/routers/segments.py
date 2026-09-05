@@ -1,5 +1,3 @@
-from typing import List
-
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pymongo.errors import DuplicateKeyError
 
@@ -15,10 +13,12 @@ from schemas import (
     SegmentSubmitResponseSchema,
 )
 from services.segments import (
+    canonical_strava_segment_url,
     get_segment_rating_stats,
     enrich_segments_with_rating_stats,
     now_iso,
     parse_object_id,
+    segment_identity_query,
     serialize_segment,
 )
 from services.notifications import notify_new_segment_submission
@@ -33,27 +33,26 @@ async def _upsert_actor_rating_for_segment(
     actor_id: str,
     submitted_ratings: dict,
 ) -> str:
-    existing_rating = await db.segment_ratings.find_one(
-        {"segment_id": segment_obj_id, "rated_by_actor_id": actor_id},
-        {"_id": 1},
-    )
-    timestamp = now_iso()
-    if existing_rating:
+    rating_identity = {"segment_id": segment_obj_id, "rated_by_actor_id": actor_id}
+    rating_update = {
+        "$set": {"ratings": submitted_ratings, "rated_at": now_iso()},
+        "$setOnInsert": rating_identity,
+    }
+    try:
+        result = await db.segment_ratings.update_one(
+            rating_identity,
+            rating_update,
+            upsert=True,
+        )
+    except DuplicateKeyError:
+        # Another concurrent request inserted the unique actor/segment pair first.
         await db.segment_ratings.update_one(
-            {"_id": existing_rating["_id"]},
-            {"$set": {"ratings": submitted_ratings, "rated_at": timestamp}},
+            rating_identity,
+            {"$set": rating_update["$set"]},
         )
         return "updated"
 
-    await db.segment_ratings.insert_one(
-        {
-            "segment_id": segment_obj_id,
-            "rated_by_actor_id": actor_id,
-            "ratings": submitted_ratings,
-            "rated_at": timestamp,
-        }
-    )
-    return "added"
+    return "added" if result.upserted_id is not None else "updated"
 
 
 def _existing_submission_reason(existing_segment: dict, segment_id: str) -> str:
@@ -73,17 +72,8 @@ async def create_segment(
     identity: ActorIdentity = Depends(verify_active_user),
 ):
     db = get_db()
-    segment_dict = segment.model_dump()
-    submitted_ratings = segment_dict.pop("ratings")
-    segment_dict["created_at"] = now_iso()
-    segment_dict["approved"] = False
-
-    strava_url = segment_dict.get("strava_url")
-    if not strava_url:
-        raise HTTPException(
-            status_code=400,
-            detail="Something went wrong. Please check if the Strava URL is correct.",
-        )
+    submitted_ratings = segment.ratings.model_dump()
+    strava_url = segment.strava_url
 
     segment_id = await resolve_segment_id_from_strava_url(strava_url, db=db, actor_id=identity.actor_id)
     if not segment_id:
@@ -92,15 +82,7 @@ async def create_segment(
             detail="Something went wrong. Please check if the Strava URL is correct.",
         )
 
-    existing = await db.segments.find_one(
-        {
-            "$or": [
-                {"strava_id": segment_id},
-                {"aliases": segment_id},
-                {"strava_url": {"$regex": f"segments/{segment_id}(?![0-9])"}},
-            ]
-        }
-    )
+    existing = await db.segments.find_one(segment_identity_query(segment_id))
     if existing:
         rating_status = await _upsert_actor_rating_for_segment(db, existing["_id"], identity.actor_id, submitted_ratings)
         existing.update(await get_segment_rating_stats(db, existing["_id"]))
@@ -111,23 +93,30 @@ async def create_segment(
             "duplicate_reason": _existing_submission_reason(existing, segment_id),
             "rating_status": rating_status,
         }
-    segment_dict["strava_id"] = segment_id
-    segment_dict["aliases"] = []
-
     details = await fetch_segment_details(segment_id, db=db, actor_id=identity.actor_id)
     if not details:
         raise HTTPException(
             status_code=400,
             detail="Something went wrong. Please check if the Strava URL is correct.",
         )
-    for key in ["polyline", "name", "distance_km", "gradient_pct"]:
-        if not segment_dict.get(key):
-            segment_dict[key] = details.get(key)
+    safety_notes = (segment.safety_notes or "").strip() or None
+    segment_dict = {
+        "strava_url": canonical_strava_segment_url(segment_id),
+        "strava_id": segment_id,
+        "safety_notes": safety_notes,
+        "polyline": details.get("polyline"),
+        "name": details.get("name"),
+        "distance_km": details.get("distance_km"),
+        "gradient_pct": details.get("gradient_pct"),
+        "created_at": now_iso(),
+        "approved": False,
+        "aliases": [],
+    }
 
     response.status_code = 201
     result = await db.segments.insert_one(segment_dict)
     rating_status = await _upsert_actor_rating_for_segment(db, result.inserted_id, identity.actor_id, submitted_ratings)
-    created_segment = await db.segments.find_one({"_id": result.inserted_id})
+    created_segment = {"_id": result.inserted_id, **segment_dict}
     created_segment.update(await get_segment_rating_stats(db, result.inserted_id))
     await notify_new_segment_submission(
         strava_url=created_segment.get("strava_url"),
@@ -145,7 +134,7 @@ async def create_segment(
     }
 
 
-@router.get("/api/segments", response_model=List[SegmentPublicResponseSchema])
+@router.get("/api/segments", response_model=list[SegmentPublicResponseSchema])
 @limiter.limit("120/minute")
 async def list_segments(request: Request):
     db = get_db()
@@ -170,26 +159,7 @@ async def rate_segment(
     if not segment:
         raise HTTPException(status_code=404, detail="Segment not found")
 
-    rating_values = rating.model_dump()
-    timestamp = now_iso()
-    existing_rating = await db.segment_ratings.find_one(
-        {"segment_id": obj_id, "rated_by_actor_id": identity.actor_id},
-        {"_id": 1},
-    )
-    if existing_rating:
-        await db.segment_ratings.update_one(
-            {"_id": existing_rating["_id"]},
-            {"$set": {"ratings": rating_values, "rated_at": timestamp}},
-        )
-    else:
-        await db.segment_ratings.insert_one(
-            {
-                "segment_id": obj_id,
-                "rated_by_actor_id": identity.actor_id,
-                "ratings": rating_values,
-                "rated_at": timestamp,
-            }
-        )
+    await _upsert_actor_rating_for_segment(db, obj_id, identity.actor_id, rating.model_dump())
 
     stats = await get_segment_rating_stats(db, obj_id)
     return {

@@ -1,30 +1,72 @@
-from urllib.parse import urlparse
+import re
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 
 from bson import ObjectId
 from fastapi import HTTPException
 
 from schemas import RATING_FIELD_BOUNDS, RATING_FIELDS
 
+STRAVA_HOSTS = frozenset({"strava.com", "www.strava.com"})
+
+
+def _strava_url_parts(strava_url: str) -> list[str] | None:
+    if not isinstance(strava_url, str):
+        return None
+
+    try:
+        parsed = urlparse(strava_url.strip())
+        port = parsed.port
+    except ValueError:
+        return None
+
+    if (
+        parsed.scheme.lower() not in {"http", "https"}
+        or parsed.hostname is None
+        or parsed.hostname.lower() not in STRAVA_HOSTS
+        or parsed.username is not None
+        or parsed.password is not None
+        or port is not None
+    ):
+        return None
+
+    return parsed.path.strip("/").split("/")
+
 
 def extract_strava_id(strava_url: str) -> str | None:
-    if not strava_url:
-        return None
-    path = urlparse(strava_url).path.strip("/")
-    parts = path.split("/")
-    if len(parts) >= 2 and parts[0] == "segments" and parts[1].isdigit():
+    parts = _strava_url_parts(strava_url)
+    if parts and len(parts) == 2 and parts[0] == "segments" and parts[1].isdigit():
         return parts[1]
     return None
 
 
 def extract_segment_effort_id(strava_url: str) -> str | None:
-    if not strava_url:
-        return None
-    path = urlparse(strava_url).path.strip("/")
-    parts = path.split("/")
-    if len(parts) >= 4 and parts[0] == "activities" and parts[1].isdigit() and parts[2] == "segments" and parts[3].isdigit():
+    parts = _strava_url_parts(strava_url)
+    if (
+        parts
+        and len(parts) == 4
+        and parts[0] == "activities"
+        and parts[1].isdigit()
+        and parts[2] == "segments"
+        and parts[3].isdigit()
+    ):
         return parts[3]
     return None
+
+
+def canonical_strava_segment_url(segment_id: str) -> str:
+    return f"https://www.strava.com/segments/{segment_id}"
+
+
+def segment_identity_query(segment_id: str) -> dict:
+    escaped_segment_id = re.escape(segment_id)
+    return {
+        "$or": [
+            {"strava_id": segment_id},
+            {"aliases": segment_id},
+            {"strava_url": {"$regex": rf"/segments/{escaped_segment_id}(?:$|[/?#])"}},
+        ]
+    }
 
 
 def parse_object_id(segment_id: str) -> ObjectId:

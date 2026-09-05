@@ -305,6 +305,13 @@ export default function SegmentCard({
                 </div>
             </div>
 
+            {segment.safety_notes ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-amber-700">Safety notes</p>
+                    <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-amber-900">{segment.safety_notes}</p>
+                </div>
+            ) : null}
+
             {showElevationProfile ? (
                 <SegmentElevationProfile
                     points={elevationProfile}

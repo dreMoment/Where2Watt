@@ -86,6 +86,20 @@ def test_auth_preferences_can_be_updated_and_read(app_client):
 
 
 @pytest.mark.integration
+def test_auth_preferences_reject_values_outside_supported_ranges(app_client):
+    actor_id = actor_id_from_strava_id(123458)
+    token = create_jwt(actor_id=actor_id, is_admin=False)
+
+    response = app_client.patch(
+        "/api/auth/preferences",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"rider_weight_kg": -1},
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.integration
 def test_admin_verify_with_admin_user_token(app_client):
     token = create_jwt(actor_id=actor_id_from_strava_id(987654), is_admin=True)
     response = app_client.post("/api/admin/verify", headers={"Authorization": f"Bearer {token}"})

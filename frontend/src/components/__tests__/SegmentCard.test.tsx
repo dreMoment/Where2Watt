@@ -57,10 +57,11 @@ describe('SegmentCard', () => {
     });
 
     it('renders segment data correctly', () => {
-        render(<SegmentCard segment={mockSegment} />);
+        render(<SegmentCard segment={{ ...mockSegment, safety_notes: 'Watch for gravel.' }} />);
         expect(screen.getByText('Test Climb')).toBeInTheDocument();
         expect(screen.getByText('2.5')).toBeInTheDocument();
         expect(screen.getByText('5%')).toBeInTheDocument();
+        expect(screen.getByText('Watch for gravel.')).toBeInTheDocument();
     });
 
     it('calculates estimated time when power and weight are provided', () => {

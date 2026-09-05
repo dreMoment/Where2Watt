@@ -1,4 +1,9 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+function normalizeApiBaseUrl(value: string | undefined): string {
+    const normalized = value?.trim().replace(/\/+$/, "");
+    return normalized || "/api";
+}
+
+export const API_BASE_URL = normalizeApiBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL);
 
 type MaybeJsonError = {
     detail?: string | Array<{ loc?: Array<string | number>; msg?: string; type?: string }>;
@@ -9,6 +14,16 @@ type MaybeJsonError = {
 type RequestOptions = RequestInit & {
     errorMessage?: string;
 };
+
+export class ApiError extends Error {
+    readonly status: number;
+
+    constructor(message: string, status: number) {
+        super(message);
+        this.name = "ApiError";
+        this.status = status;
+    }
+}
 
 function mergeHeaders(...headerSets: Array<HeadersInit | undefined>): Headers {
     const merged = new Headers();
@@ -67,27 +82,26 @@ function formatFastApiValidationDetail(detail: MaybeJsonError["detail"]): string
     return normalizedItems.join("; ");
 }
 
-export async function parseNormalizedError(res: Response, fallbackMessage: string): Promise<Error> {
+export async function parseNormalizedError(res: Response, fallbackMessage: string): Promise<ApiError> {
+    let message = fallbackMessage;
     try {
         const data = (await res.json()) as MaybeJsonError;
 
         if (typeof data?.detail === "string" && data.detail.trim().length > 0) {
-            return new Error(data.detail);
-        }
-
-        const validationMessage = formatFastApiValidationDetail(data?.detail);
-        if (validationMessage) {
-            return new Error(validationMessage);
-        }
-
-        const message = data?.message ?? data?.error;
-        if (typeof message === "string" && message.trim().length > 0) {
-            return new Error(message);
+            message = data.detail;
+        } else {
+            const validationMessage = formatFastApiValidationDetail(data?.detail);
+            const responseMessage = data?.message ?? data?.error;
+            if (validationMessage) {
+                message = validationMessage;
+            } else if (typeof responseMessage === "string" && responseMessage.trim().length > 0) {
+                message = responseMessage;
+            }
         }
     } catch {
         // ignore JSON parsing errors
     }
-    return new Error(fallbackMessage);
+    return new ApiError(message, res.status);
 }
 
 export async function request<T = void>(path: string, options: RequestOptions = {}): Promise<T> {

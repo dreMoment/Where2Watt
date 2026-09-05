@@ -1,8 +1,15 @@
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 SEGMENT_REPORT_NOTE_MAX_LENGTH = 500
+SEGMENT_SAFETY_NOTES_MAX_LENGTH = 1_000
+STRAVA_URL_MAX_LENGTH = 2_048
+
+RiderWeight = Annotated[float, Field(ge=20, le=300)]
+BikeWeight = Annotated[float, Field(ge=1, le=100)]
+IntervalPower = Annotated[float, Field(ge=1, le=3_000)]
+IntervalMinutes = Annotated[float, Field(ge=0.1, le=1_440)]
 
 RATING_FIELD_BOUNDS: dict[str, tuple[int, int]] = {
     "overall_quality": (1, 10),
@@ -35,6 +42,7 @@ class SegmentSchema(BaseModel):
     name: str | None = None
     polyline: str | None = None
     strava_url: str | None = None
+    safety_notes: str | None = None
     distance_km: float | None = None
     gradient_pct: float | None = None
     approved: bool | None = False
@@ -50,18 +58,17 @@ class SegmentSchema(BaseModel):
 
 
 class SegmentCreateSchema(BaseModel):
-    name: str | None = None
-    polyline: str | None = None
-    strava_url: str | None = None
-    distance_km: float | None = None
-    gradient_pct: float | None = None
+    strava_url: str = Field(min_length=1, max_length=STRAVA_URL_MAX_LENGTH)
+    safety_notes: str | None = Field(default=None, max_length=SEGMENT_SAFETY_NOTES_MAX_LENGTH)
     ratings: SegmentCategoryRatingSchema
 
-    model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True, extra="ignore")
+    model_config = ConfigDict(extra="forbid")
 
 
 class QuickAddSchema(BaseModel):
-    strava_url: str
+    strava_url: str = Field(min_length=1, max_length=STRAVA_URL_MAX_LENGTH)
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class StarredSegmentResponseSchema(BaseModel):
@@ -166,18 +173,22 @@ class UserResponseSchema(BaseModel):
 
 class UserPreferencesSchema(BaseModel):
     hide_info_screen: bool = False
-    rider_weight_kg: float = 75.0
-    bike_weight_kg: float = 9.0
-    interval_filter_power_watts: float = 250.0
-    interval_filter_minutes: float = 5.0
+    rider_weight_kg: RiderWeight = 75.0
+    bike_weight_kg: BikeWeight = 9.0
+    interval_filter_power_watts: IntervalPower = 250.0
+    interval_filter_minutes: IntervalMinutes = 5.0
+
+    model_config = ConfigDict(extra="ignore")
 
 
 class UserPreferencesUpdateSchema(BaseModel):
     hide_info_screen: bool | None = None
-    rider_weight_kg: float | None = None
-    bike_weight_kg: float | None = None
-    interval_filter_power_watts: float | None = None
-    interval_filter_minutes: float | None = None
+    rider_weight_kg: RiderWeight | None = None
+    bike_weight_kg: BikeWeight | None = None
+    interval_filter_power_watts: IntervalPower | None = None
+    interval_filter_minutes: IntervalMinutes | None = None
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class DisconnectResponseSchema(BaseModel):

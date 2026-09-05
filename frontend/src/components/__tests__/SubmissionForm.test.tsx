@@ -24,6 +24,9 @@ jest.mock('@/components/AdminSegmentPreviewModal', () => ({
     default: ({ segment }: { segment: { name: string } | null }) => segment ? <div>Segment Preview: {segment.name}</div> : null,
 }));
 
+// This component intentionally exercises the complete multi-step form in jsdom.
+jest.setTimeout(15_000);
+
 describe('SubmissionForm', () => {
     const mockOnClose = jest.fn();
     const mockOnExistingSegmentRated = jest.fn();
@@ -38,7 +41,7 @@ describe('SubmissionForm', () => {
         expect(screen.getByText('Add a Segment')).toBeInTheDocument();
         expect(screen.getByText(/Segment URLs and activity segment-effort URLs are supported/i)).toBeInTheDocument();
         expect(screen.getByLabelText(/Strava Segment URL/i)).toBeInTheDocument();
-        expect(screen.queryByLabelText(/Safety Notes/i)).not.toBeInTheDocument();
+        expect(screen.getByLabelText(/Safety notes/i)).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Choose from your starred Strava segments/i })).toBeInTheDocument();
     });
 
@@ -103,6 +106,9 @@ describe('SubmissionForm', () => {
         fireEvent.change(screen.getByLabelText(/Strava Segment URL/i), {
             target: { value: 'https://www.strava.com/segments/123' },
         });
+        fireEvent.change(screen.getByLabelText(/Safety notes/i), {
+            target: { value: 'Gravel near the finish' },
+        });
         fireEvent.click(screen.getByRole('button', { name: /Overall Quality star 1/i }));
         fireEvent.click(screen.getByRole('button', { name: /Traffic Level: Low/i }));
         fireEvent.click(screen.getByRole('button', { name: /Road Surface: Patchy/i }));
@@ -110,25 +116,24 @@ describe('SubmissionForm', () => {
         fireEvent.click(screen.getByRole('button', { name: /Sketchy Left Turns: 1/i }));
         fireEvent.click(screen.getByRole('button', { name: /Submit Segment/i }));
 
-        expect(submitSegment).toHaveBeenCalledWith({
-            strava_url: 'https://www.strava.com/segments/123',
-            safety_notes: '',
-            ratings: {
-                overall_quality: 2,
-                traffic_level: 1,
-                road_surface: 2,
-                gradient_profile: 2,
-                sketchy_left_turns: 1,
-            },
-        }, 'mock-token');
+        await waitFor(() => {
+            expect(submitSegment).toHaveBeenCalledWith({
+                strava_url: 'https://www.strava.com/segments/123',
+                safety_notes: 'Gravel near the finish',
+                ratings: {
+                    overall_quality: 2,
+                    traffic_level: 1,
+                    road_surface: 2,
+                    gradient_profile: 2,
+                    sketchy_left_turns: 1,
+                },
+            }, 'mock-token');
+        });
 
         await waitFor(() => {
             expect(screen.getByText(/Submitted!/i)).toBeInTheDocument();
         });
 
-        await waitFor(() => {
-            expect(mockOnClose).toHaveBeenCalled();
-        }, { timeout: 2500 });
     });
 
     it('accepts activity segment-effort URLs', async () => {

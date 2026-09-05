@@ -18,6 +18,7 @@ from schemas import (
     UserResponseSchema,
 )
 from services.account_cleanup import purge_actor_data
+from services.preferences import normalize_user_preferences
 from services.segments import now_iso
 from services.strava import exclude_existing_segments, fetch_segment_details, fetch_starred_segments
 
@@ -187,24 +188,7 @@ async def preview_strava_segment(
 async def get_user_preferences(request: Request, identity: ActorIdentity = Depends(verify_active_user)):
     db = get_db()
     doc = await db.user_preferences.find_one({"actor_id": identity.actor_id})
-    hide_info_screen = False
-    rider_weight_kg = 75.0
-    bike_weight_kg = 9.0
-    interval_filter_power_watts = 250.0
-    interval_filter_minutes = 5.0
-    if isinstance(doc, dict):
-        hide_info_screen = bool(doc.get("hide_info_screen", False))
-        rider_weight_kg = float(doc.get("rider_weight_kg", 75.0))
-        bike_weight_kg = float(doc.get("bike_weight_kg", 9.0))
-        interval_filter_power_watts = float(doc.get("interval_filter_power_watts", 250.0))
-        interval_filter_minutes = float(doc.get("interval_filter_minutes", 5.0))
-    return {
-        "hide_info_screen": hide_info_screen,
-        "rider_weight_kg": rider_weight_kg,
-        "bike_weight_kg": bike_weight_kg,
-        "interval_filter_power_watts": interval_filter_power_watts,
-        "interval_filter_minutes": interval_filter_minutes,
-    }
+    return normalize_user_preferences(doc)
 
 
 @router.patch("/api/auth/preferences", response_model=UserPreferencesSchema)
@@ -215,7 +199,7 @@ async def update_user_preferences(
     identity: ActorIdentity = Depends(verify_active_user),
 ):
     db = get_db()
-    update_payload = payload.model_dump(exclude_unset=True)
+    update_payload = payload.model_dump(exclude_unset=True, exclude_none=True)
     update_payload["actor_id"] = identity.actor_id
     update_payload["updated_at"] = now_iso()
 
@@ -226,22 +210,7 @@ async def update_user_preferences(
     )
 
     doc = await db.user_preferences.find_one({"actor_id": identity.actor_id})
-    if not isinstance(doc, dict):
-        return {
-            "hide_info_screen": False,
-            "rider_weight_kg": 75.0,
-            "bike_weight_kg": 9.0,
-            "interval_filter_power_watts": 250.0,
-            "interval_filter_minutes": 5.0,
-        }
-
-    return {
-        "hide_info_screen": bool(doc.get("hide_info_screen", False)),
-        "rider_weight_kg": float(doc.get("rider_weight_kg", 75.0)),
-        "bike_weight_kg": float(doc.get("bike_weight_kg", 9.0)),
-        "interval_filter_power_watts": float(doc.get("interval_filter_power_watts", 250.0)),
-        "interval_filter_minutes": float(doc.get("interval_filter_minutes", 5.0)),
-    }
+    return normalize_user_preferences(doc)
 
 
 @router.post("/api/auth/disconnect", response_model=DisconnectResponseSchema)

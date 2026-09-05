@@ -1,8 +1,18 @@
 import pytest
 from bson import ObjectId
 from fastapi import HTTPException
+from pydantic import ValidationError
 
-from services.segments import extract_segment_effort_id, extract_strava_id, normalize_aliases, parse_object_id, serialize_segment
+from schemas import SegmentCreateSchema
+from services.segments import (
+    canonical_strava_segment_url,
+    extract_segment_effort_id,
+    extract_strava_id,
+    normalize_aliases,
+    parse_object_id,
+    segment_identity_query,
+    serialize_segment,
+)
 
 
 @pytest.mark.unit
@@ -16,6 +26,34 @@ def test_extract_strava_id_returns_none_for_invalid_url():
     assert extract_strava_id("https://www.strava.com/routes/123") is None
     assert extract_strava_id("https://www.strava.com/activities/17650152462/segments/3465746799772048188") is None
     assert extract_strava_id("") is None
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://example.com/segments/123456",
+        "https://www.strava.com.evil.example/segments/123456",
+        "https://user@www.strava.com/segments/123456",
+        "https://www.strava.com:443/segments/123456",
+        "https://www.strava.com/segments/123456/extra",
+        "javascript://www.strava.com/segments/123456",
+    ],
+)
+def test_extract_strava_id_rejects_untrusted_or_malformed_urls(url):
+    assert extract_strava_id(url) is None
+
+
+@pytest.mark.unit
+def test_strava_segment_helpers_canonicalize_and_build_legacy_lookup():
+    assert canonical_strava_segment_url("123") == "https://www.strava.com/segments/123"
+    assert segment_identity_query("123") == {
+        "$or": [
+            {"strava_id": "123"},
+            {"aliases": "123"},
+            {"strava_url": {"$regex": r"/segments/123(?:$|[/?#])"}},
+        ]
+    }
 
 
 @pytest.mark.unit
@@ -108,3 +146,19 @@ def test_serialize_segment_normalizes_aliases_and_removes_canonical_strava_id():
 def test_normalize_aliases_accepts_numeric_values_and_dedupes():
     aliases = normalize_aliases([123, "123", "456", None, " ", 789])
     assert aliases == ["123", "456", "789"]
+
+
+@pytest.mark.unit
+def test_segment_submission_rejects_client_supplied_strava_metadata():
+    with pytest.raises(ValidationError):
+        SegmentCreateSchema(
+            strava_url="https://www.strava.com/segments/123",
+            name="Forged name",
+            ratings={
+                "overall_quality": 8,
+                "traffic_level": 1,
+                "road_surface": 2,
+                "gradient_profile": 2,
+                "sketchy_left_turns": 0,
+            },
+        )

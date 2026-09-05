@@ -1,5 +1,3 @@
-from typing import List
-
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request
 
@@ -18,6 +16,7 @@ from schemas import (
     SegmentResponseSchema,
 )
 from services.segments import (
+    canonical_strava_segment_url,
     empty_segment_rating_stats,
     enrich_segments_with_rating_stats,
     enrich_admin_segment_users,
@@ -25,6 +24,7 @@ from services.segments import (
     normalize_aliases,
     now_iso,
     parse_object_id,
+    segment_identity_query,
     serialize_segment,
     valid_rating_query,
 )
@@ -72,7 +72,7 @@ async def verify_admin_password(request: Request):
 
 @router.get(
     "/api/admin/segments/unapproved",
-    response_model=List[SegmentResponseSchema],
+    response_model=list[SegmentResponseSchema],
     dependencies=[Depends(verify_admin)],
 )
 @limiter.limit("60/minute")
@@ -88,7 +88,7 @@ async def list_unapproved_segments(request: Request):
 
 @router.get(
     "/api/admin/segments",
-    response_model=List[SegmentResponseSchema],
+    response_model=list[SegmentResponseSchema],
     dependencies=[Depends(verify_admin)],
 )
 @limiter.limit("60/minute")
@@ -104,7 +104,7 @@ async def list_all_segments(request: Request):
 
 @router.get(
     "/api/admin/segments/{segment_id}/ratings",
-    response_model=List[SegmentAdminRatingSchema],
+    response_model=list[SegmentAdminRatingSchema],
     dependencies=[Depends(verify_admin)],
 )
 @limiter.limit("120/minute")
@@ -322,7 +322,7 @@ async def split_segment(
         details = alias_details[alias]
 
         segment_doc = {
-            "strava_url": f"https://www.strava.com/segments/{alias}",
+            "strava_url": canonical_strava_segment_url(alias),
             "strava_id": alias,
             "name": details.get("name"),
             "polyline": details.get("polyline"),
@@ -405,15 +405,7 @@ async def quick_add_segment(
     if not segment_id:
         raise HTTPException(status_code=400, detail="Invalid Strava URL")
 
-    existing = await db.segments.find_one(
-        {
-            "$or": [
-                {"strava_id": segment_id},
-                {"aliases": segment_id},
-                {"strava_url": {"$regex": f"segments/{segment_id}(?![0-9])"}},
-            ]
-        }
-    )
+    existing = await db.segments.find_one(segment_identity_query(segment_id))
     if existing:
         raise HTTPException(status_code=400, detail="Segment already exists")
 
@@ -422,7 +414,7 @@ async def quick_add_segment(
         raise HTTPException(status_code=400, detail="Could not fetch segment details from Strava")
 
     segment_dict = {
-        "strava_url": strava_url,
+        "strava_url": canonical_strava_segment_url(segment_id),
         "strava_id": segment_id,
         "name": details.get("name"),
         "polyline": details.get("polyline"),

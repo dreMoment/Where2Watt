@@ -16,6 +16,7 @@ interface Props {
 
 const STRAVA_SEGMENT_OR_EFFORT_URL_PATTERN =
     /^https?:\/\/(?:www\.)?strava\.com\/(?:segments\/\d+|activities\/\d+\/segments\/\d+)(?:[/?#].*)?$/i;
+const SAFETY_NOTES_MAX_LENGTH = 1_000;
 
 function StarIcon({ className }: { className?: string }) {
     return (
@@ -420,6 +421,28 @@ export default function SubmissionForm({ onClose, onExistingSegmentRated }: Prop
                             </p>
                         </div>
 
+                    </div>
+
+                    <div className="group">
+                        <label htmlFor="safety_notes" className="mb-2 block text-xs font-bold uppercase tracking-widest text-neutral-400 transition-colors group-focus-within:text-neutral-900">
+                            Safety notes <span className="normal-case tracking-normal">(optional)</span>
+                        </label>
+                        <textarea
+                            id="safety_notes"
+                            maxLength={SAFETY_NOTES_MAX_LENGTH}
+                            rows={3}
+                            placeholder="Traffic, surface, intersections, or other hazards"
+                            className="w-full resize-y rounded-xl border border-neutral-200 bg-neutral-50/50 px-4 py-3 text-sm font-medium text-neutral-900 shadow-sm outline-none transition-all placeholder:font-normal placeholder:text-neutral-400 focus:border-neutral-900 focus:bg-white focus:ring-2 focus:ring-neutral-900"
+                            value={formData.safety_notes}
+                            onChange={(event) => {
+                                setFormError(null);
+                                const safetyNotes = event.target.value;
+                                setFormData((previous) => ({ ...previous, safety_notes: safetyNotes }));
+                            }}
+                        />
+                        <p className="mt-1 text-right text-[11px] text-neutral-400">
+                            {formData.safety_notes.length}/{SAFETY_NOTES_MAX_LENGTH}
+                        </p>
                     </div>
 
                     <div className="flex flex-col gap-3">

@@ -110,6 +110,8 @@ describe("CommunityRatingsPanel", () => {
 
         render(<CommunityRatingsPanel segment={mockSegment} />);
 
+        await waitFor(() => expect(fetchMySegmentRatingStatus).toHaveBeenCalled());
+
         fireEvent.click(screen.getByRole("button", { name: /Rate this segment/i }));
         fireEvent.click(screen.getByRole("button", { name: "Overall Quality star 1" }));
         fireEvent.click(screen.getByRole("button", { name: /Submit Rating/i }));
@@ -146,7 +148,7 @@ describe("CommunityRatingsPanel", () => {
         expect(screen.queryByText(/average\s*\/\s*3/i)).not.toBeInTheDocument();
     });
 
-    it("hides category cards while rating form is open", () => {
+    it("hides category cards while rating form is open", async () => {
         authState.isLoggedIn = true;
         authState.token = "mock-token";
 
@@ -163,6 +165,7 @@ describe("CommunityRatingsPanel", () => {
         };
 
         render(<CommunityRatingsPanel segment={segmentWithAverages} />);
+        await waitFor(() => expect(fetchMySegmentRatingStatus).toHaveBeenCalled());
         expect(screen.getByTestId("community-categories-grid")).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole("button", { name: /Rate this segment/i }));

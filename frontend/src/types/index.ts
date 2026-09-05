@@ -44,6 +44,7 @@ export type Segment = {
     advanced: string;
   };
   strava_url: string;
+  safety_notes?: string | null;
   strava_id?: string;
   approved: boolean;
   polyline?: string;

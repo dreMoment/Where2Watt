@@ -1,4 +1,4 @@
-import { parseNormalizedError, request, withBearerAuth } from "@/utils/apiClient";
+import { ApiError, parseNormalizedError, request, withBearerAuth } from "@/utils/apiClient";
 
 const makeResponse = (
   body: unknown,
@@ -45,6 +45,8 @@ describe("apiClient", () => {
       "fallback"
     );
     expect(error.message).toBe("No access");
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error.status).toBe(403);
   });
 
   it("parseNormalizedError formats FastAPI validation detail arrays", async () => {
@@ -89,7 +91,11 @@ describe("apiClient", () => {
       })
     ) as jest.Mock;
 
-    await expect(request("/auth/me")).rejects.toThrow("Auth failed");
+    await expect(request("/auth/me")).rejects.toMatchObject({
+      name: "ApiError",
+      message: "Auth failed",
+      status: 401,
+    });
   });
 
   it("request returns undefined for 204 and for non-json responses", async () => {
