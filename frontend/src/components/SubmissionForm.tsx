@@ -329,7 +329,7 @@ export default function SubmissionForm({ onClose, onExistingSegmentRated }: Prop
                 </button>
                 <div className="mb-4 pr-8">
                     <h2 className="text-2xl font-black tracking-tight text-neutral-900">Your starred segments</h2>
-                    <p className="mt-1 text-sm font-medium text-neutral-500">Choose a Strava segment to add.</p>
+                    <p className="mt-1 text-sm font-medium text-neutral-500">Choose a Strava segment to add. New additions appear first.</p>
                 </div>
                 {!starredLoading && !starredError && starredSegments.length > 0 ? (
                     <label className="relative mb-3 block">

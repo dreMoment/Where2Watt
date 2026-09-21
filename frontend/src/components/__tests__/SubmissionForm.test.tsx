@@ -61,6 +61,23 @@ describe('SubmissionForm', () => {
         expect(fetchStarredStravaSegments).toHaveBeenCalledWith('mock-token');
     });
 
+    it('preserves the recently-added order returned by the backend', async () => {
+        (fetchStarredStravaSegments as jest.Mock).mockResolvedValueOnce([
+            { id: '1', name: 'Zulu Climb', distance_km: 2, elevation_m: 100 },
+            { id: '2', name: 'Alpine Road', distance_km: 8, elevation_m: 400 },
+        ]);
+        render(<SubmissionForm onClose={mockOnClose} />);
+
+        fireEvent.click(screen.getByRole('button', { name: /Choose from your starred Strava segments/i }));
+        await screen.findByText('Alpine Road');
+
+        const selectButtons = screen.getAllByRole('button', { name: /^Select / });
+        expect(selectButtons.map((button) => button.getAttribute('aria-label'))).toEqual([
+            'Select Zulu Climb',
+            'Select Alpine Road',
+        ]);
+    });
+
     it('fetches full segment details only when preview is requested', async () => {
         (fetchStarredStravaSegments as jest.Mock).mockResolvedValueOnce([
             { id: '456', name: 'Hawk Hill', distance_km: 2.68, elevation_m: 153 },

@@ -20,7 +20,12 @@ from schemas import (
 from services.account_cleanup import purge_actor_data
 from services.preferences import normalize_user_preferences
 from services.segments import now_iso
-from services.strava import exclude_existing_segments, fetch_segment_details, fetch_starred_segments
+from services.strava import (
+    exclude_existing_segments,
+    fetch_segment_details,
+    fetch_starred_segments,
+    remember_and_sort_starred_segments,
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -141,6 +146,7 @@ async def get_starred_strava_segments(
         raise HTTPException(status_code=502, detail="Could not load your starred Strava segments. Please try again.")
     if not segments:
         return []
+    segments = await remember_and_sort_starred_segments(db, identity.actor_id, segments)
 
     starred_ids = [segment["id"] for segment in segments]
     stored_id_variants: list[str | int] = [*starred_ids, *(int(value) for value in starred_ids if value.isdigit())]

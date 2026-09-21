@@ -14,6 +14,9 @@ async def purge_actor_data(db, actor_id: str) -> dict[str, int]:
     ).deleted_count
     deleted_auth_rows = (await db.strava_auth.delete_many({"actor_id": actor_id})).deleted_count
     deleted_user_preference_rows = (await db.user_preferences.delete_many({"actor_id": actor_id})).deleted_count
+    deleted_starred_segment_sightings = (
+        await db.starred_segment_sightings.delete_many({"actor_id": actor_id})
+    ).deleted_count
 
     await db.revoked_actors.update_one(
         {"actor_id": actor_id},
@@ -32,4 +35,5 @@ async def purge_actor_data(db, actor_id: str) -> dict[str, int]:
         "actor_reports_deleted": deleted_actor_reports,
         "strava_auth_rows_deleted": deleted_auth_rows,
         "user_preferences_rows_deleted": deleted_user_preference_rows,
+        "starred_segment_sightings_deleted": deleted_starred_segment_sightings,
     }

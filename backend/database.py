@@ -26,6 +26,10 @@ async def lifespan(app: FastAPI):
     await db.segment_ratings.create_index([("segment_id", 1), ("rated_at", -1)])
     await db.strava_auth.create_index([("actor_id", 1)], unique=True)
     await db.user_preferences.create_index([("actor_id", 1)], unique=True)
+    await db.starred_segment_sightings.create_index(
+        [("actor_id", 1), ("segment_id", 1)],
+        unique=True,
+    )
     # Automatically remove temporary revocation markers once the JWT invalidation window has passed.
     await db.revoked_actors.create_index(
         [("revoked_until", 1)],

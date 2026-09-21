@@ -139,6 +139,54 @@ def test_exclude_existing_segments_checks_ids_aliases_and_legacy_urls():
 
 
 @pytest.mark.unit
+def test_remember_and_sort_starred_segments_puts_newly_seen_ids_first():
+    sightings_cursor = SimpleNamespace(
+        to_list=AsyncMock(return_value=[
+            {"segment_id": "old", "first_seen_at": "2026-08-01T10:00:00+00:00"},
+            {"segment_id": "newer", "first_seen_at": "2026-09-01T10:00:00+00:00"},
+        ])
+    )
+    sightings = SimpleNamespace(
+        find=lambda *_args, **_kwargs: sightings_cursor,
+        bulk_write=AsyncMock(),
+    )
+    segments = [
+        {"id": "old", "name": "Old"},
+        {"id": "brand-new", "name": "Brand new"},
+        {"id": "newer", "name": "Newer"},
+    ]
+
+    result = asyncio.run(strava_service.remember_and_sort_starred_segments(
+        SimpleNamespace(starred_segment_sightings=sightings),
+        "actor-123",
+        segments,
+    ))
+
+    assert [segment["id"] for segment in result] == ["brand-new", "newer", "old"]
+    operations = sightings.bulk_write.await_args.args[0]
+    assert len(operations) == 1
+    assert operations[0]._filter == {"actor_id": "actor-123", "segment_id": "brand-new"}
+
+
+@pytest.mark.unit
+def test_remember_and_sort_starred_segments_preserves_initial_strava_order():
+    sightings_cursor = SimpleNamespace(to_list=AsyncMock(return_value=[]))
+    sightings = SimpleNamespace(
+        find=lambda *_args, **_kwargs: sightings_cursor,
+        bulk_write=AsyncMock(),
+    )
+    segments = [{"id": "2"}, {"id": "1"}, {"id": "3"}]
+
+    result = asyncio.run(strava_service.remember_and_sort_starred_segments(
+        SimpleNamespace(starred_segment_sightings=sightings),
+        "actor-123",
+        segments,
+    ))
+
+    assert [segment["id"] for segment in result] == ["2", "1", "3"]
+
+
+@pytest.mark.unit
 def test_get_strava_access_token_prefers_actor_token(monkeypatch):
     actor_id = "actor-123"
     valid_expires_at = int(time.time()) + 3600

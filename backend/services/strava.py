@@ -2,6 +2,7 @@ import logging
 from datetime import datetime, timezone
 
 import httpx
+from pymongo import UpdateOne
 
 from config import STRAVA_API_BASE_URL, STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN
 from services.segments import extract_segment_effort_id, extract_strava_id
@@ -179,6 +180,46 @@ def exclude_existing_segments(starred_segments: list[dict], existing_segments: l
             existing_ids.add(url_id)
 
     return [segment for segment in starred_segments if str(segment.get("id")) not in existing_ids]
+
+
+async def remember_and_sort_starred_segments(db, actor_id: str, segments: list[dict]) -> list[dict]:
+    """Put segments first when this app observes them for the first time."""
+    if not segments:
+        return segments
+
+    segment_ids = [str(segment["id"]) for segment in segments]
+    sightings = await db.starred_segment_sightings.find(
+        {"actor_id": actor_id, "segment_id": {"$in": segment_ids}},
+        {"_id": 0, "segment_id": 1, "first_seen_at": 1},
+    ).to_list(length=len(segment_ids))
+    first_seen_by_id = {
+        str(sighting["segment_id"]): str(sighting["first_seen_at"])
+        for sighting in sightings
+        if sighting.get("segment_id") is not None and sighting.get("first_seen_at")
+    }
+
+    observed_at = datetime.now(timezone.utc).isoformat()
+    unseen_ids = [segment_id for segment_id in segment_ids if segment_id not in first_seen_by_id]
+    if unseen_ids:
+        await db.starred_segment_sightings.bulk_write([
+            UpdateOne(
+                {"actor_id": actor_id, "segment_id": segment_id},
+                {"$setOnInsert": {
+                    "actor_id": actor_id,
+                    "segment_id": segment_id,
+                    "first_seen_at": observed_at,
+                }},
+                upsert=True,
+            )
+            for segment_id in unseen_ids
+        ])
+        first_seen_by_id.update({segment_id: observed_at for segment_id in unseen_ids})
+
+    return sorted(
+        segments,
+        key=lambda segment: first_seen_by_id.get(str(segment["id"]), ""),
+        reverse=True,
+    )
 
 
 async def fetch_segment_id_from_effort(segment_effort_id: str, db=None, actor_id: str | None = None) -> str | None:
