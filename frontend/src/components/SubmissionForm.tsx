@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Send, Loader2, LogIn, MapPin, Info, ChevronLeft, Search, Star, Eye } from "lucide-react";
+import { X, Send, Loader2, LogIn, MapPin, Info, ChevronLeft, ChevronDown, Search, Star, Eye } from "lucide-react";
 import { fetchStarredStravaSegments, fetchStravaSegmentPreview, submitSegment, type SegmentSubmitResponse, type StarredStravaSegment, type SubmissionData } from "@/utils/api";
 import type { Segment, SegmentRatingValues } from "@/types";
 import { useAuth } from "@/components/AuthContext";
@@ -138,6 +138,7 @@ export default function SubmissionForm({ onClose, onExistingSegmentRated }: Prop
     const [success, setSuccess] = useState(false);
     const [existingSubmission, setExistingSubmission] = useState<SegmentSubmitResponse | null>(null);
     const [formError, setFormError] = useState<string | null>(null);
+    const [showSafetyNotes, setShowSafetyNotes] = useState(false);
     const [showStarredSegments, setShowStarredSegments] = useState(false);
     const [starredSegments, setStarredSegments] = useState<StarredStravaSegment[]>([]);
     const [starredLoading, setStarredLoading] = useState(false);
@@ -424,25 +425,41 @@ export default function SubmissionForm({ onClose, onExistingSegmentRated }: Prop
                     </div>
 
                     <div className="group">
-                        <label htmlFor="safety_notes" className="mb-2 block text-xs font-bold uppercase tracking-widest text-neutral-400 transition-colors group-focus-within:text-neutral-900">
-                            Safety notes <span className="normal-case tracking-normal">(optional)</span>
-                        </label>
-                        <textarea
-                            id="safety_notes"
-                            maxLength={SAFETY_NOTES_MAX_LENGTH}
-                            rows={3}
-                            placeholder="Traffic, surface, intersections, or other hazards"
-                            className="w-full resize-y rounded-xl border border-neutral-200 bg-neutral-50/50 px-4 py-3 text-sm font-medium text-neutral-900 shadow-sm outline-none transition-all placeholder:font-normal placeholder:text-neutral-400 focus:border-neutral-900 focus:bg-white focus:ring-2 focus:ring-neutral-900"
-                            value={formData.safety_notes}
-                            onChange={(event) => {
-                                setFormError(null);
-                                const safetyNotes = event.target.value;
-                                setFormData((previous) => ({ ...previous, safety_notes: safetyNotes }));
-                            }}
-                        />
-                        <p className="mt-1 text-right text-[11px] text-neutral-400">
-                            {formData.safety_notes.length}/{SAFETY_NOTES_MAX_LENGTH}
-                        </p>
+                        <button
+                            type="button"
+                            aria-expanded={showSafetyNotes}
+                            aria-controls="safety-notes-field"
+                            onClick={() => setShowSafetyNotes((visible) => !visible)}
+                            className="flex items-center gap-1.5 rounded-md py-1 text-sm font-semibold text-neutral-500 transition-colors hover:text-neutral-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2"
+                        >
+                            <ChevronDown
+                                className={`h-4 w-4 transition-transform ${showSafetyNotes ? "rotate-180" : ""}`}
+                                aria-hidden="true"
+                            />
+                            Add safety notes <span className="font-normal text-neutral-400">(optional)</span>
+                        </button>
+                        {showSafetyNotes ? (
+                            <div id="safety-notes-field" className="mt-2">
+                                <label htmlFor="safety_notes" className="sr-only">Safety notes (optional)</label>
+                                <textarea
+                                    id="safety_notes"
+                                    maxLength={SAFETY_NOTES_MAX_LENGTH}
+                                    rows={2}
+                                    autoFocus
+                                    placeholder="Traffic, surface, intersections, or other hazards"
+                                    className="w-full resize-y rounded-xl border border-neutral-200 bg-neutral-50/50 px-4 py-3 text-sm font-medium text-neutral-900 shadow-sm outline-none transition-all placeholder:font-normal placeholder:text-neutral-400 focus:border-neutral-900 focus:bg-white focus:ring-2 focus:ring-neutral-900"
+                                    value={formData.safety_notes}
+                                    onChange={(event) => {
+                                        setFormError(null);
+                                        const safetyNotes = event.target.value;
+                                        setFormData((previous) => ({ ...previous, safety_notes: safetyNotes }));
+                                    }}
+                                />
+                                <p className="mt-1 text-right text-[11px] text-neutral-400">
+                                    {formData.safety_notes.length}/{SAFETY_NOTES_MAX_LENGTH}
+                                </p>
+                            </div>
+                        ) : null}
                     </div>
 
                     <div className="flex flex-col gap-3">

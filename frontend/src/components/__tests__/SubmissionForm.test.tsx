@@ -41,8 +41,19 @@ describe('SubmissionForm', () => {
         expect(screen.getByText('Add a Segment')).toBeInTheDocument();
         expect(screen.getByText(/Segment URLs and activity segment-effort URLs are supported/i)).toBeInTheDocument();
         expect(screen.getByLabelText(/Strava Segment URL/i)).toBeInTheDocument();
-        expect(screen.getByLabelText(/Safety notes/i)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Add safety notes/i })).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.queryByLabelText(/Safety notes/i)).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Choose from your starred Strava segments/i })).toBeInTheDocument();
+    });
+
+    it('expands the optional safety notes field', () => {
+        render(<SubmissionForm onClose={mockOnClose} />);
+
+        const toggle = screen.getByRole('button', { name: /Add safety notes/i });
+        fireEvent.click(toggle);
+
+        expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.getByLabelText(/Safety notes/i)).toBeInTheDocument();
     });
 
     it('loads starred Strava segments and selects one', async () => {
@@ -123,6 +134,7 @@ describe('SubmissionForm', () => {
         fireEvent.change(screen.getByLabelText(/Strava Segment URL/i), {
             target: { value: 'https://www.strava.com/segments/123' },
         });
+        fireEvent.click(screen.getByRole('button', { name: /Add safety notes/i }));
         fireEvent.change(screen.getByLabelText(/Safety notes/i), {
             target: { value: 'Gravel near the finish' },
         });
