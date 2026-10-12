@@ -4,6 +4,7 @@ import { AuthProvider } from "@/components/AuthContext";
 import { UiFeedbackProvider } from "@/components/ui/UiFeedbackProvider";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://where2watt.cc"),
   title: "Where2Watt",
   description: "Where 2 Watt",
   icons: {
