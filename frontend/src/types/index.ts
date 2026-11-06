@@ -48,6 +48,8 @@ export type Segment = {
   strava_id?: string;
   approved: boolean;
   polyline?: string;
+  /** [distance_m, altitude_m] points about every 100 m, from Strava's segment streams. */
+  elevation_profile?: Array<[number, number]> | null;
   created_at?: string;
   blocked?: boolean;
   block_message?: string | null;

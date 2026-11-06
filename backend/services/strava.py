@@ -9,9 +9,63 @@ from services.segments import extract_segment_effort_id, extract_strava_id
 
 logger = logging.getLogger(__name__)
 
+ELEVATION_PROFILE_STEP_M = 100.0
+
 
 def _response_body(response) -> str:
     return str(getattr(response, "text", ""))[:500]
+
+
+def build_elevation_profile(distances: object, altitudes: object) -> list[list[float]] | None:
+    """Resamples a Strava distance/altitude stream to [distance_m, altitude_m] points about every 100 m."""
+    if not isinstance(distances, list) or not isinstance(altitudes, list) or len(distances) != len(altitudes):
+        return None
+    points = [
+        (float(d), float(a))
+        for d, a in zip(distances, altitudes)
+        if isinstance(d, (int, float)) and isinstance(a, (int, float))
+    ]
+    if len(points) < 2:
+        return None
+    start, end = points[0][0], points[-1][0]
+    span = end - start
+    if span <= 0:
+        return None
+
+    steps = max(1, round(span / ELEVATION_PROFILE_STEP_M))
+    profile: list[list[float]] = []
+    j = 0
+    for k in range(steps + 1):
+        x = start + span * k / steps
+        while j < len(points) - 2 and points[j + 1][0] < x:
+            j += 1
+        (d0, a0), (d1, a1) = points[j], points[j + 1]
+        weight = 0.0 if d1 == d0 else min(1.0, max(0.0, (x - d0) / (d1 - d0)))
+        profile.append([round(x - start, 1), round(a0 + weight * (a1 - a0), 1)])
+    return profile
+
+
+async def _fetch_segment_elevation_profile(client, segment_id: str, access_token: str) -> list[list[float]] | None:
+    try:
+        response = await client.get(
+            f"{STRAVA_API_BASE_URL}/segments/{segment_id}/streams",
+            params={"keys": "distance,altitude", "key_by_type": "true"},
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+    except httpx.RequestError as exc:
+        logger.warning("Failed to fetch segment streams from Strava: request_error=%s", exc)
+        return None
+    if response.status_code != 200:
+        logger.warning("Failed to fetch segment streams from Strava: status=%s body=%s", response.status_code, _response_body(response))
+        return None
+    payload = response.json()
+    if not isinstance(payload, dict):
+        return None
+    distance = payload.get("distance")
+    altitude = payload.get("altitude")
+    if not isinstance(distance, dict) or not isinstance(altitude, dict):
+        return None
+    return build_elevation_profile(distance.get("data"), altitude.get("data"))
 
 
 def _is_unexpired(expires_at: object) -> bool:
@@ -115,6 +169,7 @@ async def fetch_segment_details(segment_id: str, db=None, actor_id: str | None =
                 "name": data.get("name"),
                 "distance_km": round(data.get("distance", 0) / 1000 if data.get("distance") else 0, 2),
                 "gradient_pct": round(data.get("average_grade", data.get("avg_grade", 0)), 1),
+                "elevation_profile": await _fetch_segment_elevation_profile(client, segment_id, access_token),
             }
         logger.warning("Failed to fetch segment from Strava: status=%s body=%s", response.status_code, _response_body(response))
     return None

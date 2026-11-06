@@ -43,24 +43,31 @@ def test_get_strava_access_token_success(monkeypatch):
 @pytest.mark.unit
 def test_fetch_segment_details_returns_normalized_payload(monkeypatch):
     monkeypatch.setattr(strava_service, "get_strava_access_token", AsyncMock(return_value="token-1"))
-    mock_response = SimpleNamespace(
+    segment_response = SimpleNamespace(
         status_code=200,
         json=lambda: {"map": {"polyline": "xyz"}, "name": "Segment A", "distance": 1234, "average_grade": 3.26},
     )
-    mock_client = SimpleNamespace(get=AsyncMock(return_value=mock_response))
+    streams_response = SimpleNamespace(
+        status_code=200,
+        json=lambda: {
+            "distance": {"data": [0, 50, 100, 150, 200]},
+            "altitude": {"data": [400, 402, 404, 406, 408]},
+        },
+    )
+    mock_client = SimpleNamespace(get=AsyncMock(side_effect=[segment_response, streams_response]))
     monkeypatch.setattr(strava_service.httpx, "AsyncClient", lambda: MockAsyncClientContext(mock_client))
 
     details = asyncio.run(strava_service.fetch_segment_details("42"))
 
-    mock_client.get.assert_awaited_once_with(
-        "https://www.strava.com/api/v3/segments/42",
-        headers={"Authorization": "Bearer token-1"},
-    )
+    assert mock_client.get.await_args_list[0].args == ("https://www.strava.com/api/v3/segments/42",)
+    assert mock_client.get.await_args_list[1].args == ("https://www.strava.com/api/v3/segments/42/streams",)
+    assert mock_client.get.await_args_list[1].kwargs["params"] == {"keys": "distance,altitude", "key_by_type": "true"}
     assert details == {
         "polyline": "xyz",
         "name": "Segment A",
         "distance_km": 1.23,
         "gradient_pct": 3.3,
+        "elevation_profile": [[0.0, 400.0], [100.0, 404.0], [200.0, 408.0]],
     }
 
 
@@ -81,7 +88,47 @@ def test_fetch_segment_details_supports_avg_grade_fallback(monkeypatch):
         "name": "Segment A",
         "distance_km": 1.23,
         "gradient_pct": 4.0,
+        "elevation_profile": None,
     }
+
+
+@pytest.mark.unit
+def test_fetch_segment_details_keeps_segment_when_streams_fail(monkeypatch):
+    monkeypatch.setattr(strava_service, "get_strava_access_token", AsyncMock(return_value="token-1"))
+    segment_response = SimpleNamespace(
+        status_code=200,
+        json=lambda: {"map": {"polyline": "xyz"}, "name": "Segment A", "distance": 1234, "average_grade": 3.26},
+    )
+    mock_client = SimpleNamespace(get=AsyncMock(side_effect=[segment_response, SimpleNamespace(status_code=429, text="limit")]))
+    monkeypatch.setattr(strava_service.httpx, "AsyncClient", lambda: MockAsyncClientContext(mock_client))
+
+    details = asyncio.run(strava_service.fetch_segment_details("42"))
+
+    assert details["name"] == "Segment A"
+    assert details["elevation_profile"] is None
+
+
+@pytest.mark.unit
+def test_build_elevation_profile_resamples_to_about_100m():
+    distances = [1000 + i * 7 for i in range(144)]  # 1001 m of stream, irregular 7 m spacing
+    altitudes = [500 + i * 0.35 for i in range(144)]  # steady 5 %
+
+    profile = strava_service.build_elevation_profile(distances, altitudes)
+
+    assert profile[0] == [0.0, 500.0]
+    assert len(profile) == 11
+    assert profile[-1][0] == pytest.approx(1001.0)
+    assert profile[-1][1] == pytest.approx(500 + 143 * 0.35, abs=0.1)
+    grades = [(b[1] - a[1]) / (b[0] - a[0]) for a, b in zip(profile, profile[1:])]
+    assert all(g == pytest.approx(0.05, abs=0.002) for g in grades)
+
+
+@pytest.mark.unit
+def test_build_elevation_profile_rejects_unusable_streams():
+    assert strava_service.build_elevation_profile(None, [1, 2]) is None
+    assert strava_service.build_elevation_profile([0, 10], [1]) is None
+    assert strava_service.build_elevation_profile([0], [1]) is None
+    assert strava_service.build_elevation_profile([5, 5], [1, 2]) is None
 
 
 @pytest.mark.unit

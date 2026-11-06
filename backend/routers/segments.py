@@ -108,6 +108,7 @@ async def create_segment(
         "name": details.get("name"),
         "distance_km": details.get("distance_km"),
         "gradient_pct": details.get("gradient_pct"),
+        "elevation_profile": details.get("elevation_profile"),
         "created_at": now_iso(),
         "approved": False,
         "aliases": [],

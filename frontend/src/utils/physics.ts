@@ -1,5 +1,10 @@
 /**
- * Calculates a cyclist's steady-state velocity using the Newton-Raphson method.
+ * Calculates a cyclist's steady-state velocity (m/s) by solving
+ * A·v³ + B·v = C for its single positive root with Newton-Raphson.
+ *
+ * f(v) = A·v³ + B·v − C is convex for v > 0 and negative at v = 0, so starting
+ * to the right of the root (where f > 0) converges monotonically, including on
+ * descents where B < 0.
  */
 export function calculateVelocity(power: number, gradient: number, riderWeight: number, bikeWeight: number = 9): number {
     const m = riderWeight + bikeWeight;
@@ -12,16 +17,14 @@ export function calculateVelocity(power: number, gradient: number, riderWeight: 
     const A = 0.5 * rho * CdA;
     const B = m * g * (gradient + Crr);
     const C = power * eta;
+    const f = (v: number) => A * v ** 3 + B * v - C;
 
-    let v = 5;
-    const tolerance = 0.001;
-    const maxIterations = 20;
+    let v = 30;
+    while (f(v) <= 0) v *= 2;
 
-    for (let i = 0; i < maxIterations; i++) {
-        const f_v = (A * Math.pow(v, 3)) + (B * v) - C;
-        const f_prime_v = (3 * A * Math.pow(v, 2)) + B;
-        const next_v = v - (f_v / f_prime_v);
-
+    const tolerance = 0.0001;
+    for (let i = 0; i < 50; i++) {
+        const next_v = v - f(v) / (3 * A * v ** 2 + B);
         if (Math.abs(next_v - v) < tolerance) {
             return next_v;
         }

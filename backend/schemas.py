@@ -45,6 +45,7 @@ class SegmentSchema(BaseModel):
     safety_notes: str | None = None
     distance_km: float | None = None
     gradient_pct: float | None = None
+    elevation_profile: list[list[float]] | None = None
     approved: bool | None = False
     strava_id: str | None = None
     created_at: str | None = None

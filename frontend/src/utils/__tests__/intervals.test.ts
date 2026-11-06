@@ -45,6 +45,43 @@ describe("intervals utils", () => {
     expect(getIntervalMarginRatio(sampleSegment, profile, 5)).not.toBeNull();
   });
 
+  it("sums time over the elevation profile when available", () => {
+    const profile = createIntervalProfile(250, 75, 9)!;
+    // 2 km at 4 % on average: 1 km flat, then 1 km at 8 %.
+    const stepped: Segment = {
+      ...sampleSegment,
+      elevation_profile: [
+        [0, 100],
+        [1000, 100],
+        [2000, 180],
+      ],
+    };
+    const evenSeconds = estimateSegmentDurationSeconds(sampleSegment, profile)!;
+    const steppedSeconds = estimateSegmentDurationSeconds(stepped, profile)!;
+    const flatHalf = estimateSegmentDurationSeconds({ distance_km: 1, gradient_pct: 0 }, profile)!;
+    const steepHalf = estimateSegmentDurationSeconds({ distance_km: 1, gradient_pct: 8 }, profile)!;
+
+    expect(steppedSeconds).toBeCloseTo(flatHalf + steepHalf, 6);
+    expect(steppedSeconds).toBeGreaterThan(evenSeconds);
+  });
+
+  it("scales the profile to the segment distance and ignores unusable profiles", () => {
+    const profile = createIntervalProfile(250, 75, 9)!;
+    const evenSeconds = estimateSegmentDurationSeconds(sampleSegment, profile)!;
+    const scaled: Segment = { ...sampleSegment, elevation_profile: [[0, 0], [1000, 40]] };
+    expect(estimateSegmentDurationSeconds(scaled, profile)).toBeCloseTo(evenSeconds, 6);
+
+    for (const elevation_profile of [null, [], [[0, 10]], [[5, 10], [5, 20]]] as Segment["elevation_profile"][]) {
+      expect(estimateSegmentDurationSeconds({ ...sampleSegment, elevation_profile }, profile)).toBeCloseTo(evenSeconds, 6);
+    }
+  });
+
+  it("estimates downhill segments", () => {
+    const profile = createIntervalProfile(350, 75, 9)!;
+    const seconds = estimateSegmentDurationSeconds({ distance_km: 2, gradient_pct: -3 }, profile);
+    expect(seconds).toBeGreaterThan(0);
+  });
+
   it("applies filter rules including blocked segments", () => {
     const profile = createIntervalProfile(280, 72, 8)!;
     expect(passesIntervalFilter({ ...sampleSegment, blocked: true }, profile, 5)).toBe(false);

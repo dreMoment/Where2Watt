@@ -46,23 +46,40 @@ export function createIntervalProfile(
   };
 }
 
-type SegmentTimingInput = Pick<Segment, "distance_km" | "gradient_pct">;
+type SegmentTimingInput = Pick<Segment, "distance_km" | "gradient_pct" | "elevation_profile">;
+
+// Splits the stored [distance_m, altitude_m] profile into (length share, gradient) pieces.
+function profilePieces(elevationProfile: Segment["elevation_profile"]): Array<[number, number]> | null {
+  if (!elevationProfile || elevationProfile.length < 2) return null;
+  const total = elevationProfile[elevationProfile.length - 1][0] - elevationProfile[0][0];
+  if (!(total > 0)) return null;
+  const pieces: Array<[number, number]> = [];
+  for (let i = 1; i < elevationProfile.length; i++) {
+    const [d0, a0] = elevationProfile[i - 1];
+    const [d1, a1] = elevationProfile[i];
+    const length = d1 - d0;
+    if (length > 0) pieces.push([length / total, (a1 - a0) / length]);
+  }
+  return pieces.length > 0 ? pieces : null;
+}
 
 // Estimates completion time for one segment at the rider profile's power and mass.
+// Sums time over the elevation profile when available, since a segment's average gradient
+// hides steep and flat sections that change the time at constant power.
 export function estimateSegmentDurationSeconds(
   segment: SegmentTimingInput,
   profile: IntervalProfile
 ): number | null {
   if (!(segment.distance_km > 0)) return null;
-  const gradientDecimal = (segment.gradient_pct ?? 0) / 100;
-  const velocity = calculateVelocity(
-    profile.powerWatts,
-    gradientDecimal,
-    profile.riderWeightKg,
-    profile.bikeWeightKg
-  );
-  if (!(velocity > 0)) return null;
-  return (segment.distance_km * 1000) / velocity;
+  const distanceM = segment.distance_km * 1000;
+  const pieces = profilePieces(segment.elevation_profile) ?? [[1, (segment.gradient_pct ?? 0) / 100]];
+  let seconds = 0;
+  for (const [share, gradient] of pieces) {
+    const velocity = calculateVelocity(profile.powerWatts, gradient, profile.riderWeightKg, profile.bikeWeightKg);
+    if (!(velocity > 0)) return null;
+    seconds += (share * distanceM) / velocity;
+  }
+  return seconds;
 }
 
 type SegmentFilterInput = Pick<Segment, "distance_km" | "gradient_pct" | "blocked">;
