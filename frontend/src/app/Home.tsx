@@ -139,7 +139,6 @@ export default function Home() {
         <HomeOverlays
           showSubmissionContent={showSubmissionContent}
           showInfoScreen={showInfoScreen}
-          isMobileViewport={isMobileViewport}
           hideInfoScreenNextTime={hideInfoScreenNextTime}
           onCloseSubmission={() => setShowSubmissionContent(false)}
           onExistingSegmentRated={handleExistingSegmentRated}

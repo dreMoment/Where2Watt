@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { createPortal } from "react-dom";
+import Dialog from "@/components/ui/Dialog";
 
 export type ElevationProfilePoint = {
   distanceKm: number;
@@ -97,9 +97,9 @@ function buildChart(points: ElevationProfilePoint[], width: number, height: numb
   const maxElevation = Math.max(...chartPoints.map((point) => point.elevationM));
   const totalDistance = chartPoints[chartPoints.length - 1].distanceKm;
 
-  const paddingX = width > 500 ? 42 : 12;
-  const paddingTop = width > 500 ? 28 : 14;
-  const paddingBottom = width > 500 ? 42 : 24;
+  const paddingX = width > 500 ? 64 : 40;
+  const paddingTop = width > 500 ? 28 : 12;
+  const paddingBottom = width > 500 ? 48 : 22;
   const chartWidth = width - paddingX * 2;
   const chartHeight = height - paddingTop - paddingBottom;
   const baselineY = height - paddingBottom;
@@ -140,9 +140,14 @@ function buildChart(points: ElevationProfilePoint[], width: number, height: numb
   };
 }
 
+function formatDistanceKm(value: number): string {
+  return `${value < 10 ? value.toFixed(1) : Math.round(value)} km`;
+}
+
 function ElevationSvg({ points, large = false }: { points: ElevationProfilePoint[]; large?: boolean }) {
   const width = large ? 1100 : 320;
-  const height = large ? 520 : 110;
+  const height = large ? 460 : 120;
+  const labelSize = large ? 18 : 10;
   const chart = useMemo(() => buildChart(points, width, height), [points, width, height]);
   const areaPoints = [
     `${chart.paddingX},${chart.baselineY}`,
@@ -154,9 +159,9 @@ function ElevationSvg({ points, large = false }: { points: ElevationProfilePoint
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
-      className={`${large ? "h-full min-h-[420px]" : "h-28"} w-full overflow-visible`}
+      className="h-auto w-full overflow-visible"
       role="img"
-      aria-label="Segment elevation profile"
+      aria-label={`Elevation profile: ${formatDistanceKm(chart.totalDistance)}, from ${formatElevation(chart.minElevation)} to ${formatElevation(chart.maxElevation)}`}
     >
       <defs>
         <linearGradient id={`soft-base-fill-${large ? "large" : "small"}`} x1="0" x2="0" y1="0" y2="1">
@@ -168,6 +173,21 @@ function ElevationSvg({ points, large = false }: { points: ElevationProfilePoint
       <line x1={chart.paddingX} y1={chart.baselineY} x2={width - chart.paddingX} y2={chart.baselineY} stroke="#e7e5e4" strokeWidth="1" />
       <line x1={chart.paddingX} y1={chart.paddingTop} x2={chart.paddingX} y2={chart.baselineY} stroke="#e7e5e4" strokeWidth="1" />
       <polygon points={areaPoints} fill={`url(#soft-base-fill-${large ? "large" : "small"})`} />
+
+      <g fill="#57534e" fontSize={labelSize} fontWeight={600}>
+        <text x={chart.paddingX - 6} y={chart.paddingTop + labelSize * 0.35} textAnchor="end">
+          {formatElevation(chart.maxElevation)}
+        </text>
+        <text x={chart.paddingX - 6} y={chart.baselineY} textAnchor="end">
+          {formatElevation(chart.minElevation)}
+        </text>
+        <text x={chart.paddingX} y={chart.baselineY + labelSize + 6} textAnchor="start">
+          0 km
+        </text>
+        <text x={width - chart.paddingX} y={chart.baselineY + labelSize + 6} textAnchor="end">
+          {formatDistanceKm(chart.totalDistance)}
+        </text>
+      </g>
 
       {chart.segments.map((segment, index) => (
         <polygon
@@ -219,18 +239,20 @@ export default function SegmentElevationProfile({ points, isLoading = false, sho
     ? elevationGainM
     : sampledGain;
 
-  const expandedModal = isExpanded && typeof document !== "undefined" ? createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-stone-950/55 p-6 backdrop-blur-sm" onClick={() => setIsExpanded(false)}>
-      <div className="flex h-[82vh] w-[92vw] max-w-6xl flex-col rounded-3xl bg-[#fffdfa] p-6 shadow-2xl ring-1 ring-black/5" onClick={(event) => event.stopPropagation()}>
-        <div className="mb-4 flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-bold text-stone-800">Elevation profile</h2>
-          </div>
-          <button type="button" onClick={() => setIsExpanded(false)} className="rounded-full bg-stone-100 px-4 py-2 text-sm font-semibold text-stone-600 transition hover:bg-stone-200">
+  const expandedModal = isExpanded ? (
+    <Dialog
+      labelledBy="elevation-dialog-title"
+      onClose={() => setIsExpanded(false)}
+      backdropClassName="bg-stone-950/55 backdrop-blur-sm"
+      className="flex max-h-[90dvh] w-[min(96vw,72rem)] flex-col overflow-y-auto rounded-2xl bg-[#fffdfa] p-4 shadow-2xl ring-1 ring-black/5 sm:rounded-3xl sm:p-6"
+    >
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <h2 id="elevation-dialog-title" className="text-xl font-bold text-stone-800">Elevation profile</h2>
+          <button type="button" onClick={() => setIsExpanded(false)} className="rounded-full bg-stone-100 px-4 py-2.5 text-sm font-semibold text-stone-700 transition hover:bg-stone-200">
             Close
           </button>
         </div>
-        <div className="min-h-0 flex-1 rounded-2xl border border-stone-100 bg-white px-4 py-3">
+        <div className="rounded-2xl border border-stone-100 bg-white px-2 py-3 sm:px-4">
           <ElevationSvg points={validPoints} large />
         </div>
         <div className="mt-4 flex flex-wrap gap-4 text-xs font-semibold text-stone-600">
@@ -241,9 +263,7 @@ export default function SegmentElevationProfile({ points, isLoading = false, sho
           <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-900" /> ≥ 10%</span>
           <span className="ml-auto">Gain: {formatElevation(elevationGain)}</span>
         </div>
-      </div>
-    </div>,
-    document.body
+    </Dialog>
   ) : null;
 
   return (
@@ -256,7 +276,7 @@ export default function SegmentElevationProfile({ points, isLoading = false, sho
       >
         <div className={`flex items-center justify-between gap-3 ${showHeader ? "mb-2" : "mb-1"}`}>
           {showHeader ? <span className="text-xs font-bold uppercase tracking-wide text-stone-600">Elevation profile</span> : null}
-          <span className="text-[11px] font-semibold text-stone-500">↗ {formatElevation(elevationGain)} · Expand</span>
+          <span className="text-xs font-semibold text-stone-600">↗ {formatElevation(elevationGain)} · Expand</span>
         </div>
         <ElevationSvg points={validPoints} />
       </button>

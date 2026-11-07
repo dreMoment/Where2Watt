@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ExternalLink, Ruler, Mountain, Timer, MapPin, Flag } from "lucide-react";
+import { ExternalLink, Ruler, Mountain, Timer, MapPin, Flag, X } from "lucide-react";
 import type { Segment } from "@/types";
 import { decodePolyline } from "@/utils/polyline";
 import {
@@ -23,6 +23,7 @@ interface Props {
     isElevationProfileLoading?: boolean;
     showElevationProfile?: boolean;
     showReportAction?: boolean;
+    onClose?: () => void;
 }
 
 const REPORT_NOTE_MAX_LENGTH = 500;
@@ -77,6 +78,7 @@ export default function SegmentCard({
     isElevationProfileLoading = false,
     showElevationProfile = true,
     showReportAction = true,
+    onClose,
 }: Props) {
     const { isLoggedIn, token, login } = useAuth();
     const { showToast } = useUiFeedback();
@@ -160,7 +162,7 @@ export default function SegmentCard({
     };
 
     return (
-        <div className="flex flex-col gap-4 min-w-[280px] font-sans">
+        <div className="flex flex-col gap-4 min-w-[280px]">
             {segment.blocked && (
                 <div className="bg-red-50 border border-red-200 rounded-xl px-3.5 py-2.5 flex items-start gap-2">
                     <span className="text-red-500 text-base leading-none mt-0.5">!</span>
@@ -188,8 +190,8 @@ export default function SegmentCard({
                         <p className="mt-1 text-[11px] text-neutral-500">Overall quality: no ratings yet</p>
                     )}
                 </div>
-                {showReportAction && <div className="shrink-0 flex flex-col items-end gap-1">
-                    <button
+                <div className="-mr-1 -mt-1 flex shrink-0 items-center gap-1">
+                    {showReportAction && <button
                         onClick={() => {
                             if (isLoggedIn) {
                                 if (hasReportedCurrentState) {
@@ -207,19 +209,31 @@ export default function SegmentCard({
                             }
                         }}
                         title={segment.blocked ? "Report as unblocked/free" : "Report as blocked"}
-                        className={`shrink-0 p-1.5 rounded-lg transition-colors ${
+                        aria-label={segment.blocked ? "Report as unblocked" : "Report as blocked"}
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${
                             hasReportedCurrentState
                                 ? segment.blocked
                                     ? "text-white bg-green-500 hover:bg-green-600"
                                     : "text-white bg-red-500 hover:bg-red-600"
                                 : segment.blocked
                                     ? "text-white bg-green-500 hover:bg-green-600"
-                                    : "text-neutral-400 hover:text-red-500 hover:bg-red-50"
+                                    : "text-neutral-500 hover:text-red-600 hover:bg-red-50"
                         }`}
                     >
                         <Flag className={`w-4 h-4 ${hasReportedCurrentState || segment.blocked ? "fill-current" : ""}`} />
-                    </button>
-                </div>}
+                    </button>}
+                    {onClose && (
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            aria-label="Close segment details"
+                            title="Close"
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-700 transition-colors hover:bg-neutral-200 hover:text-neutral-900"
+                        >
+                            <X className="h-5 w-5" />
+                        </button>
+                    )}
+                </div>
             </div>
 
             {showReportAction && showLoginPrompt && (
@@ -292,16 +306,16 @@ export default function SegmentCard({
                 </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3 divide-x divide-neutral-100">
-                <div className="flex flex-col gap-1 items-center justify-center p-2 rounded-xl bg-neutral-50/50">
-                    <Ruler className="w-5 h-5 text-neutral-400 mb-1" />
-                    <span className="text-sm font-semibold text-neutral-700">{segment.distance_km ?? 0}</span>
-                    <span className="text-[10px] text-neutral-400 uppercase tracking-widest font-medium">Kilometers</span>
+            <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-0.5 items-center justify-center p-2.5 rounded-xl bg-neutral-50">
+                    <Ruler className="w-5 h-5 text-neutral-500 mb-1" aria-hidden="true" />
+                    <span className="text-base font-semibold text-neutral-800">{segment.distance_km ?? 0} km</span>
+                    <span className="text-xs text-neutral-600">Distance</span>
                 </div>
-                <div className="flex flex-col gap-1 items-center justify-center p-2 rounded-xl bg-neutral-50/50">
-                    <Mountain className="w-5 h-5 text-neutral-400 mb-1" />
-                    <span className="text-sm font-semibold text-neutral-700">{segment.gradient_pct ?? 0}%</span>
-                    <span className="text-[10px] text-neutral-400 uppercase tracking-widest font-medium">Avg Gradient</span>
+                <div className="flex flex-col gap-0.5 items-center justify-center p-2.5 rounded-xl bg-neutral-50">
+                    <Mountain className="w-5 h-5 text-neutral-500 mb-1" aria-hidden="true" />
+                    <span className="text-base font-semibold text-neutral-800">{segment.gradient_pct ?? 0}%</span>
+                    <span className="text-xs text-neutral-600">Avg. gradient</span>
                 </div>
             </div>
 
@@ -320,34 +334,30 @@ export default function SegmentCard({
                 />
             ) : null}
 
-            <div className="bg-gradient-to-br from-neutral-50 to-neutral-100/50 p-3.5 rounded-xl border border-neutral-200/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] mt-1">
-                <div className="flex items-center gap-1.5 mb-2">
-                    <div className="bg-white p-1 rounded-md shadow-sm">
-                        <Timer className="w-3.5 h-3.5 text-neutral-600" />
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-neutral-50 px-3.5 py-3">
+                <div className="flex items-center gap-2">
+                    <Timer className="h-4 w-4 text-neutral-600" aria-hidden="true" />
+                    <div className="flex flex-col">
+                        <span className="text-sm font-semibold text-neutral-800">Estimated time</span>
+                        <span className="text-xs text-neutral-600">Based on your rider profile</span>
                     </div>
-                    <p className="text-xs font-bold text-neutral-600 uppercase tracking-wide">
-                        Effort Estimator (based on profile)
-                    </p>
                 </div>
-
-                <div className="flex justify-between items-center text-sm">
-                    <span className="text-neutral-500 font-semibold text-xs uppercase tracking-wide">Estimated Time</span>
-                    <span className="text-[#fc4c02] font-black text-lg tracking-tight">
-                        {formatDuration(estimatedTime)}
-                    </span>
-                </div>
+                <span className="text-xl font-black tracking-tight text-neutral-900 tabular-nums">
+                    {formatDuration(estimatedTime)}
+                </span>
             </div>
 
             {effectiveCoordinates && (
-                <div className="mt-1 flex flex-col gap-2">
+                <div className="flex flex-col gap-2">
                     <button
                         onClick={() => setShowStreetView(!showStreetView)}
-                        className="flex items-center justify-center gap-2 w-full bg-neutral-100 hover:bg-neutral-200 text-neutral-700 py-2 rounded-xl font-medium text-sm transition-colors"
+                        aria-expanded={showStreetView}
+                        className="flex items-center justify-center gap-2 w-full border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-800 py-2.5 rounded-xl font-semibold text-sm transition-colors"
                     >
-                        <MapPin className="w-4 h-4" />
+                        <MapPin className="w-4 h-4" aria-hidden="true" />
                         {showStreetView
                             ? "Hide Street View"
-                            : (clickedCoordinate ? "Show Street View at Click" : "Show Start Street View")}
+                            : (clickedCoordinate ? "Street View here" : "Street View at start")}
                     </button>
 
                     {showStreetView && (
@@ -375,7 +385,7 @@ export default function SegmentCard({
                 href={segment.strava_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-1 group relative overflow-hidden flex items-center justify-center gap-2 w-full bg-[#fc4c02] hover:bg-[#e34402] text-white py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm hover:shadow-md active:scale-[0.98]"
+                className="group relative overflow-hidden flex items-center justify-center gap-2 w-full bg-[#fc4c02] hover:bg-[#e34402] text-white py-3 rounded-xl font-semibold text-sm transition-all shadow-sm hover:shadow-md active:scale-[0.98]"
             >
                 <span className="relative z-10 flex items-center gap-2">
                     View on Strava

@@ -1,10 +1,10 @@
 import SubmissionForm from "@/components/SubmissionForm";
 import InfoOverlay from "@/components/home/InfoOverlay";
+import Dialog from "@/components/ui/Dialog";
 
 interface HomeOverlaysProps {
   showSubmissionContent: boolean;
   showInfoScreen: boolean;
-  isMobileViewport: boolean;
   hideInfoScreenNextTime: boolean;
   onCloseSubmission: () => void;
   onExistingSegmentRated: (segmentId?: string) => Promise<void>;
@@ -15,7 +15,6 @@ interface HomeOverlaysProps {
 export default function HomeOverlays({
   showSubmissionContent,
   showInfoScreen,
-  isMobileViewport,
   hideInfoScreenNextTime,
   onCloseSubmission,
   onExistingSegmentRated,
@@ -25,14 +24,13 @@ export default function HomeOverlays({
   return (
     <>
       {showSubmissionContent && (
-        <div className="absolute inset-0 z-[9999] flex items-center justify-center bg-neutral-900/40 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+        <Dialog labelledBy="submission-dialog-title" onClose={onCloseSubmission} backdropClassName="bg-neutral-900/40 backdrop-blur-sm">
           <SubmissionForm onClose={onCloseSubmission} onExistingSegmentRated={onExistingSegmentRated} />
-        </div>
+        </Dialog>
       )}
 
       <InfoOverlay
         isOpen={showInfoScreen}
-        isMobileViewport={isMobileViewport}
         hideInfoScreenNextTime={hideInfoScreenNextTime}
         onHideInfoScreenNextTimeChange={onHideInfoScreenNextTimeChange}
         onContinue={onContinueInfo}

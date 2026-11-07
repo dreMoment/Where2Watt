@@ -2,9 +2,13 @@ import Image from "next/image";
 
 interface StravaCompatibleBadgeProps {
   className?: string;
+  imageClassName?: string;
 }
 
-export default function StravaCompatibleBadge({ className = "" }: StravaCompatibleBadgeProps) {
+export default function StravaCompatibleBadge({
+  className = "",
+  imageClassName = "w-[219px]",
+}: StravaCompatibleBadgeProps) {
   return (
     <a
       href="https://www.strava.com"
@@ -18,7 +22,7 @@ export default function StravaCompatibleBadge({ className = "" }: StravaCompatib
         alt="Compatible with Strava"
         width={219}
         height={19}
-        className="h-auto w-[219px] max-w-full"
+        className={`h-auto max-w-full ${imageClassName}`}
       />
     </a>
   );

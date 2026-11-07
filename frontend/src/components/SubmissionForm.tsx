@@ -254,14 +254,15 @@ export default function SubmissionForm({ onClose, onExistingSegmentRated }: Prop
             <div className="contribution-popup relative rounded-2xl border border-blue-100/50 bg-white/90 p-5 text-center shadow-2xl backdrop-blur-xl transition-all animate-in fade-in zoom-in duration-300 sm:rounded-3xl sm:p-8">
                 <button
                     onClick={onClose}
-                    className="absolute right-3 top-3 rounded-full bg-neutral-100/50 p-2 text-neutral-400 transition-all hover:bg-neutral-100 hover:text-neutral-900 sm:right-5 sm:top-5"
+                    aria-label="Close"
+                    className="absolute right-3 top-3 rounded-full bg-neutral-100 p-2.5 text-neutral-600 transition-all hover:bg-neutral-100 hover:text-neutral-900 sm:right-5 sm:top-5"
                 >
                     <X className="w-5 h-5" />
                 </button>
-                <div className="w-20 h-20 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-blue-100">
+                <div className="w-20 h-20 bg-neutral-100 text-neutral-700 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-neutral-200">
                     <MapPin className="w-10 h-10" />
                 </div>
-                <h2 className="text-3xl font-black text-neutral-900 mb-3 tracking-tight">Already Here!</h2>
+                <h2 id="submission-dialog-title" className="text-3xl font-black text-neutral-900 mb-3 tracking-tight">Already Here!</h2>
                 <p className="text-neutral-500 font-medium leading-relaxed">
                     {reasonMessage} Your rating has still been added.
                 </p>
@@ -282,7 +283,7 @@ export default function SubmissionForm({ onClose, onExistingSegmentRated }: Prop
                     <div className="absolute inset-0 rounded-full bg-emerald-400/20 animate-ping"></div>
                     <Send className="w-10 h-10 relative z-10" />
                 </div>
-                <h2 className="text-3xl font-black text-neutral-900 mb-3 tracking-tight">Submitted!</h2>
+                <h2 id="submission-dialog-title" className="text-3xl font-black text-neutral-900 mb-3 tracking-tight">Submitted!</h2>
                 <p className="text-neutral-500 font-medium leading-relaxed">
                     Thanks for contributing! Your segment is now pending review.
                 </p>
@@ -295,7 +296,8 @@ export default function SubmissionForm({ onClose, onExistingSegmentRated }: Prop
             <div className="contribution-popup relative rounded-2xl border border-white/50 bg-white/95 p-5 shadow-2xl backdrop-blur-2xl transition-all animate-in fade-in slide-in-from-bottom-4 duration-300 sm:rounded-3xl sm:p-8">
                 <button
                     onClick={onClose}
-                    className="absolute right-3 top-3 rounded-full bg-neutral-100/50 p-2 text-neutral-400 transition-all hover:bg-neutral-100 hover:text-neutral-900 sm:right-5 sm:top-5"
+                    aria-label="Close"
+                    className="absolute right-3 top-3 rounded-full bg-neutral-100 p-2.5 text-neutral-600 transition-all hover:bg-neutral-100 hover:text-neutral-900 sm:right-5 sm:top-5"
                 >
                     <X className="w-5 h-5" />
                 </button>
@@ -304,7 +306,7 @@ export default function SubmissionForm({ onClose, onExistingSegmentRated }: Prop
                     <div className="w-20 h-20 bg-orange-50 text-[#fc4c02] rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-orange-100">
                         <LogIn className="w-10 h-10" />
                     </div>
-                    <h2 className="text-2xl font-black text-neutral-900 mb-2 tracking-tight">Login Required</h2>
+                    <h2 id="submission-dialog-title" className="text-2xl font-black text-neutral-900 mb-2 tracking-tight">Login Required</h2>
                     <p className="text-sm text-neutral-500 font-medium mb-6">
                         You need to log in with Strava to submit segments.
                     </p>
@@ -322,14 +324,14 @@ export default function SubmissionForm({ onClose, onExistingSegmentRated }: Prop
 
         return (<>
             <div className="contribution-popup relative flex min-h-0 flex-col rounded-2xl border border-white/50 bg-white/95 p-5 shadow-2xl backdrop-blur-2xl sm:rounded-3xl sm:p-8">
-                <button onClick={onClose} aria-label="Close" className="absolute right-3 top-3 rounded-full bg-neutral-100/50 p-2 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-900 sm:right-5 sm:top-5">
+                <button onClick={onClose} aria-label="Close" className="absolute right-3 top-3 rounded-full bg-neutral-100 p-2.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 sm:right-5 sm:top-5">
                     <X className="h-5 w-5" />
                 </button>
                 <button type="button" onClick={() => setShowStarredSegments(false)} className="mb-4 flex w-fit items-center gap-1 text-sm font-bold text-neutral-600 hover:text-neutral-900">
                     <ChevronLeft className="h-4 w-4" /> Back
                 </button>
                 <div className="mb-4 pr-8">
-                    <h2 className="text-2xl font-black tracking-tight text-neutral-900">Your starred segments</h2>
+                    <h2 id="submission-dialog-title" className="text-2xl font-black tracking-tight text-neutral-900">Your starred segments</h2>
                     <p className="mt-1 text-sm font-medium text-neutral-500">Choose a Strava segment to add. New additions appear first.</p>
                 </div>
                 {!starredLoading && !starredError && starredSegments.length > 0 ? (
@@ -374,13 +376,14 @@ export default function SubmissionForm({ onClose, onExistingSegmentRated }: Prop
         <div className="contribution-popup relative flex flex-col rounded-2xl border border-white/50 bg-white/95 p-5 shadow-2xl backdrop-blur-2xl transition-all animate-in fade-in slide-in-from-bottom-4 duration-300 sm:rounded-3xl sm:p-8">
             <button
                 onClick={onClose}
-                className="absolute right-3 top-3 rounded-full bg-neutral-100/50 p-2 text-neutral-400 transition-all hover:bg-neutral-100 hover:text-neutral-900 sm:right-5 sm:top-5"
+                aria-label="Close"
+                className="absolute right-3 top-3 rounded-full bg-neutral-100 p-2.5 text-neutral-600 transition-all hover:bg-neutral-100 hover:text-neutral-900 sm:right-5 sm:top-5"
             >
                 <X className="w-5 h-5" />
             </button>
 
             <div className="mb-6 pr-8 sm:mb-8 sm:pr-10">
-                <h2 className="text-2xl font-black text-neutral-900 mb-2 tracking-tight">Add a Segment</h2>
+                <h2 id="submission-dialog-title" className="text-2xl font-black text-neutral-900 mb-2 tracking-tight">Add a Segment</h2>
                 <p className="text-sm leading-relaxed text-neutral-500 font-medium">
                     Know a great quiet road for intervals? Share it with the community.
                 </p>
@@ -389,7 +392,7 @@ export default function SubmissionForm({ onClose, onExistingSegmentRated }: Prop
             <form onSubmit={handleSubmit} className="flex flex-1 flex-col min-h-0">
                 <div className="contribution-popup-form flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-0.5 sm:gap-2 sm:pr-1">
                     <div className="group">
-                        <label htmlFor="strava_url" className="block text-xs font-bold text-neutral-400 uppercase tracking-widest mb-2 group-focus-within:text-neutral-900 transition-colors">
+                        <label htmlFor="strava_url" className="block text-xs font-bold text-neutral-600 uppercase tracking-widest mb-2 group-focus-within:text-neutral-900 transition-colors">
                             Strava Segment URL
                         </label>
                         <div className="flex items-stretch gap-2">

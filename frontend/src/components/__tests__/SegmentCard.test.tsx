@@ -59,7 +59,7 @@ describe('SegmentCard', () => {
     it('renders segment data correctly', () => {
         render(<SegmentCard segment={{ ...mockSegment, safety_notes: 'Watch for gravel.' }} />);
         expect(screen.getByText('Test Climb')).toBeInTheDocument();
-        expect(screen.getByText('2.5')).toBeInTheDocument();
+        expect(screen.getByText('2.5 km')).toBeInTheDocument();
         expect(screen.getByText('5%')).toBeInTheDocument();
         expect(screen.getByText('Watch for gravel.')).toBeInTheDocument();
     });

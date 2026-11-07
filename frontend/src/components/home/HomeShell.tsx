@@ -24,32 +24,33 @@ export default function HomeShell({
         <button
           type="button"
           onClick={onToggleSidebar}
-          className="rounded-lg border border-neutral-200/70 bg-white/90 p-2 text-neutral-500 shadow-sm backdrop-blur-sm transition-colors hover:bg-white hover:text-neutral-800"
+          className="flex h-11 w-11 items-center justify-center rounded-xl border border-neutral-200 bg-white/95 text-neutral-700 shadow-sm backdrop-blur-sm transition-colors hover:bg-white hover:text-neutral-900"
           title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
           aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+          aria-expanded={sidebarOpen}
+          aria-controls="home-sidebar"
         >
           {sidebarOpen ? <X className="h-5 w-5" /> : <PanelLeft className="h-5 w-5" />}
         </button>
-        <StravaCompatibleBadge className="-ml-2 w-[240px] sm:-ml-3 sm:w-[280px]" />
+        <StravaCompatibleBadge
+          className={`h-11 rounded-xl px-3 transition-colors ${
+            sidebarOpen ? "" : "border border-neutral-200 bg-white/95 shadow-sm backdrop-blur-sm"
+          }`}
+          imageClassName="w-[150px] sm:w-[180px]"
+        />
       </div>
 
       <button
         type="button"
         onClick={onOpenInfoScreen}
-        className={`absolute top-3 right-3 z-30 p-0 transition-opacity hover:opacity-90 ${
+        className={`absolute top-3 right-3 z-30 flex h-11 items-center gap-1.5 rounded-xl border border-neutral-200 bg-white/95 pl-1.5 pr-3 text-sm font-bold tracking-tight text-neutral-900 shadow-sm backdrop-blur-sm transition-opacity hover:bg-white ${
           isMobileViewport && sidebarOpen ? "pointer-events-none opacity-0" : "opacity-100"
         }`}
-        title="Show onboarding info"
-        aria-label="Show onboarding info"
+        title="About Where2Watt"
+        aria-label="About Where2Watt"
       >
-        <Image
-          src="/logo.svg"
-          alt="Where2Watt logo"
-          width={64}
-          height={64}
-          priority
-          className="h-[64px] w-[64px]"
-        />
+        <Image src="/logo.svg" alt="" width={32} height={32} priority className="h-8 w-8" />
+        <span className="hidden sm:inline">Where2Watt</span>
       </button>
 
       <div className="relative h-full w-full overflow-hidden">{children}</div>

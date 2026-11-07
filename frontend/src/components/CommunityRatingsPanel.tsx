@@ -5,6 +5,7 @@ import { deleteMySegmentRating, fetchMySegmentRatingStatus, rateSegment } from "
 import { useAuth } from "@/components/AuthContext";
 import { useUiFeedback } from "@/components/ui/UiFeedbackProvider";
 import StravaConnectButton from "@/components/StravaConnectButton";
+import Dialog from "@/components/ui/Dialog";
 import {
     DEFAULT_RATING_INPUT,
     RATING_FIELDS,
@@ -15,6 +16,8 @@ import {
 interface CommunityRatingsPanelProps {
     segment: Segment;
     initiallyFolded?: boolean;
+    /** Render without its own card chrome, e.g. inside the mobile segment sheet. */
+    embedded?: boolean;
     onSegmentRated?: (segmentId: string, rating: { ratings_count: number; average_ratings: SegmentAverageRatings }) => void;
 }
 
@@ -112,7 +115,7 @@ function RatingChoiceInput({ fieldKey, label, value, options, onChange }: Rating
     );
 }
 
-export default function CommunityRatingsPanel({ segment, initiallyFolded = false, onSegmentRated }: CommunityRatingsPanelProps) {
+export default function CommunityRatingsPanel({ segment, initiallyFolded = false, embedded = false, onSegmentRated }: CommunityRatingsPanelProps) {
     const { isLoggedIn, token, login } = useAuth();
     const { confirm, showToast } = useUiFeedback();
     const [showRatingForm, setShowRatingForm] = useState(false);
@@ -241,18 +244,18 @@ export default function CommunityRatingsPanel({ segment, initiallyFolded = false
 
     return (
         <>
-        <div className="w-[min(94vw,380px)] rounded-xl border border-neutral-200 bg-white/95 p-3 shadow-lg backdrop-blur-sm">
+        <div className={embedded ? "w-full" : "w-[min(94vw,380px)] rounded-xl border border-neutral-200 bg-white/95 p-3 shadow-lg backdrop-blur-sm"}>
             <div className="mb-2 flex items-start justify-between gap-2">
                 <div className="flex min-w-0 flex-col gap-0.5">
-                    <span className="text-xs font-bold uppercase tracking-wide text-neutral-600">Community Ratings</span>
-                    <span className="truncate text-sm font-semibold text-neutral-800">{segment.name}</span>
+                    <span className="text-xs font-bold uppercase tracking-wide text-neutral-600">Community ratings</span>
+                    {!embedded && <span className="truncate text-sm font-semibold text-neutral-800">{segment.name}</span>}
                 </div>
                 <button
                     type="button"
                     onClick={() => setIsFolded((prev) => !prev)}
                     aria-label={isFolded ? "Expand ratings popup" : "Fold ratings popup"}
                     title={isFolded ? "Expand ratings popup" : "Fold ratings popup"}
-                    className="hidden shrink-0 rounded-md border border-neutral-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-neutral-600 transition-colors hover:bg-neutral-100 sm:inline-flex"
+                    className={`${embedded ? "hidden" : "hidden sm:inline-flex"} shrink-0 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 transition-colors hover:bg-neutral-100`}
                 >
                     {isFolded ? "Show" : "Hide"}
                 </button>
@@ -265,7 +268,7 @@ export default function CommunityRatingsPanel({ segment, initiallyFolded = false
                                 const value = averageRatings[field.key];
                                 return (
                                     <div key={field.key} className="rounded-lg border border-neutral-200 bg-white/80 px-2.5 py-2 flex min-h-20 flex-col items-center justify-center gap-1.5 text-center">
-                                        <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{field.label}</span>
+                                        <span className="text-xs font-semibold text-neutral-600">{field.label}</span>
                                         <span className="text-base font-semibold text-neutral-800">
                                             {typeof value === "number" ? getChoiceLabel(field.key, value) : "No data"}
                                         </span>
@@ -274,7 +277,7 @@ export default function CommunityRatingsPanel({ segment, initiallyFolded = false
                             })}
                         </div>
                     ) : !showRatingForm ? (
-                        <p className="text-xs text-neutral-500">No ratings yet. Be the first to rate this segment.</p>
+                        <p className="text-sm text-neutral-600">No ratings yet. Be the first to rate this segment.</p>
                     ) : null
                     }
 
@@ -291,7 +294,7 @@ export default function CommunityRatingsPanel({ segment, initiallyFolded = false
                                 }
                                 setShowRatingForm((prev) => !prev);
                             }}
-                            className="mt-1 w-full rounded-lg bg-neutral-900 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-neutral-800"
+                            className="mt-1 w-full rounded-xl bg-neutral-900 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-neutral-800"
                         >
                             {hasRated ? "Edit your rating" : "Rate this segment"}
                         </button>
@@ -372,17 +375,16 @@ export default function CommunityRatingsPanel({ segment, initiallyFolded = false
             )}
         </div>
         {showLoginPrompt && (
-            <div className="fixed inset-0 z-[9999] bg-neutral-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-                <div
-                    role="dialog"
-                    aria-modal="true"
-                    aria-labelledby="ratings-login-required-title"
-                    className="contribution-popup relative w-full max-w-[min(92vw,680px)] rounded-2xl border border-white/50 bg-white/95 p-5 shadow-2xl backdrop-blur-2xl transition-all animate-in fade-in slide-in-from-bottom-4 duration-300 sm:rounded-3xl sm:p-8"
-                >
+            <Dialog
+                labelledBy="ratings-login-required-title"
+                onClose={() => setShowLoginPrompt(false)}
+                backdropClassName="bg-neutral-900/40 backdrop-blur-sm"
+                className="contribution-popup relative w-full rounded-2xl border border-white/50 bg-white/95 p-5 shadow-2xl backdrop-blur-2xl sm:rounded-3xl sm:p-8"
+            >
                     <button
                         onClick={() => setShowLoginPrompt(false)}
                         aria-label="Close login prompt"
-                        className="absolute right-3 top-3 rounded-full bg-neutral-100/50 p-2 text-neutral-400 transition-all hover:bg-neutral-100 hover:text-neutral-900 sm:right-5 sm:top-5"
+                        className="absolute right-3 top-3 rounded-full bg-neutral-100 p-2.5 text-neutral-600 transition-all hover:bg-neutral-100 hover:text-neutral-900 sm:right-5 sm:top-5"
                     >
                         <X className="w-5 h-5" />
                     </button>
@@ -405,8 +407,7 @@ export default function CommunityRatingsPanel({ segment, initiallyFolded = false
                             className="w-full sm:w-auto mx-auto"
                         />
                     </div>
-                </div>
-            </div>
+            </Dialog>
         )}
         </>
     );

@@ -176,6 +176,35 @@ function waitForTerrainToSettle(map: MapInstance, signal: AbortSignal): Promise<
   });
 }
 
+function hasSavedViewport(): boolean {
+  try {
+    return typeof window !== "undefined" && localStorage.getItem(MAP_VIEWPORT_STORAGE_KEY) !== null;
+  } catch {
+    return false;
+  }
+}
+
+function getSegmentsBounds(segments: Segment[]): [[number, number], [number, number]] | null {
+  let minLng = Infinity;
+  let minLat = Infinity;
+  let maxLng = -Infinity;
+  let maxLat = -Infinity;
+  for (const segment of segments) {
+    if (!segment.polyline) continue;
+    for (const [lng, lat] of decodePolyline(segment.polyline)) {
+      if (lng < minLng) minLng = lng;
+      if (lng > maxLng) maxLng = lng;
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+    }
+  }
+  if (!Number.isFinite(minLng)) return null;
+  return [
+    [minLng, minLat],
+    [maxLng, maxLat],
+  ];
+}
+
 function getInitialViewport(): MapViewport {
   if (typeof window === "undefined") {
     return DEFAULT_VIEWPORT;
@@ -260,13 +289,13 @@ export default function InteractiveMap({
   const [hoveredCoordinate, setHoveredCoordinate] = useState<[number, number] | null>(null);
   const [cursor, setCursor] = useState("grab");
   const [isMobileViewport, setIsMobileViewport] = useState(false);
-  const [isRatingsVisible, setIsRatingsVisible] = useState(true);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [elevationProfile, setElevationProfile] = useState<ElevationProfilePoint[] | null>(null);
   const [isElevationProfileLoading, setIsElevationProfileLoading] = useState(false);
   const [initialViewport] = useState<MapViewport>(() => getInitialViewport());
   const mapRef = useRef<MapRef | null>(null);
   const lastFocusRequestRef = useRef<string | null>(null);
+  const shouldFitSegmentsRef = useRef<boolean>(persistViewport && !hasSavedViewport());
 
   const filteredSegments = segments;
 
@@ -312,11 +341,7 @@ export default function InteractiveMap({
 
     const mobileMediaQuery = window.matchMedia("(max-width: 768px)");
     const handleViewportChange = (event: MediaQueryListEvent | MediaQueryList) => {
-      const isMobile = event.matches;
-      setIsMobileViewport(isMobile);
-      if (!isMobile) {
-        setIsRatingsVisible(true);
-      }
+      setIsMobileViewport(event.matches);
     };
 
     handleViewportChange(mobileMediaQuery);
@@ -335,12 +360,44 @@ export default function InteractiveMap({
     };
   }, []);
 
+  // On a first visit (no saved viewport), frame all segments once they are loaded.
   useEffect(() => {
-    if (!selectedSegment) return;
-    // This resets a user-controlled panel when the selected segment or layout changes.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsRatingsVisible(!isMobileViewport);
-  }, [selectedSegment, isMobileViewport]);
+    if (!shouldFitSegmentsRef.current || !isMapLoaded || !mapRef.current || focusSegmentId) return;
+    const bounds = getSegmentsBounds(filteredSegments);
+    if (!bounds) return;
+    shouldFitSegmentsRef.current = false;
+    const padding = isMobileViewport
+      ? { top: 80, bottom: 40, left: 32, right: 32 }
+      : { top: 96, bottom: 64, left: 440, right: 96 }; // leave room for the sidebar, open by default on desktop
+    mapRef.current.fitBounds(bounds, { padding, maxZoom: 12, duration: 0 });
+  }, [filteredSegments, isMapLoaded, isMobileViewport, focusSegmentId]);
+
+  const closeSelectedSegment = () => {
+    setSelectedSegment(null);
+    setClickedCoordinate(null);
+  };
+
+  const handleSelectedSegmentBlocked = (segmentId: string, report: { blocked: boolean }) => {
+    onSegmentBlocked?.(segmentId, report);
+    setSelectedSegment((previous) => {
+      if (!previous || previous.id !== segmentId) return previous;
+      return { ...previous, blocked: report.blocked };
+    });
+  };
+
+  const handleSelectedSegmentRated = (
+    segmentId: string,
+    rating: { ratings_count: number; average_ratings: SegmentAverageRatings }
+  ) => {
+    onSegmentRated?.(segmentId, rating);
+    setSelectedSegment((previous) => {
+      if (!previous || previous.id !== segmentId) return previous;
+      return { ...previous, ratings_count: rating.ratings_count, average_ratings: rating.average_ratings };
+    });
+  };
+
+  // Home: segment details live in a docked panel (bottom sheet on mobile, right-hand panel on desktop).
+  const showSegmentPanel = Boolean(selectedSegment) && !segmentDetailsAsTopLeftOverlay;
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -653,50 +710,6 @@ export default function InteractiveMap({
           </Popup>
         )}
 
-        {selectedSegment && !segmentDetailsAsTopLeftOverlay && (() => {
-          const coordinates = selectedSegment.polyline ? decodePolyline(selectedSegment.polyline) : [];
-          const startPoint = clickedCoordinate || (coordinates.length > 0 ? coordinates[0] : [
-            8.5417 + filteredSegments.indexOf(selectedSegment) * 0.01,
-            47.3769 + filteredSegments.indexOf(selectedSegment) * 0.01
-          ]);
-
-          return (
-            <Popup
-              longitude={startPoint[0]}
-              latitude={startPoint[1]}
-              anchor="bottom"
-              offset={[0, -10]}
-              onClose={() => {
-                setSelectedSegment(null);
-                setClickedCoordinate(null);
-              }}
-              closeOnClick={false}
-              className={`custom-popup z-10${selectedSegment.blocked ? ' blocked-popup' : ''}`}
-              maxWidth="350px"
-            >
-              <div className="p-1">
-                <SegmentCard
-                  segment={selectedSegment}
-                  riderPower={riderPower}
-                  riderWeight={riderWeight}
-                  bikeWeight={bikeWeight}
-                  clickedCoordinate={clickedCoordinate}
-                  elevationProfile={elevationProfile}
-                  isElevationProfileLoading={isElevationProfileLoading}
-                  showElevationProfile={!elevationProfileAsPopup}
-                  showReportAction={showSegmentReportAction}
-                  onSegmentBlocked={(segmentId, report) => {
-                    onSegmentBlocked?.(segmentId, report);
-                    setSelectedSegment((prev) => {
-                      if (!prev || prev.id !== segmentId) return prev;
-                      return { ...prev, blocked: report.blocked };
-                    });
-                  }}
-                />
-              </div>
-            </Popup>
-          );
-        })()}
       </Map>
       {selectedSegment && segmentDetailsAsTopLeftOverlay && (
         <div className="pointer-events-auto absolute left-4 top-4 z-20 max-h-[calc(100%-2rem)] w-[min(92vw,350px)] overflow-y-auto rounded-xl border border-neutral-200 bg-white/95 p-4 shadow-lg backdrop-blur-sm">
@@ -710,15 +723,44 @@ export default function InteractiveMap({
             isElevationProfileLoading={isElevationProfileLoading}
             showElevationProfile={!elevationProfileAsPopup}
             showReportAction={showSegmentReportAction}
-            onSegmentBlocked={(segmentId, report) => {
-              onSegmentBlocked?.(segmentId, report);
-              setSelectedSegment((previous) => {
-                if (!previous || previous.id !== segmentId) return previous;
-                return { ...previous, blocked: report.blocked };
-              });
-            }}
+            onSegmentBlocked={handleSelectedSegmentBlocked}
+            onClose={closeSelectedSegment}
           />
         </div>
+      )}
+      {showSegmentPanel && selectedSegment && (
+        <section
+          aria-label={`Segment details: ${selectedSegment.name}`}
+          className={`pointer-events-auto absolute z-40 overflow-y-auto overscroll-contain bg-white ${
+            isMobileViewport
+              ? "inset-x-0 bottom-0 max-h-[68dvh] rounded-t-2xl border-t border-neutral-200 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-12px_32px_-12px_rgba(0,0,0,0.25)]"
+              : "right-3 top-[4.25rem] max-h-[calc(100%-13rem)] w-[380px] rounded-2xl border border-neutral-200 p-5 shadow-xl"
+          }${selectedSegment.blocked ? " ring-2 ring-red-600" : ""}`}
+        >
+          {isMobileViewport && <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-neutral-300" aria-hidden="true" />}
+          <SegmentCard
+            segment={selectedSegment}
+            riderPower={riderPower}
+            riderWeight={riderWeight}
+            bikeWeight={bikeWeight}
+            clickedCoordinate={clickedCoordinate}
+            elevationProfile={elevationProfile}
+            isElevationProfileLoading={isElevationProfileLoading}
+            showElevationProfile={!elevationProfileAsPopup}
+            showReportAction={showSegmentReportAction}
+            onSegmentBlocked={handleSelectedSegmentBlocked}
+            onClose={closeSelectedSegment}
+          />
+          {showCommunityRatings && (
+            <div className="mt-4 border-t border-neutral-100 pt-4">
+              <CommunityRatingsPanel
+                segment={selectedSegment}
+                embedded
+                onSegmentRated={handleSelectedSegmentRated}
+              />
+            </div>
+          )}
+        </section>
       )}
       {selectedSegment && elevationProfileAsPopup && (
         <div className="pointer-events-auto absolute bottom-4 right-4 z-20 sm:right-20">
@@ -730,35 +772,12 @@ export default function InteractiveMap({
           />
         </div>
       )}
-      {showCommunityRatings && selectedSegment && isMobileViewport && (
-        <button
-          type="button"
-          onClick={() => setIsRatingsVisible((prev) => !prev)}
-          className="absolute bottom-4 left-1/2 z-30 -translate-x-1/2 rounded-lg border border-neutral-200 bg-white/95 px-5 py-2.5 text-xs font-semibold text-neutral-700 shadow-md backdrop-blur-sm"
-        >
-          {isRatingsVisible ? "Hide ratings" : "Show ratings"}
-        </button>
-      )}
-      {showCommunityRatings && selectedSegment && (!isMobileViewport || isRatingsVisible) && (
-        <div
-          className={`pointer-events-auto absolute z-20 ${
-            isMobileViewport ? "left-1/2 bottom-16 w-[min(92vw,340px)] -translate-x-1/2" : "right-20 bottom-4"
-          }`}
-        >
+      {showCommunityRatings && selectedSegment && !showSegmentPanel && (
+        <div className="pointer-events-auto absolute bottom-9 right-3 z-20">
           <CommunityRatingsPanel
             segment={selectedSegment}
             initiallyFolded={communityRatingsInitiallyFolded}
-            onSegmentRated={(segmentId, rating) => {
-              onSegmentRated?.(segmentId, rating);
-              setSelectedSegment((prev) => {
-                if (!prev || prev.id !== segmentId) return prev;
-                return {
-                  ...prev,
-                  ratings_count: rating.ratings_count,
-                  average_ratings: rating.average_ratings,
-                };
-              });
-            }}
+            onSegmentRated={handleSelectedSegmentRated}
           />
         </div>
       )}
