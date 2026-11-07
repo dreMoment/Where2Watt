@@ -17,6 +17,7 @@ interface HomeSidebarProps {
   filter: {
     isFiltered: boolean;
     matchingSegmentsCount: number;
+    error: string | null;
     totalSegmentsCount: number;
     preferencesReady: boolean;
     weightStr: string;
@@ -160,13 +161,18 @@ export default function HomeSidebar({
                 <button
                   type="button"
                   onClick={actions.onResetFilter}
-                  className="flex-[0.5] rounded-xl border border-neutral-200 bg-neutral-100 py-3 text-sm font-bold text-neutral-600 transition-all hover:bg-neutral-200 active:scale-[0.98]"
+                  className="flex-[0.5] rounded-xl border border-neutral-300 bg-white py-3 text-sm font-bold text-neutral-900 transition-colors hover:bg-neutral-50 active:scale-[0.98]"
                 >
                   Reset
                 </button>
               )}
             </div>
-            {filter.isFiltered && (
+            {filter.error && (
+              <p role="alert" className="text-sm font-medium text-red-700">
+                {filter.error}
+              </p>
+            )}
+            {filter.isFiltered && !filter.error && (
               <div role="status" className="flex flex-col gap-2 text-sm text-neutral-700">
                 <p>
                   <span className="font-semibold">{filter.matchingSegmentsCount}</span> of {filter.totalSegmentsCount} segments

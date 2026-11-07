@@ -51,6 +51,8 @@ export default function Home() {
   const [focusSegmentId, setFocusSegmentId] = useState<string | null>(null);
   const [focusSegmentNonce, setFocusSegmentNonce] = useState(0);
   const [fitMatchesNonce, setFitMatchesNonce] = useState(0);
+  const [segmentPanelOpen, setSegmentPanelOpen] = useState(false);
+  const [filterError, setFilterError] = useState<string | null>(null);
 
   // Filter state
   const [isFiltered, setIsFiltered] = useState(false);
@@ -133,6 +135,7 @@ export default function Home() {
         filter={{
           isFiltered,
           matchingSegmentsCount: filteredSegments.length,
+          error: filterError,
           totalSegmentsCount: segments.length,
           preferencesReady,
           weightStr,
@@ -142,6 +145,11 @@ export default function Home() {
         }}
         actions={{
           onApplyFilter: () => {
+            if (!(Number(filterPowerStr) > 0) || !(Number(filterTimeStr) > 0)) {
+              setFilterError("Enter a power and a minimum time above 0.");
+              return;
+            }
+            setFilterError(null);
             setIsFiltered(true);
             setFitMatchesNonce((previous) => previous + 1);
             // On mobile, show the map, unless nothing matches: then keep the explanation in view.
@@ -159,8 +167,14 @@ export default function Home() {
             closeProfileMenu();
             void handleDisconnect();
           },
-          onFilterPowerChange: handleFilterPowerChange,
-          onFilterTimeChange: handleFilterTimeChange,
+          onFilterPowerChange: (value: string) => {
+            setFilterError(null);
+            handleFilterPowerChange(value);
+          },
+          onFilterTimeChange: (value: string) => {
+            setFilterError(null);
+            handleFilterTimeChange(value);
+          },
           onLogin: login,
           onLogout: () => {
             closeProfileMenu();
@@ -176,6 +190,24 @@ export default function Home() {
       />
 
       <section className="absolute inset-0 bg-neutral-100/50" inert={isMobileViewport && sidebarOpen}>
+        {isFiltered && !(isMobileViewport && sidebarOpen) && (
+          <div
+            className={`pointer-events-none absolute inset-x-0 top-[4.25rem] z-30 flex justify-center px-3 ${
+              sidebarOpen ? "md:left-[380px]" : ""
+            } ${segmentPanelOpen ? "md:right-[400px]" : ""}`}
+          >
+            <div className="pointer-events-auto">
+              <FilterStatusChip
+                matchingCount={filteredSegments.length}
+                totalCount={segments.length}
+                power={filterPowerStr}
+                minutes={filterTimeStr}
+                onReset={() => setIsFiltered(false)}
+              />
+            </div>
+          </div>
+        )}
+
         <HomeMapPanel
           error={error}
           loading={loading}
@@ -193,21 +225,8 @@ export default function Home() {
           focusSegmentNonce={focusSegmentNonce}
           sidebarOpen={sidebarOpen}
           fitMatchesNonce={fitMatchesNonce}
+          onSegmentPanelChange={setSegmentPanelOpen}
         />
-
-        {isFiltered && !(isMobileViewport && sidebarOpen) && (
-          <div className="pointer-events-none absolute inset-x-0 top-[4.25rem] z-30 flex justify-center px-3 md:top-3">
-            <div className="pointer-events-auto">
-              <FilterStatusChip
-                matchingCount={filteredSegments.length}
-                totalCount={segments.length}
-                power={filterPowerStr}
-                minutes={filterTimeStr}
-                onReset={() => setIsFiltered(false)}
-              />
-            </div>
-          </div>
-        )}
 
         <HomeOverlays
           showSubmissionContent={showSubmissionContent}

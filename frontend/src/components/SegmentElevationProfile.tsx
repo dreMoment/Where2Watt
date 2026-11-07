@@ -275,7 +275,7 @@ export default function SegmentElevationProfile({ points, isLoading = false, sho
           <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-700" /> 7–10%</span>
           <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-900" /> ≥ 10%</span>
           </div>
-          <span>Gain: {formatElevation(elevationGain)}</span>
+          <span className="border-t border-neutral-100 pt-2 sm:border-0 sm:pt-0">Gain: {formatElevation(elevationGain)}</span>
         </div>
     </Dialog>
   ) : null;

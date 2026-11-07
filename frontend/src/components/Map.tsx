@@ -40,6 +40,8 @@ interface MapProps {
   sidebarOpen?: boolean;
   /** Bumped when the user applies a filter; frames the matching segments. */
   fitMatchesNonce?: number;
+  /** Reports whether the docked segment details panel is open. */
+  onSegmentPanelChange?: (open: boolean) => void;
 }
 
 const MAP_VIEWPORT_STORAGE_KEY = "where2watt:lastMapViewport";
@@ -280,6 +282,7 @@ export default function InteractiveMap({
   exploreCandidates = [],
   sidebarOpen = false,
   fitMatchesNonce = 0,
+  onSegmentPanelChange,
 }: MapProps) {
   const initialFocusedSegment =
     autoSelectFocusedSegment && focusSegmentId
@@ -385,7 +388,7 @@ export default function InteractiveMap({
     if (!bounds || !map) return;
     const container = map.getContainer();
     const padding = isMobileViewport
-      ? { top: 88, bottom: Math.round(container.clientHeight * 0.62) + 24, left: 32, right: 32 }
+      ? { top: isFiltered ? 128 : 88, bottom: Math.round(container.clientHeight * 0.62) + 24, left: 32, right: 32 }
       : { top: 96, bottom: 64, left: sidebarOpen ? 380 + 48 : 96, right: 420 };
     map.fitBounds(bounds, { padding, maxZoom: 14, duration: 600 });
   };
@@ -400,8 +403,8 @@ export default function InteractiveMap({
     const panelOpen = Boolean(selectedSegment) && !segmentDetailsAsTopLeftOverlay;
     const mapHeight = mapRef.current.getContainer().clientHeight;
     const padding = isMobileViewport
-      ? { top: 88, bottom: panelOpen ? Math.round(mapHeight * 0.62) + 24 : 48, left: 56, right: 56 }
-      : { top: 96, bottom: 64, left: sidebarOpen ? 380 + 64 : 96, right: panelOpen ? 420 : 96 };
+      ? { top: 128, bottom: panelOpen ? Math.round(mapHeight * 0.62) + 24 : 48, left: 56, right: 56 }
+      : { top: 128, bottom: 64, left: sidebarOpen ? 380 + 64 : 96, right: panelOpen ? 420 : 96 };
     mapRef.current.fitBounds(bounds, { padding, maxZoom: 13, duration: 600 });
     // Only re-run when the user applies a filter.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -444,6 +447,17 @@ export default function InteractiveMap({
 
   // Home: segment details live in a docked panel (bottom sheet on mobile, right-hand panel on desktop).
   const showSegmentPanel = Boolean(selectedSegment) && !segmentDetailsAsTopLeftOverlay;
+
+  useEffect(() => {
+    onSegmentPanelChange?.(showSegmentPanel);
+  }, [showSegmentPanel, onSegmentPanelChange]);
+
+  // Close the details when a filter hides the selected segment.
+  useEffect(() => {
+    if (!selectedSegment) return;
+    if (filteredSegments.some((segment) => segment.id === selectedSegment.id)) return;
+    closeSelectedSegment();
+  }, [filteredSegments, selectedSegment]);
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -693,7 +707,7 @@ export default function InteractiveMap({
                   }}
                   paint={{
                     "line-color": "#ffffff",
-                    "line-width": lineWidth + 3,
+                    "line-width": ["interpolate", ["linear"], ["zoom"], 9, lineWidth + 5, 13, lineWidth + 3],
                     "line-opacity": lineOpacity
                   }}
                 />
@@ -706,7 +720,7 @@ export default function InteractiveMap({
                   }}
                   paint={{
                     "line-color": lineColor,
-                    "line-width": lineWidth,
+                    "line-width": ["interpolate", ["linear"], ["zoom"], 9, lineWidth + 2, 13, lineWidth],
                     "line-opacity": lineOpacity
                   }}
                 />
@@ -834,6 +848,12 @@ export default function InteractiveMap({
               />
             </div>
           )}
+          <div
+            className={`pointer-events-none sticky bottom-0 h-8 bg-gradient-to-t from-white to-transparent ${
+              isMobileViewport ? "-mx-4 -mb-8" : "-mx-5 -mb-5"
+            }`}
+            aria-hidden="true"
+          />
         </section>
       )}
       {selectedSegment && elevationProfileAsPopup && (

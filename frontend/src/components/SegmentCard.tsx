@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ExternalLink, Ruler, Mountain, Timer, MapPin, Flag, X } from "lucide-react";
+import { ExternalLink, Ruler, Mountain, Timer, MapPin, TriangleAlert, X } from "lucide-react";
 import type { Segment } from "@/types";
 import { decodePolyline } from "@/utils/polyline";
 import {
@@ -205,8 +205,8 @@ export default function SegmentCard({
                                 setShowLoginPrompt(true);
                             }
                         }}
-                        title={segment.blocked ? "Report as unblocked/free" : "Report as blocked"}
-                        aria-label={segment.blocked ? "Report as unblocked" : "Report as blocked"}
+                        title={segment.blocked ? "Report road as reopened" : "Report road closure"}
+                        aria-label={segment.blocked ? "Report road as reopened" : "Report road closure"}
                         className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors ${
                             hasReportedCurrentState
                                 ? segment.blocked
@@ -217,7 +217,7 @@ export default function SegmentCard({
                                     : "text-neutral-500 hover:text-red-600 hover:bg-red-50"
                         }`}
                     >
-                        <Flag className={`w-4 h-4 ${hasReportedCurrentState || segment.blocked ? "fill-current" : ""}`} />
+                        <TriangleAlert className="w-5 h-5" aria-hidden="true" />
                     </button>}
                     {onClose && (
                         <button
