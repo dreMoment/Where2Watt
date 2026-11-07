@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Dialog from "@/components/ui/Dialog";
+import DialogCloseButton, { DIALOG_PANEL_CLASS } from "@/components/ui/DialogCloseButton";
 
 interface InfoOverlayProps {
   isOpen: boolean;
@@ -22,9 +23,17 @@ export default function InfoOverlay({
     <Dialog
       labelledBy="landing-info-title"
       onClose={onContinue}
-      className="max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-2xl border border-neutral-200/90 bg-white p-5 shadow-2xl sm:max-h-[90dvh] sm:rounded-3xl sm:p-6 md:p-8"
+      className={`${DIALOG_PANEL_CLASS} max-h-[calc(100dvh-1.5rem)] max-w-2xl overflow-y-auto p-5 sm:max-h-[90dvh] sm:p-6 md:p-8`}
     >
-        <div className="flex items-start justify-between gap-3 sm:gap-4">
+        <DialogCloseButton onClick={onContinue} />
+        <div className="flex items-start gap-3 pr-12 sm:gap-4">
+          <Image
+            src="/logo.svg"
+            alt=""
+            width={56}
+            height={56}
+            className="h-10 w-10 shrink-0 sm:h-12 sm:w-12"
+          />
           <div className="min-w-0 max-w-[38rem]">
             <h2 id="landing-info-title" className="text-xl font-bold tracking-tight text-neutral-900 sm:text-2xl">
               Welcome to Where2Watt
@@ -33,13 +42,6 @@ export default function InfoOverlay({
               This tool helps you find and share safe road segments for your outdoor training.
             </p>
           </div>
-          <Image
-            src="/logo.svg"
-            alt="Where2Watt logo"
-            width={56}
-            height={56}
-            className="h-10 w-10 shrink-0 sm:h-12 sm:w-12 md:h-14 md:w-14"
-          />
         </div>
 
         <div className="mt-5 space-y-2.5 text-sm leading-relaxed text-neutral-600 sm:mt-6 sm:space-y-3 md:text-base">

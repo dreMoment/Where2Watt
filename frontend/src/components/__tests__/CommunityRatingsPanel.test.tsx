@@ -87,7 +87,7 @@ describe("CommunityRatingsPanel", () => {
 
         fireEvent.click(screen.getByRole("button", { name: /Rate this segment/i }));
         fireEvent.click(screen.getByRole("button", { name: "Overall Quality star 4" }));
-        fireEvent.click(screen.getByRole("button", { name: "Traffic Level: Med" }));
+        fireEvent.click(screen.getByRole("button", { name: "Traffic Level: Medium" }));
         fireEvent.click(screen.getByRole("button", { name: "Road Surface: Smooth" }));
         fireEvent.click(screen.getByRole("button", { name: "Gradient Profile: Flowing" }));
         fireEvent.click(screen.getByRole("button", { name: "Sketchy Left Turns: 1" }));
@@ -140,10 +140,10 @@ describe("CommunityRatingsPanel", () => {
         expect(screen.getByText("Road Surface")).toBeInTheDocument();
         expect(screen.getByText("Gradient Profile")).toBeInTheDocument();
         expect(screen.getByText("Sketchy Left Turns")).toBeInTheDocument();
-        expect(screen.getByText("Med")).toBeInTheDocument();
+        expect(screen.getByText("Medium")).toBeInTheDocument();
         expect(screen.getByText("Patchy")).toBeInTheDocument();
         expect(screen.getByText("Steady")).toBeInTheDocument();
-        expect(screen.getByText("0")).toBeInTheDocument();
+        expect(screen.getByText("None")).toBeInTheDocument();
         expect(screen.queryByText("2.7")).not.toBeInTheDocument();
         expect(screen.queryByText(/average\s*\/\s*3/i)).not.toBeInTheDocument();
     });

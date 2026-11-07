@@ -51,7 +51,7 @@ export default function HomeSidebar({
       id="home-sidebar"
       aria-label="Filters and account"
       inert={!sidebarOpen}
-      className={`absolute inset-y-0 left-0 z-20 max-h-[100dvh] w-full overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] transform border-r border-neutral-100 bg-white shadow-[4px_0_20px_rgba(0,0,0,0.04)] transition-transform duration-300 ease-in-out md:w-[380px] ${
+      className={`absolute inset-y-0 left-0 z-[45] max-h-[100dvh] w-full overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] transform border-r border-neutral-100 bg-white shadow-[4px_0_20px_rgba(0,0,0,0.04)] transition-transform duration-300 ease-in-out md:w-[380px] ${
         sidebarOpen ? "pointer-events-auto translate-x-0" : "pointer-events-none -translate-x-full"
       }`}
     >
@@ -207,7 +207,7 @@ export default function HomeSidebar({
               Support
             </Link>
           </div>
-          <p className="mt-1.5 text-center text-[11px] text-neutral-500">
+          <p className="mt-1.5 text-center text-[11px] text-neutral-600">
             Where2Watt uses the Strava API and is not endorsed by Strava.
           </p>
         </div>

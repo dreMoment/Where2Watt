@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import Dialog from "@/components/ui/Dialog";
+import DialogCloseButton, { DIALOG_PANEL_CLASS } from "@/components/ui/DialogCloseButton";
 
 export type ElevationProfilePoint = {
   distanceKm: number;
@@ -145,9 +146,11 @@ function formatDistanceKm(value: number): string {
 }
 
 function ElevationSvg({ points, large = false }: { points: ElevationProfilePoint[]; large?: boolean }) {
-  const width = large ? 1100 : 320;
-  const height = large ? 460 : 120;
-  const labelSize = large ? 18 : 10;
+  // The expanded chart uses a phone-sized canvas on narrow screens so its labels stay readable.
+  const narrow = large && typeof window !== "undefined" && window.innerWidth < 640;
+  const width = large && !narrow ? 1100 : 320;
+  const height = large ? (narrow ? 220 : 460) : 120;
+  const labelSize = large && !narrow ? 18 : 11;
   const chart = useMemo(() => buildChart(points, width, height), [points, width, height]);
   const areaPoints = [
     `${chart.paddingX},${chart.baselineY}`,
@@ -174,7 +177,7 @@ function ElevationSvg({ points, large = false }: { points: ElevationProfilePoint
       <line x1={chart.paddingX} y1={chart.paddingTop} x2={chart.paddingX} y2={chart.baselineY} stroke="#e7e5e4" strokeWidth="1" />
       <polygon points={areaPoints} fill={`url(#soft-base-fill-${large ? "large" : "small"})`} />
 
-      <g fill="#57534e" fontSize={labelSize} fontWeight={600}>
+      <g fill="#525252" fontSize={labelSize} fontWeight={600}>
         <text x={chart.paddingX - 6} y={chart.paddingTop + labelSize * 0.35} textAnchor="end">
           {formatElevation(chart.maxElevation)}
         </text>
@@ -220,12 +223,12 @@ export default function SegmentElevationProfile({ points, isLoading = false, sho
 
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-stone-200 bg-stone-50/80 p-3">
+      <div className="rounded-xl border border-neutral-200 bg-neutral-50/80 p-3">
         <div className={`flex items-center justify-between ${showHeader ? "mb-2" : "mb-1"}`}>
-          {showHeader ? <span className="text-xs font-bold uppercase tracking-wide text-stone-600">Elevation profile</span> : null}
-          <span className="text-[11px] text-stone-400">Loading…</span>
+          {showHeader ? <span className="text-xs font-bold uppercase tracking-wide text-neutral-600">Elevation profile</span> : null}
+          <span className="text-[11px] text-neutral-400">Loading…</span>
         </div>
-        <div className="h-28 animate-pulse rounded-lg bg-stone-200/70" />
+        <div className="h-28 animate-pulse rounded-lg bg-neutral-200/70" />
       </div>
     );
   }
@@ -243,19 +246,15 @@ export default function SegmentElevationProfile({ points, isLoading = false, sho
     <Dialog
       labelledBy="elevation-dialog-title"
       onClose={() => setIsExpanded(false)}
-      backdropClassName="bg-stone-950/55 backdrop-blur-sm"
-      className="flex max-h-[90dvh] w-[min(96vw,72rem)] flex-col overflow-y-auto rounded-2xl bg-[#fffdfa] p-4 shadow-2xl ring-1 ring-black/5 sm:rounded-3xl sm:p-6"
+      backdropClassName="bg-neutral-950/55 backdrop-blur-sm"
+      className={`${DIALOG_PANEL_CLASS} flex max-h-[90dvh] max-w-6xl flex-col overflow-y-auto p-4 sm:p-6`}
     >
-        <div className="mb-4 flex items-center justify-between gap-4">
-          <h2 id="elevation-dialog-title" className="text-xl font-bold text-stone-800">Elevation profile</h2>
-          <button type="button" onClick={() => setIsExpanded(false)} className="rounded-full bg-stone-100 px-4 py-2.5 text-sm font-semibold text-stone-700 transition hover:bg-stone-200">
-            Close
-          </button>
-        </div>
-        <div className="rounded-2xl border border-stone-100 bg-white px-2 py-3 sm:px-4">
+        <DialogCloseButton onClick={() => setIsExpanded(false)} />
+        <h2 id="elevation-dialog-title" className="mb-4 pr-12 text-xl font-bold text-neutral-900">Elevation profile</h2>
+        <div className="rounded-2xl border border-neutral-100 bg-white px-2 py-3 sm:px-4">
           <ElevationSvg points={validPoints} large />
         </div>
-        <div className="mt-4 flex flex-wrap gap-4 text-xs font-semibold text-stone-600">
+        <div className="mt-4 flex flex-wrap gap-4 text-xs font-semibold text-neutral-600">
           <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-green-700" /> ≤ 1%</span>
           <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-amber-600" /> 1–4%</span>
           <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-orange-600" /> 4–7%</span>
@@ -271,12 +270,12 @@ export default function SegmentElevationProfile({ points, isLoading = false, sho
       <button
         type="button"
         onClick={() => setIsExpanded(true)}
-        className="w-full rounded-xl border border-stone-200 bg-[#fffdfa] p-3 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] transition hover:border-orange-200 hover:bg-orange-50/20"
+        className="w-full rounded-xl border border-neutral-200 bg-white p-3 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] transition hover:border-orange-200 hover:bg-orange-50/20"
         aria-label="Open larger elevation profile"
       >
         <div className={`flex items-center justify-between gap-3 ${showHeader ? "mb-2" : "mb-1"}`}>
-          {showHeader ? <span className="text-xs font-bold uppercase tracking-wide text-stone-600">Elevation profile</span> : null}
-          <span className="text-xs font-semibold text-stone-600">↗ {formatElevation(elevationGain)} · Expand</span>
+          {showHeader ? <span className="text-xs font-bold uppercase tracking-wide text-neutral-600">Elevation profile</span> : null}
+          <span className="text-xs font-semibold text-neutral-600">↗ {formatElevation(elevationGain)} · Expand</span>
         </div>
         <ElevationSvg points={validPoints} />
       </button>

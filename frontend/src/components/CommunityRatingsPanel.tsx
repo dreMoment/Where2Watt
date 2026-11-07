@@ -1,11 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { LogIn, X } from "lucide-react";
 import type { Segment, SegmentAverageRatings, SegmentRatingValues } from "@/types";
 import { deleteMySegmentRating, fetchMySegmentRatingStatus, rateSegment } from "@/utils/api";
 import { useAuth } from "@/components/AuthContext";
 import { useUiFeedback } from "@/components/ui/UiFeedbackProvider";
-import StravaConnectButton from "@/components/StravaConnectButton";
-import Dialog from "@/components/ui/Dialog";
+import LoginRequiredDialog from "@/components/LoginRequiredDialog";
 import {
     DEFAULT_RATING_INPUT,
     RATING_FIELDS,
@@ -58,7 +56,7 @@ function RatingStarsInput({ fieldKey, label, valueOutOf10, onChange }: RatingSta
                             type="button"
                             aria-label={`${label} star ${starNumber}`}
                             onClick={() => onChange(valueOutOf10 === fullValue ? halfValue : fullValue)}
-                            className="flex h-7 w-7 items-center justify-center rounded-sm transition-colors hover:bg-amber-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#fc4c02]"
+                            className="flex h-10 w-10 items-center justify-center rounded-md transition-colors hover:bg-amber-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#fc4c02]"
                         >
                             <span className="relative inline-block h-7 w-7 text-neutral-200" aria-hidden="true">
                                 <StarIcon className="h-7 w-7" />
@@ -73,7 +71,7 @@ function RatingStarsInput({ fieldKey, label, valueOutOf10, onChange }: RatingSta
                     );
                 })}
             </div>
-            <p className="text-[11px] text-neutral-500">Tip: click a star, then click it again to make it a half step.</p>
+            <p className="text-xs text-neutral-600">Tip: tap a star twice for a half step.</p>
         </div>
     );
 }
@@ -101,10 +99,10 @@ function RatingChoiceInput({ fieldKey, label, value, options, onChange }: Rating
                         type="button"
                         aria-label={`${label}: ${option.label}`}
                         onClick={() => onChange(option.value)}
-                        className={`rounded-lg border px-2 py-1.5 text-center text-[11px] font-medium transition-colors ${
+                        className={`min-h-11 rounded-lg border px-2 py-2 text-center text-sm font-medium transition-colors ${
                             value === option.value
-                                ? "border-[#fc4c02] bg-orange-50 text-[#fc4c02]"
-                                : "border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-100"
+                                ? "border-[#d03d00] bg-orange-50 text-[#b93600] font-semibold"
+                                : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100"
                         }`}
                     >
                         {option.label}
@@ -116,7 +114,7 @@ function RatingChoiceInput({ fieldKey, label, value, options, onChange }: Rating
 }
 
 export default function CommunityRatingsPanel({ segment, initiallyFolded = false, embedded = false, onSegmentRated }: CommunityRatingsPanelProps) {
-    const { isLoggedIn, token, login } = useAuth();
+    const { isLoggedIn, token } = useAuth();
     const { confirm, showToast } = useUiFeedback();
     const [showRatingForm, setShowRatingForm] = useState(false);
     const [isRating, setIsRating] = useState(false);
@@ -261,13 +259,13 @@ export default function CommunityRatingsPanel({ segment, initiallyFolded = false
                 </button>
             </div>
             {!isFolded && (
-                <div className="rounded-xl bg-neutral-50/70 p-3 flex flex-col gap-2">
+                <div className="flex flex-col gap-3">
                     {!showRatingForm && ratingsCount > 0 && averageRatings ? (
                         <div data-testid="community-categories-grid" className="grid grid-cols-2 gap-2">
                             {assessmentFields.map((field) => {
                                 const value = averageRatings[field.key];
                                 return (
-                                    <div key={field.key} className="rounded-lg border border-neutral-200 bg-white/80 px-2.5 py-2 flex min-h-20 flex-col items-center justify-center gap-1.5 text-center">
+                                    <div key={field.key} className="rounded-xl bg-neutral-50 px-2.5 py-2.5 flex min-h-[4.5rem] flex-col items-center justify-center gap-1 text-center">
                                         <span className="text-xs font-semibold text-neutral-600">{field.label}</span>
                                         <span className="text-base font-semibold text-neutral-800">
                                             {typeof value === "number" ? getChoiceLabel(field.key, value) : "No data"}
@@ -301,7 +299,7 @@ export default function CommunityRatingsPanel({ segment, initiallyFolded = false
                     )}
 
                     {showRatingForm && (
-                        <div className="mt-1 rounded-lg border border-neutral-200 bg-white p-2.5 flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="mt-1 flex flex-col gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
                             <div className="grid grid-cols-1 gap-3">
                                 {RATING_FIELDS.map((field) => {
                                     const currentValue = ratingDraft[field.key];
@@ -338,7 +336,7 @@ export default function CommunityRatingsPanel({ segment, initiallyFolded = false
                                 })}
                             </div>
                             {formError ? (
-                                <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-[11px] font-medium text-red-700">
+                                <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
                                     {formError}
                                 </div>
                             ) : null}
@@ -346,7 +344,7 @@ export default function CommunityRatingsPanel({ segment, initiallyFolded = false
                                 <button
                                     onClick={handleRate}
                                     disabled={isRating}
-                                    className="flex-1 bg-[#fc4c02] hover:bg-[#e34402] disabled:bg-orange-300 text-white py-1.5 rounded-lg font-semibold text-xs transition-colors"
+                                    className="flex-1 bg-[#d03d00] hover:bg-[#b93600] disabled:bg-orange-300 text-white py-2.5 rounded-xl font-semibold text-sm transition-colors"
                                 >
                                     {isRating ? "Submitting..." : hasRated ? "Update Rating" : "Submit Rating"}
                                 </button>
@@ -355,7 +353,7 @@ export default function CommunityRatingsPanel({ segment, initiallyFolded = false
                                         setShowRatingForm(false);
                                         setFormError(null);
                                     }}
-                                    className="flex-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 py-1.5 rounded-lg font-semibold text-xs transition-colors"
+                                    className="flex-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 py-2.5 rounded-xl font-semibold text-sm transition-colors"
                                 >
                                     Cancel
                                 </button>
@@ -364,7 +362,7 @@ export default function CommunityRatingsPanel({ segment, initiallyFolded = false
                                 <button
                                     onClick={handleDeleteRating}
                                     disabled={isRating}
-                                    className="w-full rounded-lg border border-red-200 bg-red-50 py-1.5 text-xs font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-70"
+                                    className="w-full rounded-xl border border-red-200 bg-red-50 py-2.5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-70"
                                 >
                                     {isRating ? "Working..." : "Delete My Rating"}
                                 </button>
@@ -375,39 +373,7 @@ export default function CommunityRatingsPanel({ segment, initiallyFolded = false
             )}
         </div>
         {showLoginPrompt && (
-            <Dialog
-                labelledBy="ratings-login-required-title"
-                onClose={() => setShowLoginPrompt(false)}
-                backdropClassName="bg-neutral-900/40 backdrop-blur-sm"
-                className="contribution-popup relative w-full rounded-2xl border border-white/50 bg-white/95 p-5 shadow-2xl backdrop-blur-2xl sm:rounded-3xl sm:p-8"
-            >
-                    <button
-                        onClick={() => setShowLoginPrompt(false)}
-                        aria-label="Close login prompt"
-                        className="absolute right-3 top-3 rounded-full bg-neutral-100 p-2.5 text-neutral-600 transition-all hover:bg-neutral-100 hover:text-neutral-900 sm:right-5 sm:top-5"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
-
-                    <div className="text-center py-4">
-                        <div className="w-20 h-20 bg-orange-50 text-[#fc4c02] rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-orange-100">
-                            <LogIn className="w-10 h-10" />
-                        </div>
-                        <h2 id="ratings-login-required-title" className="text-2xl font-black text-neutral-900 mb-2 tracking-tight">
-                            Login Required
-                        </h2>
-                        <p className="text-sm text-neutral-500 font-medium mb-6">
-                            You need to log in with Strava to rate segments.
-                        </p>
-                        <StravaConnectButton
-                            onClick={() => {
-                                login();
-                                setShowLoginPrompt(false);
-                            }}
-                            className="w-full sm:w-auto mx-auto"
-                        />
-                    </div>
-            </Dialog>
+            <LoginRequiredDialog action="rate segments" onClose={() => setShowLoginPrompt(false)} />
         )}
         </>
     );

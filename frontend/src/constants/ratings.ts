@@ -20,7 +20,7 @@ type RatingFieldConfig = {
 
 const TRAFFIC_LEVEL_OPTIONS: ChoiceOption[] = [
   { value: 1, label: "Low" },
-  { value: 2, label: "Med" },
+  { value: 2, label: "Medium" },
   { value: 3, label: "High" },
 ];
 
@@ -37,7 +37,7 @@ const GRADIENT_PROFILE_OPTIONS: ChoiceOption[] = [
 ];
 
 const SKETCHY_LEFT_TURNS_OPTIONS: ChoiceOption[] = [
-  { value: 0, label: "0" },
+  { value: 0, label: "None" },
   { value: 1, label: "1" },
   { value: 2, label: "2+" },
 ];

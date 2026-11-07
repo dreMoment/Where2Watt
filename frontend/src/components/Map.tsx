@@ -372,6 +372,18 @@ export default function InteractiveMap({
     mapRef.current.fitBounds(bounds, { padding, maxZoom: 12, duration: 0 });
   }, [filteredSegments, isMapLoaded, isMobileViewport, focusSegmentId]);
 
+  // Frame the selected route in the part of the map the details panel leaves visible.
+  const fitSegmentIntoVisibleArea = (segment: Segment) => {
+    const bounds = getSegmentsBounds([segment]);
+    const map = mapRef.current;
+    if (!bounds || !map) return;
+    const container = map.getContainer();
+    const padding = isMobileViewport
+      ? { top: 72, bottom: Math.round(container.clientHeight * 0.68) + 24, left: 32, right: 32 }
+      : { top: 96, bottom: 64, left: 96, right: 420 };
+    map.fitBounds(bounds, { padding, maxZoom: 14, duration: 600 });
+  };
+
   const closeSelectedSegment = () => {
     setSelectedSegment(null);
     setClickedCoordinate(null);
@@ -533,6 +545,9 @@ export default function InteractiveMap({
               setSelectedSegment(clickedSegment);
               if (e.lngLat) {
                 setClickedCoordinate([e.lngLat.lng, e.lngLat.lat]);
+              }
+              if (!segmentDetailsAsTopLeftOverlay) {
+                fitSegmentIntoVisibleArea(clickedSegment);
               }
               return;
             }
@@ -733,11 +748,10 @@ export default function InteractiveMap({
           aria-label={`Segment details: ${selectedSegment.name}`}
           className={`pointer-events-auto absolute z-40 overflow-y-auto overscroll-contain bg-white ${
             isMobileViewport
-              ? "inset-x-0 bottom-0 max-h-[68dvh] rounded-t-2xl border-t border-neutral-200 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-12px_32px_-12px_rgba(0,0,0,0.25)]"
+              ? "inset-x-0 bottom-0 max-h-[68dvh] rounded-t-2xl border-t border-neutral-200 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-12px_32px_-12px_rgba(0,0,0,0.25)]"
               : "right-3 top-[4.25rem] max-h-[calc(100%-13rem)] w-[380px] rounded-2xl border border-neutral-200 p-5 shadow-xl"
           }${selectedSegment.blocked ? " ring-2 ring-red-600" : ""}`}
         >
-          {isMobileViewport && <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-neutral-300" aria-hidden="true" />}
           <SegmentCard
             segment={selectedSegment}
             riderPower={riderPower}
@@ -750,6 +764,7 @@ export default function InteractiveMap({
             showReportAction={showSegmentReportAction}
             onSegmentBlocked={handleSelectedSegmentBlocked}
             onClose={closeSelectedSegment}
+            stickyHeader
           />
           {showCommunityRatings && (
             <div className="mt-4 border-t border-neutral-100 pt-4">

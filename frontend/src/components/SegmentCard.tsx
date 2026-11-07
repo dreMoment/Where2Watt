@@ -11,6 +11,7 @@ import { useAuth } from "@/components/AuthContext";
 import { useUiFeedback } from "@/components/ui/UiFeedbackProvider";
 import { createIntervalProfile, estimateSegmentDurationSeconds, formatDuration } from "@/utils/intervals";
 import SegmentElevationProfile, { type ElevationProfilePoint } from "./SegmentElevationProfile";
+import LoginRequiredDialog from "@/components/LoginRequiredDialog";
 
 interface Props {
     segment: Segment;
@@ -24,6 +25,8 @@ interface Props {
     showElevationProfile?: boolean;
     showReportAction?: boolean;
     onClose?: () => void;
+    /** Keep the title row visible while the surrounding panel scrolls. */
+    stickyHeader?: boolean;
 }
 
 const REPORT_NOTE_MAX_LENGTH = 500;
@@ -79,8 +82,9 @@ export default function SegmentCard({
     showElevationProfile = true,
     showReportAction = true,
     onClose,
+    stickyHeader = false,
 }: Props) {
-    const { isLoggedIn, token, login } = useAuth();
+    const { isLoggedIn, token } = useAuth();
     const { showToast } = useUiFeedback();
     const profile = useMemo(
         () => createIntervalProfile(riderPower, riderWeight, bikeWeight),
@@ -174,7 +178,7 @@ export default function SegmentCard({
                     </div>
                 </div>
             )}
-            <div className="flex items-start justify-between border-b border-neutral-100/80 pb-3 gap-2">
+            <div className={`flex items-start justify-between gap-2 border-b border-neutral-100 pb-3 ${stickyHeader ? "sticky top-0 z-10 bg-white pt-1 shadow-[0_0_0_1.25rem_#fff] [clip-path:inset(-1.25rem_-1.25rem_0_-1.25rem)]" : ""}`}>
                 <div className="min-w-0 pr-2">
                     <h3 className="font-bold text-lg text-neutral-800 leading-tight">
                         {segment.name}
@@ -237,28 +241,7 @@ export default function SegmentCard({
             </div>
 
             {showReportAction && showLoginPrompt && (
-                <div className="bg-blue-50 border border-blue-200 rounded-xl px-3.5 py-2.5 flex flex-col gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="flex flex-col gap-1">
-                        <span className="text-blue-800 font-semibold text-xs">Login Required</span>
-                        <p className="text-blue-700 text-[11px] leading-relaxed">
-                            You need to log in with Strava to rate segments and report blocked or free roads.
-                        </p>
-                    </div>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => login()}
-                            className="flex-1 bg-[#fc4c02] hover:bg-[#e34402] text-white py-1.5 rounded-lg font-semibold text-xs transition-colors"
-                        >
-                            Log in with Strava
-                        </button>
-                        <button
-                            onClick={() => setShowLoginPrompt(false)}
-                            className="flex-1 bg-white border border-blue-200 hover:bg-blue-100 text-blue-600 py-1.5 rounded-lg font-semibold text-xs transition-colors"
-                        >
-                            Cancel
-                        </button>
-                    </div>
-                </div>
+                <LoginRequiredDialog action="report blocked or reopened roads" onClose={() => setShowLoginPrompt(false)} />
             )}
 
             {showReportAction && showReportForm && (
@@ -385,7 +368,7 @@ export default function SegmentCard({
                 href={segment.strava_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group relative overflow-hidden flex items-center justify-center gap-2 w-full bg-[#fc4c02] hover:bg-[#e34402] text-white py-3 rounded-xl font-semibold text-sm transition-all shadow-sm hover:shadow-md active:scale-[0.98]"
+                className="group relative overflow-hidden flex items-center justify-center gap-2 w-full bg-[#d03d00] hover:bg-[#b93600] text-white py-3 rounded-xl font-semibold text-sm transition-all shadow-sm hover:shadow-md active:scale-[0.98]"
             >
                 <span className="relative z-10 flex items-center gap-2">
                     View on Strava

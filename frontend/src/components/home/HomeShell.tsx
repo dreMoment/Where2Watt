@@ -20,7 +20,7 @@ export default function HomeShell({
 }: HomeShellProps) {
   return (
     <main className="relative flex h-[100dvh] w-full overflow-hidden bg-[#f9fafb]">
-      <div className="absolute top-3 left-3 z-30 flex items-center gap-2">
+      <div className="absolute top-3 left-3 z-50 flex items-center gap-2">
         <button
           type="button"
           onClick={onToggleSidebar}
@@ -33,9 +33,7 @@ export default function HomeShell({
           {sidebarOpen ? <X className="h-5 w-5" /> : <PanelLeft className="h-5 w-5" />}
         </button>
         <StravaCompatibleBadge
-          className={`h-11 rounded-xl px-3 transition-colors ${
-            sidebarOpen ? "" : "border border-neutral-200 bg-white/95 shadow-sm backdrop-blur-sm"
-          }`}
+          className="h-11 rounded-xl border border-neutral-200 bg-white/95 px-3 shadow-sm backdrop-blur-sm"
           imageClassName="w-[150px] sm:w-[180px]"
         />
       </div>
@@ -43,7 +41,7 @@ export default function HomeShell({
       <button
         type="button"
         onClick={onOpenInfoScreen}
-        className={`absolute top-3 right-3 z-30 flex h-11 items-center gap-1.5 rounded-xl border border-neutral-200 bg-white/95 pl-1.5 pr-3 text-sm font-bold tracking-tight text-neutral-900 shadow-sm backdrop-blur-sm transition-opacity hover:bg-white ${
+        className={`absolute top-3 right-3 z-50 flex h-11 items-center gap-1.5 rounded-xl border border-neutral-200 bg-white/95 pl-1.5 pr-3 text-sm font-bold tracking-tight text-neutral-900 shadow-sm backdrop-blur-sm transition-opacity hover:bg-white ${
           isMobileViewport && sidebarOpen ? "pointer-events-none opacity-0" : "opacity-100"
         }`}
         title="About Where2Watt"
