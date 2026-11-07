@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ExternalLink, Ruler, Mountain, Timer, MapPin, TriangleAlert, X } from "lucide-react";
+import { ExternalLink, Ruler, Mountain, Timer, MapPin, TriangleAlert, CheckCircle2, X } from "lucide-react";
 import type { Segment } from "@/types";
 import { decodePolyline } from "@/utils/polyline";
 import {
@@ -194,8 +194,8 @@ export default function SegmentCard({
                                 if (hasReportedCurrentState) {
                                     showToast(
                                         segment.blocked
-                                            ? "You already reported this segment as unblocked."
-                                            : "You already reported this segment as blocked.",
+                                            ? "You already reported this road as reopened."
+                                            : "You already reported this road as closed.",
                                         { type: "info" }
                                     );
                                     return;
@@ -217,7 +217,11 @@ export default function SegmentCard({
                                     : "text-neutral-500 hover:text-red-600 hover:bg-red-50"
                         }`}
                     >
-                        <TriangleAlert className="w-5 h-5" aria-hidden="true" />
+                        {segment.blocked ? (
+                            <CheckCircle2 className="w-5 h-5" aria-hidden="true" />
+                        ) : (
+                            <TriangleAlert className="w-5 h-5" aria-hidden="true" />
+                        )}
                     </button>}
                     {onClose && (
                         <button
@@ -237,7 +241,7 @@ export default function SegmentCard({
                 <div className="bg-red-50 border border-red-200 rounded-xl px-3.5 py-2.5 flex items-start gap-2">
                     <span className="text-red-500 text-base leading-none mt-0.5">!</span>
                     <div className="flex flex-col gap-0.5">
-                        <span className="text-red-700 font-semibold text-sm">This segment is currently blocked</span>
+                        <span className="text-red-700 font-semibold text-sm">Road reported closed</span>
                         {segment.block_message && segment.block_message.trim().length > 0 && (
                             <span className="text-red-700 text-xs leading-relaxed">{segment.block_message}</span>
                         )}
@@ -245,7 +249,7 @@ export default function SegmentCard({
                 </div>
             )}
             {showReportAction && showLoginPrompt && (
-                <LoginRequiredDialog action="report blocked or reopened roads" onClose={() => setShowLoginPrompt(false)} />
+                <LoginRequiredDialog action="report road closures" onClose={() => setShowLoginPrompt(false)} />
             )}
 
             {showReportAction && showReportForm && (
@@ -255,7 +259,7 @@ export default function SegmentCard({
                         : "bg-red-50 border border-red-200"
                 }`}>
                     <span className={`font-semibold text-xs ${segment.blocked ? "text-green-800" : "text-red-800"}`}>
-                        {segment.blocked ? "Report this segment as unblocked" : "Report this segment as blocked"}
+                        {segment.blocked ? "Report road as reopened" : "Report road closure"}
                     </span>
                     <textarea
                         value={reportNote}
@@ -266,7 +270,7 @@ export default function SegmentCard({
                                 ? "border border-green-300 focus:ring-green-500"
                                 : "border border-red-300 focus:ring-red-500"
                         }`}
-                        placeholder={segment.blocked ? "Optional note for review..." : "Optional note (e.g. expected duration or unusual block)..."}
+                        placeholder={segment.blocked ? "Optional note for review..." : "Optional note (e.g. roadworks, expected duration)..."}
                     />
                     <div className={`text-[11px] text-right ${segment.blocked ? "text-green-700" : "text-red-700"}`}>
                         {reportNote.length}/{REPORT_NOTE_MAX_LENGTH}
@@ -352,6 +356,7 @@ export default function SegmentCard({
                         <div className="w-full bg-neutral-100 rounded-xl overflow-hidden shadow-inner border border-neutral-200 border-t-0 p-1 h-48 relative">
                             <div className="w-full h-full overflow-hidden rounded-lg">
                                 <iframe
+                                    title={`Google Street View for ${segment.name}`}
                                     style={{
                                         border: 0,
                                         width: "150%",

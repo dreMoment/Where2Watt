@@ -180,7 +180,10 @@ export default function Home() {
             closeProfileMenu();
             logout();
           },
-          onResetFilter: () => setIsFiltered(false),
+          onResetFilter: () => {
+            setIsFiltered(false);
+            setFilterError(null);
+          },
           onSubmitSegment: () => setShowSubmissionContent(true),
           onToggleProfileMenu: toggleProfileMenu,
           onWeightChange: handleWeightChange,
@@ -202,7 +205,10 @@ export default function Home() {
                 totalCount={segments.length}
                 power={filterPowerStr}
                 minutes={filterTimeStr}
-                onReset={() => setIsFiltered(false)}
+                onReset={() => {
+                  setIsFiltered(false);
+                  setFilterError(null);
+                }}
               />
             </div>
           </div>

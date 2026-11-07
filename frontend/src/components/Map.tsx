@@ -292,6 +292,12 @@ export default function InteractiveMap({
     initialFocusedSegment?.polyline ? decodePolyline(initialFocusedSegment.polyline)[0] ?? null : null;
 
   const [selectedSegment, setSelectedSegment] = useState<Segment | null>(initialFocusedSegment);
+  const [panelHasMoreBelow, setPanelHasMoreBelow] = useState(false);
+  const segmentPanelRef = useRef<HTMLElement | null>(null);
+  const updatePanelHasMoreBelow = (panel: HTMLElement | null) => {
+    if (!panel) return;
+    setPanelHasMoreBelow(panel.scrollTop + panel.clientHeight < panel.scrollHeight - 8);
+  };
   const [selectedCandidate, setSelectedCandidate] = useState<ExploreCandidate | null>(null);
   const [clickedCoordinate, setClickedCoordinate] = useState<[number, number] | null>(initialFocusedCoordinate);
   const [hoveredSegment, setHoveredSegment] = useState<Segment | null>(null);
@@ -447,6 +453,16 @@ export default function InteractiveMap({
 
   // Home: segment details live in a docked panel (bottom sheet on mobile, right-hand panel on desktop).
   const showSegmentPanel = Boolean(selectedSegment) && !segmentDetailsAsTopLeftOverlay;
+
+  // Show the bottom fade only while there is more panel content below; content grows as data loads.
+  useEffect(() => {
+    const panel = segmentPanelRef.current;
+    if (!showSegmentPanel || !panel || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => updatePanelHasMoreBelow(panel));
+    observer.observe(panel);
+    Array.from(panel.children).forEach((child) => observer.observe(child));
+    return () => observer.disconnect();
+  }, [showSegmentPanel, selectedSegment?.id]);
 
   useEffect(() => {
     onSegmentPanelChange?.(showSegmentPanel);
@@ -818,6 +834,8 @@ export default function InteractiveMap({
       )}
       {showSegmentPanel && selectedSegment && (
         <section
+          ref={segmentPanelRef}
+          onScroll={(event) => updatePanelHasMoreBelow(event.currentTarget)}
           aria-label={`Segment details: ${selectedSegment.name}`}
           className={`pointer-events-auto absolute z-40 overflow-y-auto overscroll-contain bg-white ${
             isMobileViewport
@@ -848,12 +866,14 @@ export default function InteractiveMap({
               />
             </div>
           )}
-          <div
-            className={`pointer-events-none sticky bottom-0 h-8 bg-gradient-to-t from-white to-transparent ${
-              isMobileViewport ? "-mx-4 -mb-8" : "-mx-5 -mb-5"
-            }`}
-            aria-hidden="true"
-          />
+          {panelHasMoreBelow && (
+            <div
+              className={`pointer-events-none sticky bottom-0 h-8 bg-gradient-to-t from-white to-transparent ${
+                isMobileViewport ? "-mx-4 -mb-8" : "-mx-5 -mb-5"
+              }`}
+              aria-hidden="true"
+            />
+          )}
         </section>
       )}
       {selectedSegment && elevationProfileAsPopup && (

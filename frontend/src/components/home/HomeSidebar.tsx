@@ -161,7 +161,7 @@ export default function HomeSidebar({
                 <button
                   type="button"
                   onClick={actions.onResetFilter}
-                  className="flex-[0.5] rounded-xl border border-neutral-300 bg-white py-3 text-sm font-bold text-neutral-900 transition-colors hover:bg-neutral-50 active:scale-[0.98]"
+                  className="flex-[0.5] rounded-xl border border-neutral-300 bg-white py-3 text-sm font-bold text-neutral-900 transition-all hover:bg-neutral-50 active:scale-[0.98]"
                 >
                   Reset
                 </button>

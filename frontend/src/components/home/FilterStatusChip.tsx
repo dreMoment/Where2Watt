@@ -34,7 +34,9 @@ export default function FilterStatusChip({ matchingCount, totalCount, power, min
         onClick={onReset}
         aria-label="Clear interval filter"
         title="Clear filter"
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-neutral-700 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
+        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors ${
+          none ? "text-amber-900 hover:bg-amber-100 hover:text-amber-950" : "text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900"
+        }`}
       >
         <X className="h-4 w-4" aria-hidden="true" />
       </button>
