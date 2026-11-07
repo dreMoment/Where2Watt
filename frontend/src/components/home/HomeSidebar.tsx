@@ -16,6 +16,8 @@ interface HomeSidebarProps {
   };
   filter: {
     isFiltered: boolean;
+    matchingSegmentsCount: number;
+    totalSegmentsCount: number;
     preferencesReady: boolean;
     weightStr: string;
     bikeWeightStr: string;
@@ -105,7 +107,7 @@ export default function HomeSidebar({
           <div className="flex gap-3">
           <InputField
             id="global-weight"
-            label="Rider (kg)"
+            label="Rider weight (kg)"
             type="number"
             min="0"
             value={filter.preferencesReady ? filter.weightStr : ""}
@@ -114,7 +116,7 @@ export default function HomeSidebar({
           />
           <InputField
             id="global-bike-weight"
-            label="Bike (kg)"
+            label="Bike weight (kg)"
             type="number"
             min="0"
             value={filter.preferencesReady ? filter.bikeWeightStr : ""}
@@ -138,7 +140,7 @@ export default function HomeSidebar({
               />
               <InputField
                 id="filter-time"
-                label="Min. Time (m)"
+                label="Min. time (min)"
                 type="number"
                 min="0"
                 value={filter.preferencesReady ? filter.filterTimeStr : ""}
@@ -164,6 +166,12 @@ export default function HomeSidebar({
                 </button>
               )}
             </div>
+            {filter.isFiltered && (
+              <p role="status" className="text-sm text-neutral-700">
+                <span className="font-semibold">{filter.matchingSegmentsCount}</span> of {filter.totalSegmentsCount} segments
+                match this interval.
+              </p>
+            )}
           </div>
         </SectionCard>
 
@@ -174,8 +182,8 @@ export default function HomeSidebar({
           </p>
           {!auth.loading && !auth.isLoggedIn ? (
             <>
-              <StravaConnectButton onClick={actions.onLogin} className="w-full" />
-              <p className="text-center text-xs text-neutral-600">Connect with Strava to submit or rate segments.</p>
+              <StravaConnectButton onClick={actions.onLogin} className="self-start" />
+              <p className="text-xs text-neutral-600">Connect with Strava to submit or rate segments.</p>
             </>
           ) : (
             <button

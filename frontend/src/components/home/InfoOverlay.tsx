@@ -45,10 +45,11 @@ export default function InfoOverlay({
         </div>
 
         <div className="mt-5 space-y-2.5 text-sm leading-relaxed text-neutral-600 sm:mt-6 sm:space-y-3 md:text-base">
+          <p>Click a highlighted road on the map to see its distance, gradient, estimated time and ratings.</p>
           <p>
-            Open the sidebar on the left to set your rider profile. Estimated segment times are based on it.
+            Set your rider profile in the sidebar (the button at the top left) to personalise the estimated times, and use
+            the interval filter to find segments that match your target power and duration.
           </p>
-          <p>Use the power and duration filter to find segments that match your target interval.</p>
           <p>Connect with Strava to submit new segments or rate the ones you have ridden.</p>
           <p>Have fun and stay safe.</p>
         </div>

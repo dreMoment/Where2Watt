@@ -41,9 +41,10 @@ export default function HomeShell({
       <button
         type="button"
         onClick={onOpenInfoScreen}
-        className={`absolute top-3 right-3 z-50 flex h-11 items-center gap-1.5 rounded-xl border border-neutral-200 bg-white/95 pl-1.5 pr-3 text-sm font-bold tracking-tight text-neutral-900 shadow-sm backdrop-blur-sm transition-opacity hover:bg-white ${
+        className={`absolute top-3 right-3 z-50 flex h-11 w-11 items-center justify-center gap-1.5 rounded-xl border border-neutral-200 bg-white/95 text-sm sm:w-auto sm:pl-1.5 sm:pr-3 font-bold tracking-tight text-neutral-900 shadow-sm backdrop-blur-sm transition-opacity hover:bg-white ${
           isMobileViewport && sidebarOpen ? "pointer-events-none opacity-0" : "opacity-100"
         }`}
+        inert={isMobileViewport && sidebarOpen}
         title="About Where2Watt"
         aria-label="About Where2Watt"
       >

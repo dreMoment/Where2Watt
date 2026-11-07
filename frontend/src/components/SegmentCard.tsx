@@ -59,7 +59,11 @@ function StarPreview({ valueOutOf5, label }: { valueOutOf5: number; label: strin
     const widthPercent = (roundedStarsOutOf5 / 5) * 100;
 
     return (
-        <span className="inline-flex items-center leading-none" aria-label={`${label} average stars`}>
+        <span
+            className="inline-flex items-center leading-none"
+            role="img"
+            aria-label={`${label}: ${roundedStarsOutOf5} out of 5 stars`}
+        >
             <span className="relative inline-block align-middle leading-none" aria-hidden="true">
                 <StarRow colorClassName="text-neutral-200" />
                 <span className="absolute inset-y-0 left-0 overflow-hidden" style={{ width: `${widthPercent}%` }}>
@@ -167,17 +171,6 @@ export default function SegmentCard({
 
     return (
         <div className="flex flex-col gap-4 min-w-[280px]">
-            {segment.blocked && (
-                <div className="bg-red-50 border border-red-200 rounded-xl px-3.5 py-2.5 flex items-start gap-2">
-                    <span className="text-red-500 text-base leading-none mt-0.5">!</span>
-                    <div className="flex flex-col gap-0.5">
-                        <span className="text-red-700 font-semibold text-sm">This segment is currently blocked</span>
-                        {segment.block_message && segment.block_message.trim().length > 0 && (
-                            <span className="text-red-700 text-xs leading-relaxed">{segment.block_message}</span>
-                        )}
-                    </div>
-                </div>
-            )}
             <div className={`flex items-start justify-between gap-2 border-b border-neutral-100 pb-3 ${stickyHeader ? "sticky top-0 z-10 bg-white pt-1 shadow-[0_0_0_1.25rem_#fff] [clip-path:inset(-1.25rem_-1.25rem_0_-1.25rem)]" : ""}`}>
                 <div className="min-w-0 pr-2">
                     <h3 className="font-bold text-lg text-neutral-800 leading-tight">
@@ -240,6 +233,17 @@ export default function SegmentCard({
                 </div>
             </div>
 
+            {segment.blocked && (
+                <div className="bg-red-50 border border-red-200 rounded-xl px-3.5 py-2.5 flex items-start gap-2">
+                    <span className="text-red-500 text-base leading-none mt-0.5">!</span>
+                    <div className="flex flex-col gap-0.5">
+                        <span className="text-red-700 font-semibold text-sm">This segment is currently blocked</span>
+                        {segment.block_message && segment.block_message.trim().length > 0 && (
+                            <span className="text-red-700 text-xs leading-relaxed">{segment.block_message}</span>
+                        )}
+                    </div>
+                </div>
+            )}
             {showReportAction && showLoginPrompt && (
                 <LoginRequiredDialog action="report blocked or reopened roads" onClose={() => setShowLoginPrompt(false)} />
             )}

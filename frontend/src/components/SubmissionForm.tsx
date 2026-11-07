@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { X, Send, Loader2, LogIn, MapPin, Info, ChevronLeft, ChevronDown, Search, Star, Eye } from "lucide-react";
+import { Send, Loader2, LogIn, MapPin, Info, ChevronLeft, ChevronDown, Search, Star, Eye } from "lucide-react";
 import { fetchStarredStravaSegments, fetchStravaSegmentPreview, submitSegment, type SegmentSubmitResponse, type StarredStravaSegment, type SubmissionData } from "@/utils/api";
 import type { Segment, SegmentRatingValues } from "@/types";
 import { useAuth } from "@/components/AuthContext";
+import DialogCloseButton from "@/components/ui/DialogCloseButton";
 import StravaConnectButton from "@/components/StravaConnectButton";
 import { DEFAULT_RATING_INPUT, RATING_FIELDS, type NullableSegmentRatings } from "@/constants/ratings";
 import AdminSegmentPreviewModal from "@/components/AdminSegmentPreviewModal";
@@ -109,7 +110,7 @@ function RatingChoiceInput({ fieldKey, label, value, options, onChange }: Rating
                         onClick={() => onChange(option.value)}
                         className={`min-h-10 rounded-lg border px-2 py-2.5 text-center text-[13px] font-medium leading-tight transition-colors sm:text-xs ${
                             value === option.value
-                                ? "border-[#fc4c02] bg-orange-50 text-[#fc4c02]"
+                                ? "border-[#d03d00] bg-orange-50 text-[#b93600] font-semibold"
                                 : "border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-100"
                         }`}
                     >
@@ -252,13 +253,7 @@ export default function SubmissionForm({ onClose, onExistingSegmentRated }: Prop
                 : "This segment is already in our database.";
         return (
             <div className="contribution-popup relative rounded-2xl border border-blue-100/50 bg-white/90 p-5 text-center shadow-2xl backdrop-blur-xl transition-all animate-in fade-in zoom-in duration-300 sm:rounded-3xl sm:p-8">
-                <button
-                    onClick={onClose}
-                    aria-label="Close"
-                    className="absolute right-3 top-3 rounded-full bg-neutral-100 p-2.5 text-neutral-700 transition-all hover:bg-neutral-200 hover:text-neutral-900 sm:right-5 sm:top-5"
-                >
-                    <X className="w-5 h-5" />
-                </button>
+                <DialogCloseButton onClick={onClose} />
                 <div className="w-20 h-20 bg-neutral-100 text-neutral-700 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-neutral-200">
                     <MapPin className="w-10 h-10" />
                 </div>
@@ -294,16 +289,10 @@ export default function SubmissionForm({ onClose, onExistingSegmentRated }: Prop
     if (!isLoggedIn) {
         return (
             <div className="contribution-popup relative rounded-2xl bg-white p-5 shadow-2xl transition-all animate-in fade-in slide-in-from-bottom-4 duration-300 sm:rounded-3xl sm:p-8">
-                <button
-                    onClick={onClose}
-                    aria-label="Close"
-                    className="absolute right-3 top-3 rounded-full bg-neutral-100 p-2.5 text-neutral-700 transition-all hover:bg-neutral-200 hover:text-neutral-900 sm:right-5 sm:top-5"
-                >
-                    <X className="w-5 h-5" />
-                </button>
+                <DialogCloseButton onClick={onClose} />
 
                 <div className="text-center py-4">
-                    <div className="w-20 h-20 bg-orange-50 text-[#fc4c02] rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-orange-100">
+                    <div className="w-20 h-20 bg-orange-50 text-[#d03d00] rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-orange-100">
                         <LogIn className="w-10 h-10" />
                     </div>
                     <h2 id="submission-dialog-title" className="text-2xl font-bold text-neutral-900 mb-2 tracking-tight">Login Required</h2>
@@ -324,9 +313,7 @@ export default function SubmissionForm({ onClose, onExistingSegmentRated }: Prop
 
         return (<>
             <div className="contribution-popup relative flex min-h-0 flex-col rounded-2xl bg-white p-5 shadow-2xl sm:rounded-3xl sm:p-8">
-                <button onClick={onClose} aria-label="Close" className="absolute right-3 top-3 rounded-full bg-neutral-100 p-2.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 sm:right-5 sm:top-5">
-                    <X className="h-5 w-5" />
-                </button>
+                <DialogCloseButton onClick={onClose} />
                 <button type="button" onClick={() => setShowStarredSegments(false)} className="mb-4 flex w-fit items-center gap-1 text-sm font-bold text-neutral-600 hover:text-neutral-900">
                     <ChevronLeft className="h-4 w-4" /> Back
                 </button>
@@ -374,13 +361,7 @@ export default function SubmissionForm({ onClose, onExistingSegmentRated }: Prop
 
     return (
         <div className="contribution-popup relative flex flex-col rounded-2xl bg-white p-5 shadow-2xl transition-all animate-in fade-in slide-in-from-bottom-4 duration-300 sm:rounded-3xl sm:p-8">
-            <button
-                onClick={onClose}
-                aria-label="Close"
-                className="absolute right-3 top-3 rounded-full bg-neutral-100 p-2.5 text-neutral-700 transition-all hover:bg-neutral-200 hover:text-neutral-900 sm:right-5 sm:top-5"
-            >
-                <X className="w-5 h-5" />
-            </button>
+            <DialogCloseButton onClick={onClose} />
 
             <div className="mb-6 pr-8 sm:mb-8 sm:pr-10">
                 <h2 id="submission-dialog-title" className="text-2xl font-bold text-neutral-900 mb-2 tracking-tight">Add a Segment</h2>
@@ -413,7 +394,7 @@ export default function SubmissionForm({ onClose, onExistingSegmentRated }: Prop
                                 onClick={openStarredSegments}
                                 aria-label="Choose from your starred Strava segments"
                                 title="Choose from your starred Strava segments"
-                                className="flex w-12 shrink-0 items-center justify-center rounded-xl border border-[#fc4c02]/30 bg-orange-50 text-[#fc4c02] shadow-sm transition hover:border-[#fc4c02] hover:bg-orange-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#fc4c02]"
+                                className="flex w-12 shrink-0 items-center justify-center rounded-xl border border-[#fc4c02]/30 bg-orange-50 text-[#b93600] shadow-sm transition hover:border-[#fc4c02] hover:bg-orange-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#fc4c02]"
                             >
                                 <StravaMark className="h-6 w-6" />
                             </button>

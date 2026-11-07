@@ -118,7 +118,7 @@ export default function Home() {
       onToggleSidebar={() => setSidebarOpen((previous) => !previous)}
       onOpenInfoScreen={openInfoScreen}
     >
-      <section className="absolute inset-0 bg-neutral-100/50">
+      <section className="absolute inset-0 bg-neutral-100/50" inert={isMobileViewport && sidebarOpen}>
         <HomeMapPanel
           error={error}
           loading={loading}
@@ -134,6 +134,7 @@ export default function Home() {
           onSegmentRated={handleSegmentRated}
           focusSegmentId={focusSegmentId}
           focusSegmentNonce={focusSegmentNonce}
+          sidebarOpen={sidebarOpen}
         />
 
         <HomeOverlays
@@ -158,6 +159,8 @@ export default function Home() {
         }}
         filter={{
           isFiltered,
+          matchingSegmentsCount: filteredSegments.length,
+          totalSegmentsCount: segments.length,
           preferencesReady,
           weightStr,
           bikeWeightStr,

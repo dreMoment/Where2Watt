@@ -36,6 +36,8 @@ interface MapProps {
   segmentDetailsAsTopLeftOverlay?: boolean;
   showSegmentReportAction?: boolean;
   exploreCandidates?: ExploreCandidate[];
+  /** Whether the home sidebar currently covers the left of the map (desktop). */
+  sidebarOpen?: boolean;
 }
 
 const MAP_VIEWPORT_STORAGE_KEY = "where2watt:lastMapViewport";
@@ -274,6 +276,7 @@ export default function InteractiveMap({
   segmentDetailsAsTopLeftOverlay = false,
   showSegmentReportAction = true,
   exploreCandidates = [],
+  sidebarOpen = false,
 }: MapProps) {
   const initialFocusedSegment =
     autoSelectFocusedSegment && focusSegmentId
@@ -380,9 +383,20 @@ export default function InteractiveMap({
     const container = map.getContainer();
     const padding = isMobileViewport
       ? { top: 72, bottom: Math.round(container.clientHeight * 0.68) + 24, left: 32, right: 32 }
-      : { top: 96, bottom: 64, left: 96, right: 420 };
+      : { top: 96, bottom: 64, left: sidebarOpen ? 380 + 48 : 96, right: 420 };
     map.fitBounds(bounds, { padding, maxZoom: 14, duration: 600 });
   };
+
+  // Re-frame the selected route when the desktop sidebar opens or closes over it.
+  const previousSidebarOpenRef = useRef(sidebarOpen);
+  useEffect(() => {
+    if (previousSidebarOpenRef.current === sidebarOpen) return;
+    previousSidebarOpenRef.current = sidebarOpen;
+    if (selectedSegment && !isMobileViewport && !segmentDetailsAsTopLeftOverlay) {
+      fitSegmentIntoVisibleArea(selectedSegment);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sidebarOpen]);
 
   const closeSelectedSegment = () => {
     setSelectedSegment(null);
@@ -626,8 +640,8 @@ export default function InteractiveMap({
           const segKey = segment.id || String(idx);
           const isBlocked = segment.blocked === true;
           const defaultColor = (isFiltered && segmentColors[segKey]) ? segmentColors[segKey] : "#D81B60";
-          const lineColor = isSelected ? "#C2185B" : defaultColor;
-          const lineWidth = isSelected ? 6 : 3;
+          const lineColor = isSelected ? "#880E4F" : defaultColor;
+          const lineWidth = isSelected ? 6 : 3.5;
           const lineOpacity = isBlocked ? 0.3 : 0.8;
 
           const startCoord = coordinates.length > 0 ? coordinates[0] : null;
@@ -647,6 +661,19 @@ export default function InteractiveMap({
                     // Slightly above zero keeps the layer pickable while remaining visually invisible.
                     "line-opacity": 0.01,
                     "line-width": isSelected ? 20 : 16
+                  }}
+                />
+                <Layer
+                  id={`route-casing-${segment.id || idx}`}
+                  type="line"
+                  layout={{
+                    "line-join": "round",
+                    "line-cap": "round"
+                  }}
+                  paint={{
+                    "line-color": "#ffffff",
+                    "line-width": lineWidth + 3,
+                    "line-opacity": lineOpacity
                   }}
                 />
                 <Layer
@@ -673,9 +700,10 @@ export default function InteractiveMap({
                     id={`start-layer-${segment.id || idx}`}
                     type="circle"
                     paint={{
-                      "circle-radius": 3.5,
+                      "circle-radius": isSelected ? 6 : 4.5,
+                      "circle-stroke-color": "#ffffff",
                       "circle-color": isBlocked ? "rgba(22, 163, 74, 0.3)" : "rgba(22, 163, 74, 1.0)", // transparent green if blocked
-                      "circle-stroke-width": 0,
+                      "circle-stroke-width": 2,
                     }}
                   />
                 </Source>
@@ -695,13 +723,14 @@ export default function InteractiveMap({
             className="hover-segment-popup z-20"
             maxWidth="220px"
           >
-            <div className="rounded-md border border-neutral-200 bg-white/95 px-1.5 py-1 text-xs text-neutral-800 shadow-sm backdrop-blur-sm">
-              <div className="mt-0.5 flex items-center justify-between gap-3">
-                <span className="text-neutral-500">Est. time</span>
+            <div className="rounded-lg border border-neutral-200 bg-white/95 px-2.5 py-1.5 text-xs text-neutral-800 shadow-sm backdrop-blur-sm">
+              <div className="mb-0.5 max-w-[200px] truncate text-sm font-semibold text-neutral-900">{hoveredSegment.name}</div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-neutral-600">Est. time</span>
                 <span className="font-semibold text-neutral-800">{formatDuration(hoverEstimatedTimeSeconds)}</span>
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span className="text-neutral-500">Avg rating</span>
+                <span className="text-neutral-600">Avg rating</span>
                 <span className="font-semibold text-neutral-800">
                   {typeof hoveredSegment.average_ratings?.overall_quality === "number"
                     ? `${(Math.round((hoveredSegment.average_ratings.overall_quality / 2) * 10) / 10).toFixed(1)} / 5`
@@ -748,7 +777,7 @@ export default function InteractiveMap({
           aria-label={`Segment details: ${selectedSegment.name}`}
           className={`pointer-events-auto absolute z-40 overflow-y-auto overscroll-contain bg-white ${
             isMobileViewport
-              ? "inset-x-0 bottom-0 max-h-[68dvh] rounded-t-2xl border-t border-neutral-200 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-12px_32px_-12px_rgba(0,0,0,0.25)]"
+              ? "inset-x-0 bottom-0 max-h-[68dvh] rounded-t-2xl border-t border-neutral-200 px-4 pt-4 pb-[max(2rem,calc(env(safe-area-inset-bottom)+1.25rem))] shadow-[0_-12px_32px_-12px_rgba(0,0,0,0.25)]"
               : "right-3 top-[4.25rem] max-h-[calc(100%-13rem)] w-[380px] rounded-2xl border border-neutral-200 p-5 shadow-xl"
           }${selectedSegment.blocked ? " ring-2 ring-red-600" : ""}`}
         >

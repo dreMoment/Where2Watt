@@ -10,7 +10,7 @@ export default function InputField({ id, label, className = "", ...props }: Inpu
         <div className={`flex-1 relative ${className}`}>
             <label
                 htmlFor={id}
-                className="text-[11px] font-bold text-neutral-600 uppercase tracking-wider block mb-1.5 pl-1"
+                className="mb-1.5 block text-xs font-semibold text-neutral-700"
             >
                 {label}
             </label>

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Dialog from "@/components/ui/Dialog";
 import DialogCloseButton, { DIALOG_PANEL_CLASS } from "@/components/ui/DialogCloseButton";
 
@@ -33,7 +33,7 @@ function getGradientColor(gradientPct: number): string {
   if (gradientPct >= 10) return "#7f1d1d"; // deep wine red
   if (gradientPct >= 7) return "#b91c1c"; // muted red
   if (gradientPct >= 4) return "#ea580c"; // burnt orange
-  if (gradientPct >= 1) return "#d97706"; // amber climb
+  if (gradientPct >= 1) return "#ca8a04"; // yellow climb
   return "#15803d"; // calm green
 }
 
@@ -141,13 +141,26 @@ function buildChart(points: ElevationProfilePoint[], width: number, height: numb
   };
 }
 
+function useIsNarrowScreen(): boolean {
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const query = window.matchMedia("(max-width: 639px)");
+    const update = () => setNarrow(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  return narrow;
+}
+
 function formatDistanceKm(value: number): string {
   return `${value < 10 ? value.toFixed(1) : Math.round(value)} km`;
 }
 
 function ElevationSvg({ points, large = false }: { points: ElevationProfilePoint[]; large?: boolean }) {
   // The expanded chart uses a phone-sized canvas on narrow screens so its labels stay readable.
-  const narrow = large && typeof window !== "undefined" && window.innerWidth < 640;
+  const narrow = useIsNarrowScreen() && large;
   const width = large && !narrow ? 1100 : 320;
   const height = large ? (narrow ? 220 : 460) : 120;
   const labelSize = large && !narrow ? 18 : 11;
@@ -192,13 +205,6 @@ function ElevationSvg({ points, large = false }: { points: ElevationProfilePoint
         </text>
       </g>
 
-      {chart.segments.map((segment, index) => (
-        <polygon
-          key={`fill-${index}`}
-          points={`${segment.x1.toFixed(1)},${chart.baselineY.toFixed(1)} ${segment.x1.toFixed(1)},${segment.y1.toFixed(1)} ${segment.x2.toFixed(1)},${segment.y2.toFixed(1)} ${segment.x2.toFixed(1)},${chart.baselineY.toFixed(1)}`}
-          fill={segment.fillColor}
-        />
-      ))}
 
       {chart.segments.map((segment, index) => (
         <line
@@ -226,7 +232,7 @@ export default function SegmentElevationProfile({ points, isLoading = false, sho
       <div className="rounded-xl border border-neutral-200 bg-neutral-50/80 p-3">
         <div className={`flex items-center justify-between ${showHeader ? "mb-2" : "mb-1"}`}>
           {showHeader ? <span className="text-xs font-bold uppercase tracking-wide text-neutral-600">Elevation profile</span> : null}
-          <span className="text-[11px] text-neutral-400">Loading…</span>
+          <span className="text-xs text-neutral-600">Loading…</span>
         </div>
         <div className="h-28 animate-pulse rounded-lg bg-neutral-200/70" />
       </div>
@@ -256,7 +262,7 @@ export default function SegmentElevationProfile({ points, isLoading = false, sho
         </div>
         <div className="mt-4 flex flex-wrap gap-4 text-xs font-semibold text-neutral-600">
           <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-green-700" /> ≤ 1%</span>
-          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-amber-600" /> 1–4%</span>
+          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-yellow-600" /> 1–4%</span>
           <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-orange-600" /> 4–7%</span>
           <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-700" /> 7–10%</span>
           <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-900" /> ≥ 10%</span>
