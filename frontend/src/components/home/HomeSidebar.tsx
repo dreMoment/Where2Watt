@@ -176,7 +176,7 @@ export default function HomeSidebar({
                 {filter.matchingSegmentsCount > 0 && (
                   <div className="flex flex-col gap-1">
                     <span
-                      className="h-2 w-full rounded-full bg-[linear-gradient(90deg,hsl(0,65%,45%),hsl(65,65%,45%),hsl(130,65%,45%))]"
+                      className="h-2 w-full rounded-full bg-[linear-gradient(90deg,hsl(25,65%,45%),hsl(80,65%,45%),hsl(135,65%,45%))]"
                       aria-hidden="true"
                     />
                     <div className="flex justify-between text-xs text-neutral-600">

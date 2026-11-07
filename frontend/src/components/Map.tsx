@@ -253,8 +253,8 @@ function getMarginColor(ratio: number): string {
   const TIGHT = 1.05;
   const PLENTY = 1.25;
   const t = Math.min(1, Math.max(0, (ratio - TIGHT) / (PLENTY - TIGHT)));
-  // Reddish-orange hue ≈ 10, Green hue ≈ 140 (HSL)
-  const hue = 0 + t * (140 - 10);
+  // Orange (hue 25) when only just long enough → green (hue 135) with plenty of room.
+  const hue = 25 + t * (135 - 25);
   return `hsl(${hue}, 65%, 45%)`;
 }
 
@@ -385,7 +385,7 @@ export default function InteractiveMap({
     if (!bounds || !map) return;
     const container = map.getContainer();
     const padding = isMobileViewport
-      ? { top: 88, bottom: Math.round(container.clientHeight * 0.68) + 24, left: 32, right: 32 }
+      ? { top: 88, bottom: Math.round(container.clientHeight * 0.62) + 24, left: 32, right: 32 }
       : { top: 96, bottom: 64, left: sidebarOpen ? 380 + 48 : 96, right: 420 };
     map.fitBounds(bounds, { padding, maxZoom: 14, duration: 600 });
   };
@@ -400,7 +400,7 @@ export default function InteractiveMap({
     const panelOpen = Boolean(selectedSegment) && !segmentDetailsAsTopLeftOverlay;
     const mapHeight = mapRef.current.getContainer().clientHeight;
     const padding = isMobileViewport
-      ? { top: 88, bottom: panelOpen ? Math.round(mapHeight * 0.68) + 24 : 48, left: 56, right: 56 }
+      ? { top: 88, bottom: panelOpen ? Math.round(mapHeight * 0.62) + 24 : 48, left: 56, right: 56 }
       : { top: 96, bottom: 64, left: sidebarOpen ? 380 + 64 : 96, right: panelOpen ? 420 : 96 };
     mapRef.current.fitBounds(bounds, { padding, maxZoom: 13, duration: 600 });
     // Only re-run when the user applies a filter.
@@ -750,6 +750,15 @@ export default function InteractiveMap({
                 <span className="text-neutral-600">Est. time</span>
                 <span className="font-semibold text-neutral-800">{formatDuration(hoverEstimatedTimeSeconds)}</span>
               </div>
+              {isFiltered && targetMinutes && typeof hoverEstimatedTimeSeconds === "number" && (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-neutral-600">vs. target</span>
+                  <span className="font-semibold text-neutral-800">
+                    {hoverEstimatedTimeSeconds >= targetMinutes * 60 ? "+" : "−"}
+                    {formatDuration(Math.abs(hoverEstimatedTimeSeconds - targetMinutes * 60))}
+                  </span>
+                </div>
+              )}
               <div className="flex items-center justify-between gap-3">
                 <span className="text-neutral-600">Avg rating</span>
                 <span className="font-semibold text-neutral-800">
@@ -798,7 +807,7 @@ export default function InteractiveMap({
           aria-label={`Segment details: ${selectedSegment.name}`}
           className={`pointer-events-auto absolute z-40 overflow-y-auto overscroll-contain bg-white ${
             isMobileViewport
-              ? "inset-x-0 bottom-0 max-h-[68dvh] rounded-t-2xl border-t border-neutral-200 px-4 pt-4 pb-[max(2rem,calc(env(safe-area-inset-bottom)+1.25rem))] shadow-[0_-12px_32px_-12px_rgba(0,0,0,0.25)]"
+              ? "inset-x-0 bottom-0 max-h-[62dvh] rounded-t-2xl border-t border-neutral-200 px-4 pt-4 pb-[max(2rem,calc(env(safe-area-inset-bottom)+1.25rem))] shadow-[0_-12px_32px_-12px_rgba(0,0,0,0.25)]"
               : "right-3 top-[4.25rem] max-h-[calc(100%-13.75rem)] w-[380px] rounded-2xl border border-neutral-200 p-5 shadow-xl"
           }${selectedSegment.blocked ? " ring-2 ring-red-600" : ""}`}
         >

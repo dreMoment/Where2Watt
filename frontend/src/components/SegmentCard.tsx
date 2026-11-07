@@ -207,7 +207,7 @@ export default function SegmentCard({
                         }}
                         title={segment.blocked ? "Report as unblocked/free" : "Report as blocked"}
                         aria-label={segment.blocked ? "Report as unblocked" : "Report as blocked"}
-                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${
+                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors ${
                             hasReportedCurrentState
                                 ? segment.blocked
                                     ? "text-white bg-green-500 hover:bg-green-600"
@@ -225,7 +225,7 @@ export default function SegmentCard({
                             onClick={onClose}
                             aria-label="Close segment details"
                             title="Close"
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-700 transition-colors hover:bg-neutral-200 hover:text-neutral-900"
+                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-700 transition-colors hover:bg-neutral-200 hover:text-neutral-900"
                         >
                             <X className="h-5 w-5" />
                         </button>

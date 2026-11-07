@@ -38,13 +38,11 @@ export default function InfoOverlay({
             <h2 id="landing-info-title" className="text-xl font-bold tracking-tight text-neutral-900 sm:text-2xl">
               Welcome to Where2Watt
             </h2>
-            <p className="mt-2 text-sm leading-relaxed text-neutral-600 sm:mt-3 md:text-base">
-              This tool helps you find and share safe road segments for your outdoor training.
-            </p>
           </div>
         </div>
 
         <div className="mt-5 space-y-2.5 text-sm leading-relaxed text-neutral-600 sm:mt-6 sm:space-y-3 md:text-base">
+          <p>Find and share safe road segments for your outdoor interval training.</p>
           <p>Select a highlighted road on the map to see its distance, gradient, estimated time and ratings.</p>
           <p>
             Set your rider profile in the sidebar (the button at the top left) to personalise the estimated times, and use
@@ -66,7 +64,6 @@ export default function InfoOverlay({
           </label>
           <button
             type="button"
-            data-autofocus
             onClick={onContinue}
             className="w-full rounded-xl bg-neutral-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-neutral-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2"
           >

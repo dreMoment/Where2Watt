@@ -7,6 +7,7 @@ interface HomeShellProps {
   sidebarOpen: boolean;
   isMobileViewport: boolean;
   onToggleSidebar: () => void;
+  filterActive?: boolean;
   onOpenInfoScreen: () => void;
   children: ReactNode;
 }
@@ -15,22 +16,27 @@ export default function HomeShell({
   sidebarOpen,
   isMobileViewport,
   onToggleSidebar,
+  filterActive = false,
   onOpenInfoScreen,
   children,
 }: HomeShellProps) {
   return (
     <main className="relative flex h-[100dvh] w-full overflow-hidden bg-[#f9fafb]">
+      <h1 className="sr-only">Where2Watt: find road segments for interval training</h1>
       <div className="absolute top-3 left-3 z-50 flex items-center gap-2">
         <button
           type="button"
           onClick={onToggleSidebar}
-          className="flex h-11 w-11 items-center justify-center rounded-xl border border-neutral-200 bg-white/95 text-neutral-700 shadow-sm backdrop-blur-sm transition-colors hover:bg-white hover:text-neutral-900"
+          className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-neutral-200 bg-white/95 text-neutral-700 shadow-sm backdrop-blur-sm transition-colors hover:bg-white hover:text-neutral-900"
           title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
           aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
           aria-expanded={sidebarOpen}
           aria-controls="home-sidebar"
         >
           {sidebarOpen ? <X className="h-5 w-5" /> : <PanelLeft className="h-5 w-5" />}
+          {filterActive && !sidebarOpen && (
+            <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-[#d03d00] ring-2 ring-white" aria-hidden="true" />
+          )}
         </button>
         <StravaCompatibleBadge
           className="h-11 rounded-xl border border-neutral-200 bg-white/95 px-3 shadow-sm backdrop-blur-sm"

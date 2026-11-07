@@ -49,7 +49,7 @@ export default function Dialog({
     siblings.forEach((element) => element.setAttribute("inert", ""));
 
     const focusables = () => Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE));
-    (panel.querySelector<HTMLElement>("[data-autofocus]") ?? focusables()[0] ?? panel).focus();
+    (panel.querySelector<HTMLElement>("[data-autofocus]") ?? panel).focus();
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {

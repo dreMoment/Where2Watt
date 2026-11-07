@@ -80,7 +80,7 @@ function RatingStarsInput({ fieldKey, label, valueOutOf10, onChange }: RatingSta
                     );
                 })}
             </div>
-            <p className="text-[11px] text-neutral-500">Tip: click a star, then click it again to make it a half step.</p>
+            <p className="text-xs text-neutral-600">Tip: tap a star twice for a half step.</p>
         </div>
     );
 }

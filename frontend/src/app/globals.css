@@ -18,6 +18,14 @@ body {
   background: #f9fafb;
 }
 
+/* One visible keyboard focus style for every control; utilities (e.g. inputs with a ring) still override it */
+@layer base {
+  :where(a, button, select, [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline: 2px solid #171717;
+    outline-offset: 2px;
+  }
+}
+
 @media (prefers-color-scheme: dark) {
   body {
     background: #0a0a0a;

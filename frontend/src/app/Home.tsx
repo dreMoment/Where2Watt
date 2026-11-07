@@ -7,6 +7,7 @@ import HomeMapPanel from "@/components/home/HomeMapPanel";
 import HomeOverlays from "@/components/home/HomeOverlays";
 import HomeShell from "@/components/home/HomeShell";
 import HomeSidebar from "@/components/home/HomeSidebar";
+import FilterStatusChip from "@/components/home/FilterStatusChip";
 import { useDismissibleMenu } from "@/hooks/useDismissibleMenu";
 import { useHomePreferences } from "@/hooks/useHomePreferences";
 import { useHomeSegments } from "@/hooks/useHomeSegments";
@@ -117,39 +118,9 @@ export default function Home() {
       sidebarOpen={sidebarOpen}
       isMobileViewport={isMobileViewport}
       onToggleSidebar={() => setSidebarOpen((previous) => !previous)}
+      filterActive={isFiltered}
       onOpenInfoScreen={openInfoScreen}
     >
-      <section className="absolute inset-0 bg-neutral-100/50" inert={isMobileViewport && sidebarOpen}>
-        <HomeMapPanel
-          error={error}
-          loading={loading}
-          totalSegmentsCount={segments.length}
-          filteredSegments={filteredSegments}
-          riderPower={filterPowerStr}
-          riderWeight={weightStr}
-          bikeWeight={bikeWeightStr}
-          isFiltered={isFiltered}
-          filterPower={filterPowerStr}
-          filterTime={filterTimeStr}
-          onSegmentBlocked={handleSegmentBlocked}
-          onSegmentRated={handleSegmentRated}
-          focusSegmentId={focusSegmentId}
-          focusSegmentNonce={focusSegmentNonce}
-          sidebarOpen={sidebarOpen}
-          fitMatchesNonce={fitMatchesNonce}
-        />
-
-        <HomeOverlays
-          showSubmissionContent={showSubmissionContent}
-          showInfoScreen={showInfoScreen}
-          hideInfoScreenNextTime={hideInfoScreenNextTime}
-          onCloseSubmission={() => setShowSubmissionContent(false)}
-          onExistingSegmentRated={handleExistingSegmentRated}
-          onHideInfoScreenNextTimeChange={setHideInfoScreenNextTime}
-          onContinueInfo={closeInfoScreen}
-        />
-      </section>
-
       <HomeSidebar
         auth={{
           loading: authLoading,
@@ -173,7 +144,15 @@ export default function Home() {
           onApplyFilter: () => {
             setIsFiltered(true);
             setFitMatchesNonce((previous) => previous + 1);
-            if (isMobileViewport) setSidebarOpen(false);
+            // On mobile, show the map, unless nothing matches: then keep the explanation in view.
+            const matches = filterSegmentsByInterval(segments, {
+              isFiltered: true,
+              filterPower: filterPowerStr,
+              filterTimeMinutes: filterTimeStr,
+              riderWeight: weightStr,
+              bikeWeight: bikeWeightStr,
+            });
+            if (isMobileViewport && matches.length > 0) setSidebarOpen(false);
           },
           onBikeWeightChange: handleBikeWeightChange,
           onDisconnect: () => {
@@ -195,6 +174,52 @@ export default function Home() {
         profileMenuRef={profileMenuRef}
         sidebarOpen={sidebarOpen}
       />
+
+      <section className="absolute inset-0 bg-neutral-100/50" inert={isMobileViewport && sidebarOpen}>
+        <HomeMapPanel
+          error={error}
+          loading={loading}
+          totalSegmentsCount={segments.length}
+          filteredSegments={filteredSegments}
+          riderPower={filterPowerStr}
+          riderWeight={weightStr}
+          bikeWeight={bikeWeightStr}
+          isFiltered={isFiltered}
+          filterPower={filterPowerStr}
+          filterTime={filterTimeStr}
+          onSegmentBlocked={handleSegmentBlocked}
+          onSegmentRated={handleSegmentRated}
+          focusSegmentId={focusSegmentId}
+          focusSegmentNonce={focusSegmentNonce}
+          sidebarOpen={sidebarOpen}
+          fitMatchesNonce={fitMatchesNonce}
+        />
+
+        {isFiltered && !(isMobileViewport && sidebarOpen) && (
+          <div className="pointer-events-none absolute inset-x-0 top-[4.25rem] z-30 flex justify-center px-3 md:top-3">
+            <div className="pointer-events-auto">
+              <FilterStatusChip
+                matchingCount={filteredSegments.length}
+                totalCount={segments.length}
+                power={filterPowerStr}
+                minutes={filterTimeStr}
+                onReset={() => setIsFiltered(false)}
+              />
+            </div>
+          </div>
+        )}
+
+        <HomeOverlays
+          showSubmissionContent={showSubmissionContent}
+          showInfoScreen={showInfoScreen}
+          hideInfoScreenNextTime={hideInfoScreenNextTime}
+          onCloseSubmission={() => setShowSubmissionContent(false)}
+          onExistingSegmentRated={handleExistingSegmentRated}
+          onHideInfoScreenNextTimeChange={setHideInfoScreenNextTime}
+          onContinueInfo={closeInfoScreen}
+        />
+      </section>
+
     </HomeShell>
   );
 }

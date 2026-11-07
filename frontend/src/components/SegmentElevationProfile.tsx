@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Maximize2 } from "lucide-react";
 import Dialog from "@/components/ui/Dialog";
 import DialogCloseButton, { DIALOG_PANEL_CLASS } from "@/components/ui/DialogCloseButton";
 
@@ -100,7 +101,7 @@ function buildChart(points: ElevationProfilePoint[], width: number, height: numb
   const maxElevation = Math.max(...chartPoints.map((point) => point.elevationM));
   const totalDistance = chartPoints[chartPoints.length - 1].distanceKm;
 
-  const paddingX = width > 500 ? 64 : 40;
+  const paddingX = width > 500 ? 64 : 48;
   const paddingRight = width > 500 ? 24 : 16;
   const paddingTop = width > 500 ? 28 : 12;
   const paddingBottom = width > 500 ? 48 : 22;
@@ -288,8 +289,13 @@ export default function SegmentElevationProfile({ points, isLoading = false, sho
         aria-label="Open larger elevation profile"
       >
         <div className={`flex items-center justify-between gap-3 ${showHeader ? "mb-2" : "mb-1"}`}>
-          {showHeader ? <span className="text-xs font-bold uppercase tracking-wide text-neutral-600">Elevation profile</span> : null}
-          <span className="text-xs font-semibold text-neutral-600">↗ {formatElevation(elevationGain)} · Expand</span>
+          <span className="text-xs font-bold uppercase tracking-wide text-neutral-600">
+            {showHeader ? "Elevation profile " : ""}
+            <span className="font-semibold normal-case tracking-normal text-neutral-700">↗ {formatElevation(elevationGain)}</span>
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-md border border-neutral-200 px-2 py-1 text-xs font-semibold text-neutral-700">
+            <Maximize2 className="h-3 w-3" aria-hidden="true" /> Expand
+          </span>
         </div>
         <ElevationSvg points={validPoints} />
       </button>
