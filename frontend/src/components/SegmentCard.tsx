@@ -210,11 +210,11 @@ export default function SegmentCard({
                         className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors ${
                             hasReportedCurrentState
                                 ? segment.blocked
-                                    ? "text-white bg-green-500 hover:bg-green-600"
-                                    : "text-white bg-red-500 hover:bg-red-600"
+                                    ? "text-white bg-green-700 hover:bg-green-800"
+                                    : "text-white bg-red-600 hover:bg-red-700"
                                 : segment.blocked
-                                    ? "text-white bg-green-500 hover:bg-green-600"
-                                    : "text-neutral-500 hover:text-red-600 hover:bg-red-50"
+                                    ? "text-white bg-green-700 hover:bg-green-800"
+                                    : "bg-neutral-100 text-neutral-700 hover:text-red-700 hover:bg-red-50"
                         }`}
                     >
                         {segment.blocked ? (
@@ -239,7 +239,7 @@ export default function SegmentCard({
 
             {segment.blocked && (
                 <div className="bg-red-50 border border-red-200 rounded-xl px-3.5 py-2.5 flex items-start gap-2">
-                    <span className="text-red-500 text-base leading-none mt-0.5">!</span>
+                    <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-hidden="true" />
                     <div className="flex flex-col gap-0.5">
                         <span className="text-red-700 font-semibold text-sm">Road reported closed</span>
                         {segment.block_message && segment.block_message.trim().length > 0 && (

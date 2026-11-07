@@ -53,7 +53,7 @@ export default function InfoOverlay({
         </div>
 
         <div className="mt-6 space-y-3 sm:mt-8 sm:space-y-4">
-          <label className="flex cursor-pointer select-none items-center gap-3 text-sm leading-tight text-neutral-700">
+          <label className="flex min-h-11 cursor-pointer select-none items-center gap-3 text-sm leading-tight text-neutral-700">
             <input
               type="checkbox"
               checked={hideInfoScreenNextTime}

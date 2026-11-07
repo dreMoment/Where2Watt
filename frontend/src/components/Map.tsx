@@ -73,7 +73,7 @@ function ElevationProfilePopup({
     <div className="w-[min(92vw,380px)] rounded-xl border border-neutral-200 bg-white/95 p-3 shadow-lg backdrop-blur-sm">
       <div className={`${isFolded ? "" : "mb-2"} flex items-start justify-between gap-2`}>
         <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="text-xs font-bold uppercase tracking-wide text-neutral-600">Elevation Profile</span>
+          <span className="text-xs font-bold uppercase tracking-widest text-neutral-600">Elevation profile</span>
           <span className="truncate text-sm font-semibold text-neutral-800">{segment.name}</span>
         </div>
         <button
@@ -430,6 +430,8 @@ export default function InteractiveMap({
   const closeSelectedSegment = () => {
     setSelectedSegment(null);
     setClickedCoordinate(null);
+    setHoveredSegment(null);
+    setHoveredCoordinate(null);
   };
 
   const handleSelectedSegmentBlocked = (segmentId: string, report: { blocked: boolean }) => {
@@ -500,31 +502,36 @@ export default function InteractiveMap({
       }
 
       setIsElevationProfileLoading(true);
-      const terrainReady = await waitForTerrainToSettle(map, abortController.signal);
-      if (!terrainReady) return;
 
-      let cumulativeDistanceKm = 0;
-      const profile: ElevationProfilePoint[] = [];
+      const sampleProfile = (): ElevationProfilePoint[] | null => {
+        let cumulativeDistanceKm = 0;
+        const points: ElevationProfilePoint[] = [];
+        for (let index = 0; index < coordinates.length; index += 1) {
+          const coordinate = coordinates[index];
+          if (index > 0) {
+            cumulativeDistanceKm += distanceKmBetween(coordinates[index - 1], coordinate);
+          }
+          const exaggeratedElevation = map.queryTerrainElevation(coordinate);
+          if (typeof exaggeratedElevation !== "number" || !Number.isFinite(exaggeratedElevation)) return null;
+          points.push({ distanceKm: cumulativeDistanceKm, elevationM: exaggeratedElevation / TERRAIN_EXAGGERATION });
+        }
+        return points;
+      };
 
-      for (let index = 0; index < coordinates.length; index += 1) {
-        const coordinate = coordinates[index];
-        if (index > 0) {
-          cumulativeDistanceKm += distanceKmBetween(coordinates[index - 1], coordinate);
-        }
-        const exaggeratedElevation = map.queryTerrainElevation(coordinate);
-        if (typeof exaggeratedElevation !== "number" || !Number.isFinite(exaggeratedElevation)) {
-          setElevationProfile(null);
-          setIsElevationProfileLoading(false);
-          return;
-        }
-        profile.push({
-          distanceKm: cumulativeDistanceKm,
-          elevationM: exaggeratedElevation / TERRAIN_EXAGGERATION,
+      if (!(await waitForTerrainToSettle(map, abortController.signal))) return;
+      let profile = sampleProfile();
+      if (!profile) {
+        // Terrain tiles under part of the route may still be arriving: try once more when the map settles.
+        await new Promise<void>((resolve) => {
+          map.once("idle", () => resolve());
+          window.setTimeout(resolve, 3000);
         });
+        if (abortController.signal.aborted) return;
+        profile = sampleProfile();
       }
 
       if (!abortController.signal.aborted) {
-        setElevationProfile(profile.length >= 2 ? profile : null);
+        setElevationProfile(profile && profile.length >= 2 ? profile : null);
         setIsElevationProfileLoading(false);
       }
     }
@@ -607,6 +614,8 @@ export default function InteractiveMap({
             if (clickedSegment) {
               setSelectedCandidate(null);
               setSelectedSegment(clickedSegment);
+              setHoveredSegment(null);
+              setHoveredCoordinate(null);
               if (e.lngLat) {
                 setClickedCoordinate([e.lngLat.lng, e.lngLat.lat]);
               }
@@ -622,6 +631,8 @@ export default function InteractiveMap({
         }}
         onMouseEnter={() => setCursor("pointer")}
         onMouseMove={(e) => {
+          // Touch devices emit a mousemove on tap; hover tooltips only make sense with a pointer.
+          if (window.matchMedia?.("(hover: none)").matches) return;
           if (e.features && e.features.length > 0) {
             const featureId = e.features[0].properties?.id;
             const matchedSegment = filteredSegments.find((segment) => String(segment.id) === String(featureId));

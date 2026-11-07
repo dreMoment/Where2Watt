@@ -245,7 +245,7 @@ export default function CommunityRatingsPanel({ segment, initiallyFolded = false
         <div className={embedded ? "w-full" : "w-[min(94vw,380px)] rounded-xl border border-neutral-200 bg-white/95 p-3 shadow-lg backdrop-blur-sm"}>
             <div className="mb-2 flex items-start justify-between gap-2">
                 <div className="flex min-w-0 flex-col gap-0.5">
-                    <span className="text-xs font-bold uppercase tracking-wide text-neutral-600">Community ratings</span>
+                    <h4 className="text-xs font-bold uppercase tracking-widest text-neutral-600">Community ratings</h4>
                     {!embedded && <span className="truncate text-sm font-semibold text-neutral-800">{segment.name}</span>}
                 </div>
                 <button
@@ -292,7 +292,7 @@ export default function CommunityRatingsPanel({ segment, initiallyFolded = false
                                 }
                                 setShowRatingForm((prev) => !prev);
                             }}
-                            className="mt-1 w-full rounded-xl bg-neutral-900 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-neutral-800"
+                            className="mt-1 min-h-11 w-full rounded-xl bg-neutral-900 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-neutral-800"
                         >
                             {hasRated ? "Edit your rating" : "Rate this segment"}
                         </button>

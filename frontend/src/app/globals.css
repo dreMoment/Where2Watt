@@ -18,6 +18,14 @@ body {
   background: #f9fafb;
 }
 
+/* Bigger map zoom/compass buttons on touch screens */
+@media (max-width: 767px) {
+  .maplibregl-ctrl.maplibregl-ctrl-group button {
+    width: 40px;
+    height: 40px;
+  }
+}
+
 /* One visible keyboard focus style for every control; utilities (e.g. inputs with a ring) still override it */
 @layer base {
   :where(a, button, select, [tabindex]:not([tabindex="-1"])):focus-visible {

@@ -236,7 +236,7 @@ export default function SegmentElevationProfile({ points, isLoading = false, sho
     return (
       <div className="rounded-xl border border-neutral-200 bg-neutral-50/80 p-3">
         <div className={`flex items-center justify-between ${showHeader ? "mb-2" : "mb-1"}`}>
-          {showHeader ? <span className="text-xs font-bold uppercase tracking-wide text-neutral-600">Elevation profile</span> : null}
+          {showHeader ? <span className="text-xs font-bold uppercase tracking-widest text-neutral-600">Elevation profile</span> : null}
           <span className="text-xs text-neutral-600">Loading…</span>
         </div>
         <div className="h-28 animate-pulse rounded-lg bg-neutral-200/70" />
@@ -245,7 +245,12 @@ export default function SegmentElevationProfile({ points, isLoading = false, sho
   }
 
   if (validPoints.length < 2) {
-    return null;
+    return (
+      <div className="rounded-xl border border-neutral-200 bg-neutral-50/80 px-3 py-2.5 text-xs text-neutral-600">
+        {showHeader ? <span className="mr-2 font-bold uppercase tracking-widest">Elevation profile</span> : null}
+        Not available for this segment right now.
+      </div>
+    );
   }
 
   const sampledGain = Math.max(0, validPoints[validPoints.length - 1].elevationM - validPoints[0].elevationM);
@@ -289,7 +294,7 @@ export default function SegmentElevationProfile({ points, isLoading = false, sho
         aria-label="Open larger elevation profile"
       >
         <div className={`flex items-center justify-between gap-3 ${showHeader ? "mb-2" : "mb-1"}`}>
-          <span className="text-xs font-bold uppercase tracking-wide text-neutral-600">
+          <span className="text-xs font-bold uppercase tracking-widest text-neutral-600">
             {showHeader ? "Elevation profile " : ""}
             <span className="font-semibold normal-case tracking-normal text-neutral-700">↗ {formatElevation(elevationGain)}</span>
           </span>
