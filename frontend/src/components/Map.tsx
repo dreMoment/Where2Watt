@@ -370,7 +370,7 @@ export default function InteractiveMap({
     if (!bounds) return;
     shouldFitSegmentsRef.current = false;
     const padding = isMobileViewport
-      ? { top: 80, bottom: 40, left: 32, right: 32 }
+      ? { top: 80, bottom: 48, left: 56, right: 56 }
       : { top: 96, bottom: 64, left: 440, right: 96 }; // leave room for the sidebar, open by default on desktop
     mapRef.current.fitBounds(bounds, { padding, maxZoom: 12, duration: 0 });
   }, [filteredSegments, isMapLoaded, isMobileViewport, focusSegmentId]);
