@@ -36,6 +36,12 @@ interface MapProps {
   segmentDetailsAsTopLeftOverlay?: boolean;
   showSegmentReportAction?: boolean;
   exploreCandidates?: ExploreCandidate[];
+  /** Whether the home sidebar currently covers the left of the map (desktop). */
+  sidebarOpen?: boolean;
+  /** Bumped when the user applies a filter; frames the matching segments. */
+  fitMatchesNonce?: number;
+  /** Reports whether the docked segment details panel is open. */
+  onSegmentPanelChange?: (open: boolean) => void;
 }
 
 const MAP_VIEWPORT_STORAGE_KEY = "where2watt:lastMapViewport";
@@ -67,7 +73,7 @@ function ElevationProfilePopup({
     <div className="w-[min(92vw,380px)] rounded-xl border border-neutral-200 bg-white/95 p-3 shadow-lg backdrop-blur-sm">
       <div className={`${isFolded ? "" : "mb-2"} flex items-start justify-between gap-2`}>
         <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="text-xs font-bold uppercase tracking-wide text-neutral-600">Elevation Profile</span>
+          <span className="text-xs font-bold uppercase tracking-widest text-neutral-600">Elevation profile</span>
           <span className="truncate text-sm font-semibold text-neutral-800">{segment.name}</span>
         </div>
         <button
@@ -176,6 +182,35 @@ function waitForTerrainToSettle(map: MapInstance, signal: AbortSignal): Promise<
   });
 }
 
+function hasSavedViewport(): boolean {
+  try {
+    return typeof window !== "undefined" && localStorage.getItem(MAP_VIEWPORT_STORAGE_KEY) !== null;
+  } catch {
+    return false;
+  }
+}
+
+function getSegmentsBounds(segments: Segment[]): [[number, number], [number, number]] | null {
+  let minLng = Infinity;
+  let minLat = Infinity;
+  let maxLng = -Infinity;
+  let maxLat = -Infinity;
+  for (const segment of segments) {
+    if (!segment.polyline) continue;
+    for (const [lng, lat] of decodePolyline(segment.polyline)) {
+      if (lng < minLng) minLng = lng;
+      if (lng > maxLng) maxLng = lng;
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+    }
+  }
+  if (!Number.isFinite(minLng)) return null;
+  return [
+    [minLng, minLat],
+    [maxLng, maxLat],
+  ];
+}
+
 function getInitialViewport(): MapViewport {
   if (typeof window === "undefined") {
     return DEFAULT_VIEWPORT;
@@ -220,8 +255,8 @@ function getMarginColor(ratio: number): string {
   const TIGHT = 1.05;
   const PLENTY = 1.25;
   const t = Math.min(1, Math.max(0, (ratio - TIGHT) / (PLENTY - TIGHT)));
-  // Reddish-orange hue ≈ 10, Green hue ≈ 140 (HSL)
-  const hue = 0 + t * (140 - 10);
+  // Orange (hue 25) when only just long enough → green (hue 135) with plenty of room.
+  const hue = 25 + t * (135 - 25);
   return `hsl(${hue}, 65%, 45%)`;
 }
 
@@ -245,6 +280,9 @@ export default function InteractiveMap({
   segmentDetailsAsTopLeftOverlay = false,
   showSegmentReportAction = true,
   exploreCandidates = [],
+  sidebarOpen = false,
+  fitMatchesNonce = 0,
+  onSegmentPanelChange,
 }: MapProps) {
   const initialFocusedSegment =
     autoSelectFocusedSegment && focusSegmentId
@@ -254,19 +292,25 @@ export default function InteractiveMap({
     initialFocusedSegment?.polyline ? decodePolyline(initialFocusedSegment.polyline)[0] ?? null : null;
 
   const [selectedSegment, setSelectedSegment] = useState<Segment | null>(initialFocusedSegment);
+  const [panelHasMoreBelow, setPanelHasMoreBelow] = useState(false);
+  const segmentPanelRef = useRef<HTMLElement | null>(null);
+  const updatePanelHasMoreBelow = (panel: HTMLElement | null) => {
+    if (!panel) return;
+    setPanelHasMoreBelow(panel.scrollTop + panel.clientHeight < panel.scrollHeight - 8);
+  };
   const [selectedCandidate, setSelectedCandidate] = useState<ExploreCandidate | null>(null);
   const [clickedCoordinate, setClickedCoordinate] = useState<[number, number] | null>(initialFocusedCoordinate);
   const [hoveredSegment, setHoveredSegment] = useState<Segment | null>(null);
   const [hoveredCoordinate, setHoveredCoordinate] = useState<[number, number] | null>(null);
   const [cursor, setCursor] = useState("grab");
   const [isMobileViewport, setIsMobileViewport] = useState(false);
-  const [isRatingsVisible, setIsRatingsVisible] = useState(true);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [elevationProfile, setElevationProfile] = useState<ElevationProfilePoint[] | null>(null);
   const [isElevationProfileLoading, setIsElevationProfileLoading] = useState(false);
   const [initialViewport] = useState<MapViewport>(() => getInitialViewport());
   const mapRef = useRef<MapRef | null>(null);
   const lastFocusRequestRef = useRef<string | null>(null);
+  const shouldFitSegmentsRef = useRef<boolean>(persistViewport && !hasSavedViewport());
 
   const filteredSegments = segments;
 
@@ -312,11 +356,7 @@ export default function InteractiveMap({
 
     const mobileMediaQuery = window.matchMedia("(max-width: 768px)");
     const handleViewportChange = (event: MediaQueryListEvent | MediaQueryList) => {
-      const isMobile = event.matches;
-      setIsMobileViewport(isMobile);
-      if (!isMobile) {
-        setIsRatingsVisible(true);
-      }
+      setIsMobileViewport(event.matches);
     };
 
     handleViewportChange(mobileMediaQuery);
@@ -335,12 +375,107 @@ export default function InteractiveMap({
     };
   }, []);
 
+  // On a first visit (no saved viewport), frame all segments once they are loaded.
+  useEffect(() => {
+    if (!shouldFitSegmentsRef.current || !isMapLoaded || !mapRef.current || focusSegmentId) return;
+    const bounds = getSegmentsBounds(filteredSegments);
+    if (!bounds) return;
+    shouldFitSegmentsRef.current = false;
+    const padding = isMobileViewport
+      ? { top: 80, bottom: 48, left: 56, right: 56 }
+      : { top: 96, bottom: 64, left: 440, right: 96 }; // leave room for the sidebar, open by default on desktop
+    mapRef.current.fitBounds(bounds, { padding, maxZoom: 12, duration: 0 });
+  }, [filteredSegments, isMapLoaded, isMobileViewport, focusSegmentId]);
+
+  // Frame the selected route in the part of the map the details panel leaves visible.
+  const fitSegmentIntoVisibleArea = (segment: Segment) => {
+    const bounds = getSegmentsBounds([segment]);
+    const map = mapRef.current;
+    if (!bounds || !map) return;
+    const container = map.getContainer();
+    const padding = isMobileViewport
+      ? { top: isFiltered ? 128 : 88, bottom: Math.round(container.clientHeight * 0.62) + 24, left: 32, right: 32 }
+      : { top: 96, bottom: 64, left: sidebarOpen ? 380 + 48 : 96, right: 420 };
+    map.fitBounds(bounds, { padding, maxZoom: 14, duration: 600 });
+  };
+
+  // After "Apply Filter", frame the matching segments in the area the sidebar leaves visible.
+  const lastFitMatchesNonceRef = useRef(fitMatchesNonce);
+  useEffect(() => {
+    if (fitMatchesNonce === lastFitMatchesNonceRef.current || !isMapLoaded || !mapRef.current) return;
+    lastFitMatchesNonceRef.current = fitMatchesNonce;
+    const bounds = getSegmentsBounds(filteredSegments);
+    if (!bounds) return;
+    const panelOpen = Boolean(selectedSegment) && !segmentDetailsAsTopLeftOverlay;
+    const mapHeight = mapRef.current.getContainer().clientHeight;
+    const padding = isMobileViewport
+      ? { top: 128, bottom: panelOpen ? Math.round(mapHeight * 0.62) + 24 : 48, left: 56, right: 56 }
+      : { top: 128, bottom: 64, left: sidebarOpen ? 380 + 64 : 96, right: panelOpen ? 420 : 96 };
+    mapRef.current.fitBounds(bounds, { padding, maxZoom: 13, duration: 600 });
+    // Only re-run when the user applies a filter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fitMatchesNonce, isMapLoaded]);
+
+  // Re-frame the selected route when the desktop sidebar opens or closes over it.
+  const previousSidebarOpenRef = useRef(sidebarOpen);
+  useEffect(() => {
+    if (previousSidebarOpenRef.current === sidebarOpen) return;
+    previousSidebarOpenRef.current = sidebarOpen;
+    if (selectedSegment && !isMobileViewport && !segmentDetailsAsTopLeftOverlay) {
+      fitSegmentIntoVisibleArea(selectedSegment);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sidebarOpen]);
+
+  const closeSelectedSegment = () => {
+    setSelectedSegment(null);
+    setClickedCoordinate(null);
+    setHoveredSegment(null);
+    setHoveredCoordinate(null);
+  };
+
+  const handleSelectedSegmentBlocked = (segmentId: string, report: { blocked: boolean }) => {
+    onSegmentBlocked?.(segmentId, report);
+    setSelectedSegment((previous) => {
+      if (!previous || previous.id !== segmentId) return previous;
+      return { ...previous, blocked: report.blocked };
+    });
+  };
+
+  const handleSelectedSegmentRated = (
+    segmentId: string,
+    rating: { ratings_count: number; average_ratings: SegmentAverageRatings }
+  ) => {
+    onSegmentRated?.(segmentId, rating);
+    setSelectedSegment((previous) => {
+      if (!previous || previous.id !== segmentId) return previous;
+      return { ...previous, ratings_count: rating.ratings_count, average_ratings: rating.average_ratings };
+    });
+  };
+
+  // Home: segment details live in a docked panel (bottom sheet on mobile, right-hand panel on desktop).
+  const showSegmentPanel = Boolean(selectedSegment) && !segmentDetailsAsTopLeftOverlay;
+
+  // Show the bottom fade only while there is more panel content below; content grows as data loads.
+  useEffect(() => {
+    const panel = segmentPanelRef.current;
+    if (!showSegmentPanel || !panel || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => updatePanelHasMoreBelow(panel));
+    observer.observe(panel);
+    Array.from(panel.children).forEach((child) => observer.observe(child));
+    return () => observer.disconnect();
+  }, [showSegmentPanel, selectedSegment?.id]);
+
+  useEffect(() => {
+    onSegmentPanelChange?.(showSegmentPanel);
+  }, [showSegmentPanel, onSegmentPanelChange]);
+
+  // Close the details when a filter hides the selected segment.
   useEffect(() => {
     if (!selectedSegment) return;
-    // This resets a user-controlled panel when the selected segment or layout changes.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsRatingsVisible(!isMobileViewport);
-  }, [selectedSegment, isMobileViewport]);
+    if (filteredSegments.some((segment) => segment.id === selectedSegment.id)) return;
+    closeSelectedSegment();
+  }, [filteredSegments, selectedSegment]);
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -367,31 +502,43 @@ export default function InteractiveMap({
       }
 
       setIsElevationProfileLoading(true);
-      const terrainReady = await waitForTerrainToSettle(map, abortController.signal);
-      if (!terrainReady) return;
 
-      let cumulativeDistanceKm = 0;
-      const profile: ElevationProfilePoint[] = [];
+      const sampleProfile = (): ElevationProfilePoint[] | null => {
+        let cumulativeDistanceKm = 0;
+        const points: ElevationProfilePoint[] = [];
+        for (let index = 0; index < coordinates.length; index += 1) {
+          const coordinate = coordinates[index];
+          if (index > 0) {
+            cumulativeDistanceKm += distanceKmBetween(coordinates[index - 1], coordinate);
+          }
+          const exaggeratedElevation = map.queryTerrainElevation(coordinate);
+          if (typeof exaggeratedElevation !== "number" || !Number.isFinite(exaggeratedElevation)) return null;
+          points.push({ distanceKm: cumulativeDistanceKm, elevationM: exaggeratedElevation / TERRAIN_EXAGGERATION });
+        }
+        return points;
+      };
 
-      for (let index = 0; index < coordinates.length; index += 1) {
-        const coordinate = coordinates[index];
-        if (index > 0) {
-          cumulativeDistanceKm += distanceKmBetween(coordinates[index - 1], coordinate);
-        }
-        const exaggeratedElevation = map.queryTerrainElevation(coordinate);
-        if (typeof exaggeratedElevation !== "number" || !Number.isFinite(exaggeratedElevation)) {
-          setElevationProfile(null);
-          setIsElevationProfileLoading(false);
-          return;
-        }
-        profile.push({
-          distanceKm: cumulativeDistanceKm,
-          elevationM: exaggeratedElevation / TERRAIN_EXAGGERATION,
+      if (!(await waitForTerrainToSettle(map, abortController.signal))) return;
+      let profile = sampleProfile();
+      if (!profile) {
+        // Terrain tiles under part of the route may still be arriving: try once more when the map settles.
+        await new Promise<void>((resolve) => {
+          const onIdle = () => {
+            window.clearTimeout(timeoutId);
+            resolve();
+          };
+          const timeoutId = window.setTimeout(() => {
+            map.off("idle", onIdle);
+            resolve();
+          }, 3000);
+          map.once("idle", onIdle);
         });
+        if (abortController.signal.aborted) return;
+        profile = sampleProfile();
       }
 
       if (!abortController.signal.aborted) {
-        setElevationProfile(profile.length >= 2 ? profile : null);
+        setElevationProfile(profile && profile.length >= 2 ? profile : null);
         setIsElevationProfileLoading(false);
       }
     }
@@ -474,8 +621,13 @@ export default function InteractiveMap({
             if (clickedSegment) {
               setSelectedCandidate(null);
               setSelectedSegment(clickedSegment);
+              setHoveredSegment(null);
+              setHoveredCoordinate(null);
               if (e.lngLat) {
                 setClickedCoordinate([e.lngLat.lng, e.lngLat.lat]);
+              }
+              if (!segmentDetailsAsTopLeftOverlay) {
+                fitSegmentIntoVisibleArea(clickedSegment);
               }
               return;
             }
@@ -486,6 +638,8 @@ export default function InteractiveMap({
         }}
         onMouseEnter={() => setCursor("pointer")}
         onMouseMove={(e) => {
+          // Touch devices emit a mousemove on tap; hover tooltips only make sense with a pointer.
+          if (window.matchMedia?.("(hover: none)").matches) return;
           if (e.features && e.features.length > 0) {
             const featureId = e.features[0].properties?.id;
             const matchedSegment = filteredSegments.find((segment) => String(segment.id) === String(featureId));
@@ -524,7 +678,14 @@ export default function InteractiveMap({
           maxzoom={14}
         />
 
-        <NavigationControl position="bottom-right" visualizePitch={true} />
+        {/* Keep the controls in the corner and clear of the mobile sheet. */}
+        {!(isMobileViewport && showSegmentPanel) && (
+          <NavigationControl
+            position="bottom-right"
+            visualizePitch={true}
+            style={{ marginRight: 10 }}
+          />
+        )}
 
         {exploreCandidates.map((candidate) => {
           const data = { type: "Feature" as const, properties: { id: candidate.id }, geometry: { type: "LineString" as const, coordinates: candidate.coordinates } };
@@ -554,8 +715,8 @@ export default function InteractiveMap({
           const segKey = segment.id || String(idx);
           const isBlocked = segment.blocked === true;
           const defaultColor = (isFiltered && segmentColors[segKey]) ? segmentColors[segKey] : "#D81B60";
-          const lineColor = isSelected ? "#C2185B" : defaultColor;
-          const lineWidth = isSelected ? 6 : 3;
+          const lineColor = isSelected ? "#880E4F" : defaultColor;
+          const lineWidth = isSelected ? 6 : 3.5;
           const lineOpacity = isBlocked ? 0.3 : 0.8;
 
           const startCoord = coordinates.length > 0 ? coordinates[0] : null;
@@ -578,6 +739,19 @@ export default function InteractiveMap({
                   }}
                 />
                 <Layer
+                  id={`route-casing-${segment.id || idx}`}
+                  type="line"
+                  layout={{
+                    "line-join": "round",
+                    "line-cap": "round"
+                  }}
+                  paint={{
+                    "line-color": "#ffffff",
+                    "line-width": ["interpolate", ["linear"], ["zoom"], 9, lineWidth + 5, 13, lineWidth + 3],
+                    "line-opacity": lineOpacity
+                  }}
+                />
+                <Layer
                   id={`route-${segment.id || idx}`}
                   type="line"
                   layout={{
@@ -586,7 +760,7 @@ export default function InteractiveMap({
                   }}
                   paint={{
                     "line-color": lineColor,
-                    "line-width": lineWidth,
+                    "line-width": ["interpolate", ["linear"], ["zoom"], 9, lineWidth + 2, 13, lineWidth],
                     "line-opacity": lineOpacity
                   }}
                 />
@@ -601,9 +775,10 @@ export default function InteractiveMap({
                     id={`start-layer-${segment.id || idx}`}
                     type="circle"
                     paint={{
-                      "circle-radius": 3.5,
+                      "circle-radius": isSelected ? 6 : 4.5,
+                      "circle-stroke-color": "#ffffff",
                       "circle-color": isBlocked ? "rgba(22, 163, 74, 0.3)" : "rgba(22, 163, 74, 1.0)", // transparent green if blocked
-                      "circle-stroke-width": 0,
+                      "circle-stroke-width": 2,
                     }}
                   />
                 </Source>
@@ -623,13 +798,23 @@ export default function InteractiveMap({
             className="hover-segment-popup z-20"
             maxWidth="220px"
           >
-            <div className="rounded-md border border-neutral-200 bg-white/95 px-1.5 py-1 text-xs text-neutral-800 shadow-sm backdrop-blur-sm">
-              <div className="mt-0.5 flex items-center justify-between gap-3">
-                <span className="text-neutral-500">Est. time</span>
+            <div className="rounded-lg border border-neutral-200 bg-white/95 px-2.5 py-1.5 text-xs text-neutral-800 shadow-sm backdrop-blur-sm">
+              <div className="mb-0.5 max-w-[200px] truncate text-sm font-semibold text-neutral-900">{hoveredSegment.name}</div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-neutral-600">Est. time</span>
                 <span className="font-semibold text-neutral-800">{formatDuration(hoverEstimatedTimeSeconds)}</span>
               </div>
+              {isFiltered && targetMinutes && typeof hoverEstimatedTimeSeconds === "number" && (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-neutral-600">vs. target</span>
+                  <span className="font-semibold text-neutral-800">
+                    {hoverEstimatedTimeSeconds >= targetMinutes * 60 ? "+" : "−"}
+                    {formatDuration(Math.abs(hoverEstimatedTimeSeconds - targetMinutes * 60))}
+                  </span>
+                </div>
+              )}
               <div className="flex items-center justify-between gap-3">
-                <span className="text-neutral-500">Avg rating</span>
+                <span className="text-neutral-600">Avg rating</span>
                 <span className="font-semibold text-neutral-800">
                   {typeof hoveredSegment.average_ratings?.overall_quality === "number"
                     ? `${(Math.round((hoveredSegment.average_ratings.overall_quality / 2) * 10) / 10).toFixed(1)} / 5`
@@ -653,50 +838,6 @@ export default function InteractiveMap({
           </Popup>
         )}
 
-        {selectedSegment && !segmentDetailsAsTopLeftOverlay && (() => {
-          const coordinates = selectedSegment.polyline ? decodePolyline(selectedSegment.polyline) : [];
-          const startPoint = clickedCoordinate || (coordinates.length > 0 ? coordinates[0] : [
-            8.5417 + filteredSegments.indexOf(selectedSegment) * 0.01,
-            47.3769 + filteredSegments.indexOf(selectedSegment) * 0.01
-          ]);
-
-          return (
-            <Popup
-              longitude={startPoint[0]}
-              latitude={startPoint[1]}
-              anchor="bottom"
-              offset={[0, -10]}
-              onClose={() => {
-                setSelectedSegment(null);
-                setClickedCoordinate(null);
-              }}
-              closeOnClick={false}
-              className={`custom-popup z-10${selectedSegment.blocked ? ' blocked-popup' : ''}`}
-              maxWidth="350px"
-            >
-              <div className="p-1">
-                <SegmentCard
-                  segment={selectedSegment}
-                  riderPower={riderPower}
-                  riderWeight={riderWeight}
-                  bikeWeight={bikeWeight}
-                  clickedCoordinate={clickedCoordinate}
-                  elevationProfile={elevationProfile}
-                  isElevationProfileLoading={isElevationProfileLoading}
-                  showElevationProfile={!elevationProfileAsPopup}
-                  showReportAction={showSegmentReportAction}
-                  onSegmentBlocked={(segmentId, report) => {
-                    onSegmentBlocked?.(segmentId, report);
-                    setSelectedSegment((prev) => {
-                      if (!prev || prev.id !== segmentId) return prev;
-                      return { ...prev, blocked: report.blocked };
-                    });
-                  }}
-                />
-              </div>
-            </Popup>
-          );
-        })()}
       </Map>
       {selectedSegment && segmentDetailsAsTopLeftOverlay && (
         <div className="pointer-events-auto absolute left-4 top-4 z-20 max-h-[calc(100%-2rem)] w-[min(92vw,350px)] overflow-y-auto rounded-xl border border-neutral-200 bg-white/95 p-4 shadow-lg backdrop-blur-sm">
@@ -710,15 +851,55 @@ export default function InteractiveMap({
             isElevationProfileLoading={isElevationProfileLoading}
             showElevationProfile={!elevationProfileAsPopup}
             showReportAction={showSegmentReportAction}
-            onSegmentBlocked={(segmentId, report) => {
-              onSegmentBlocked?.(segmentId, report);
-              setSelectedSegment((previous) => {
-                if (!previous || previous.id !== segmentId) return previous;
-                return { ...previous, blocked: report.blocked };
-              });
-            }}
+            onSegmentBlocked={handleSelectedSegmentBlocked}
+            onClose={closeSelectedSegment}
           />
         </div>
+      )}
+      {showSegmentPanel && selectedSegment && (
+        <section
+          ref={segmentPanelRef}
+          onScroll={(event) => updatePanelHasMoreBelow(event.currentTarget)}
+          aria-label={`Segment details: ${selectedSegment.name}`}
+          className={`pointer-events-auto absolute z-40 overflow-y-auto overscroll-contain bg-white ${
+            isMobileViewport
+              ? "inset-x-0 bottom-0 max-h-[62dvh] rounded-t-2xl border-t border-neutral-200 px-4 pt-4 pb-[max(2rem,calc(env(safe-area-inset-bottom)+1.25rem))] shadow-[0_-12px_32px_-12px_rgba(0,0,0,0.25)]"
+              : "right-3 top-[4.25rem] max-h-[calc(100%-13.75rem)] w-[380px] rounded-2xl border border-neutral-200 p-5 shadow-xl"
+          }${selectedSegment.blocked ? " ring-2 ring-red-600" : ""}`}
+        >
+          <SegmentCard
+            segment={selectedSegment}
+            riderPower={riderPower}
+            riderWeight={riderWeight}
+            bikeWeight={bikeWeight}
+            clickedCoordinate={clickedCoordinate}
+            elevationProfile={elevationProfile}
+            isElevationProfileLoading={isElevationProfileLoading}
+            showElevationProfile={!elevationProfileAsPopup}
+            showReportAction={showSegmentReportAction}
+            onSegmentBlocked={handleSelectedSegmentBlocked}
+            onClose={closeSelectedSegment}
+            stickyHeader
+            compact={!isMobileViewport}
+          />
+          {showCommunityRatings && (
+            <div className={`border-t border-neutral-100 ${isMobileViewport ? "mt-4 pt-4" : "mt-2 pt-2"}`}>
+              <CommunityRatingsPanel
+                segment={selectedSegment}
+                embedded
+                onSegmentRated={handleSelectedSegmentRated}
+              />
+            </div>
+          )}
+          {panelHasMoreBelow && (
+            <div
+              className={`pointer-events-none sticky bottom-0 h-8 bg-gradient-to-t from-white to-transparent ${
+                isMobileViewport ? "-mx-4 -mb-8" : "-mx-5 -mb-5"
+              }`}
+              aria-hidden="true"
+            />
+          )}
+        </section>
       )}
       {selectedSegment && elevationProfileAsPopup && (
         <div className="pointer-events-auto absolute bottom-4 right-4 z-20 sm:right-20">
@@ -730,35 +911,12 @@ export default function InteractiveMap({
           />
         </div>
       )}
-      {showCommunityRatings && selectedSegment && isMobileViewport && (
-        <button
-          type="button"
-          onClick={() => setIsRatingsVisible((prev) => !prev)}
-          className="absolute bottom-4 left-1/2 z-30 -translate-x-1/2 rounded-lg border border-neutral-200 bg-white/95 px-5 py-2.5 text-xs font-semibold text-neutral-700 shadow-md backdrop-blur-sm"
-        >
-          {isRatingsVisible ? "Hide ratings" : "Show ratings"}
-        </button>
-      )}
-      {showCommunityRatings && selectedSegment && (!isMobileViewport || isRatingsVisible) && (
-        <div
-          className={`pointer-events-auto absolute z-20 ${
-            isMobileViewport ? "left-1/2 bottom-16 w-[min(92vw,340px)] -translate-x-1/2" : "right-20 bottom-4"
-          }`}
-        >
+      {showCommunityRatings && selectedSegment && !showSegmentPanel && (
+        <div className="pointer-events-auto absolute bottom-9 right-3 z-20">
           <CommunityRatingsPanel
             segment={selectedSegment}
             initiallyFolded={communityRatingsInitiallyFolded}
-            onSegmentRated={(segmentId, rating) => {
-              onSegmentRated?.(segmentId, rating);
-              setSelectedSegment((prev) => {
-                if (!prev || prev.id !== segmentId) return prev;
-                return {
-                  ...prev,
-                  ratings_count: rating.ratings_count,
-                  average_ratings: rating.average_ratings,
-                };
-              });
-            }}
+            onSegmentRated={handleSelectedSegmentRated}
           />
         </div>
       )}

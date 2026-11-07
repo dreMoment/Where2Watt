@@ -13,9 +13,25 @@ body {
   padding: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   color: #171717;
   background: #f9fafb;
+}
+
+/* Bigger map zoom/compass buttons on touch screens */
+@media (max-width: 767px) {
+  .maplibregl-ctrl.maplibregl-ctrl-group button {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* One visible keyboard focus style for every control; utilities (e.g. inputs with a ring) still override it */
+@layer base {
+  :where(a, button, select, [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline: 2px solid #171717;
+    outline-offset: 2px;
+  }
 }
 
 @media (prefers-color-scheme: dark) {
@@ -23,15 +39,6 @@ body {
     background: #0a0a0a;
     color: #ededed;
   }
-}
-
-/* Red border on popup for blocked segments */
-.blocked-popup .maplibregl-popup-content {
-  border: 2.5px solid #dc2626;
-}
-
-.blocked-popup .maplibregl-popup-tip {
-  border-top-color: #dc2626;
 }
 
 .hover-segment-popup .maplibregl-popup-content {

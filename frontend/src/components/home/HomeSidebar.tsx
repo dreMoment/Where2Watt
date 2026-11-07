@@ -1,6 +1,6 @@
 import type { RefObject } from "react";
 import Link from "next/link";
-import { ChevronDown, Compass, Trash2, User, Plus } from "lucide-react";
+import { ChevronDown, Trash2, User, Plus } from "lucide-react";
 import InputField from "@/components/InputField";
 import SectionCard from "@/components/SectionCard";
 import StravaConnectButton from "@/components/StravaConnectButton";
@@ -16,6 +16,9 @@ interface HomeSidebarProps {
   };
   filter: {
     isFiltered: boolean;
+    matchingSegmentsCount: number;
+    error: string | null;
+    totalSegmentsCount: number;
     preferencesReady: boolean;
     weightStr: string;
     bikeWeightStr: string;
@@ -48,11 +51,14 @@ export default function HomeSidebar({
 }: HomeSidebarProps) {
   return (
     <aside
-      className={`absolute inset-y-0 left-0 z-20 max-h-[100dvh] w-full overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] transform border-r border-neutral-100 bg-white shadow-[4px_0_20px_rgba(0,0,0,0.04)] transition-transform duration-300 ease-in-out md:w-[380px] ${
+      id="home-sidebar"
+      aria-label="Filters and account"
+      inert={!sidebarOpen}
+      className={`absolute inset-y-0 left-0 z-[45] max-h-[100dvh] w-full overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] transform border-r border-neutral-100 bg-white shadow-[4px_0_20px_rgba(0,0,0,0.04)] transition-transform duration-300 ease-in-out md:w-[380px] ${
         sidebarOpen ? "pointer-events-auto translate-x-0" : "pointer-events-none -translate-x-full"
       }`}
     >
-      <div className="flex min-h-full w-full flex-col pt-16 md:w-[380px]">
+      <div className="flex min-h-full w-full flex-col pt-[4.25rem] md:w-[380px]">
         <SectionCard
           title="Rider Profile"
           headerContent={
@@ -99,9 +105,10 @@ export default function HomeSidebar({
             ) : null
           }
         >
+          <div className="flex gap-3">
           <InputField
             id="global-weight"
-            label="Rider (kg)"
+            label="Rider weight (kg)"
             type="number"
             min="0"
             value={filter.preferencesReady ? filter.weightStr : ""}
@@ -110,13 +117,14 @@ export default function HomeSidebar({
           />
           <InputField
             id="global-bike-weight"
-            label="Bike (kg)"
+            label="Bike weight (kg)"
             type="number"
             min="0"
             value={filter.preferencesReady ? filter.bikeWeightStr : ""}
             onChange={(event) => actions.onBikeWeightChange(event.target.value)}
             placeholder={filter.preferencesReady ? "e.g. 9" : ""}
           />
+          </div>
         </SectionCard>
 
         <SectionCard title="Interval Filter">
@@ -133,7 +141,7 @@ export default function HomeSidebar({
               />
               <InputField
                 id="filter-time"
-                label="Min. Time (m)"
+                label="Min. time (min)"
                 type="number"
                 min="0"
                 value={filter.preferencesReady ? filter.filterTimeStr : ""}
@@ -145,7 +153,7 @@ export default function HomeSidebar({
               <button
                 type="button"
                 onClick={actions.onApplyFilter}
-                className="flex-1 rounded-xl bg-neutral-900 py-2.5 text-xs font-bold text-white shadow-md shadow-neutral-900/10 transition-all hover:bg-neutral-800 active:scale-[0.98]"
+                className="flex-1 rounded-xl border border-transparent bg-neutral-900 py-3 text-sm font-bold text-white shadow-md shadow-neutral-900/10 transition-all hover:bg-neutral-800 active:scale-[0.98]"
               >
                 Apply Filter
               </button>
@@ -153,66 +161,84 @@ export default function HomeSidebar({
                 <button
                   type="button"
                   onClick={actions.onResetFilter}
-                  className="flex-[0.5] rounded-xl border border-neutral-200 bg-neutral-100 py-2.5 text-xs font-bold text-neutral-600 transition-all hover:bg-neutral-200 active:scale-[0.98]"
+                  className="flex-[0.5] rounded-xl border border-neutral-300 bg-white py-3 text-sm font-bold text-neutral-900 transition-all hover:bg-neutral-50 active:scale-[0.98]"
                 >
                   Reset
                 </button>
               )}
             </div>
+            {filter.error && (
+              <p role="alert" className="text-sm font-medium text-red-700">
+                {filter.error}
+              </p>
+            )}
+            {filter.isFiltered && !filter.error && (
+              <div role="status" className="flex flex-col gap-2 text-sm text-neutral-700">
+                <p>
+                  <span className="font-semibold">{filter.matchingSegmentsCount}</span> of {filter.totalSegmentsCount} segments
+                  match this interval.
+                  {filter.matchingSegmentsCount === 0 && " Try a lower power or a shorter time."}
+                </p>
+                {filter.matchingSegmentsCount > 0 && (
+                  <div className="flex flex-col gap-1">
+                    <span
+                      className="h-2 w-full rounded-full bg-[linear-gradient(90deg,hsl(25,65%,45%),hsl(80,65%,45%),hsl(135,65%,45%))]"
+                      aria-hidden="true"
+                    />
+                    <div className="flex justify-between text-xs text-neutral-600">
+                      <span>Only just long enough</span>
+                      <span>Plenty of room</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </SectionCard>
 
-        {!auth.loading && !auth.isLoggedIn && (
-          <div className="mb-4 mt-6 flex flex-col items-center gap-2 px-4 text-center">
-            <StravaConnectButton onClick={actions.onLogin} />
-            <p className="text-xs text-neutral-500">Connect with Strava to contribute or rate a segment.</p>
-          </div>
-        )}
-
-        <hr className="border-neutral-100/80" />
-
-        <div className="group relative mt-auto flex flex-col gap-4 overflow-hidden border border-blue-100/60 bg-gradient-to-b from-blue-50/50 to-blue-50/20 p-6 pt-4">
-          <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 transform p-4 opacity-10 transition-transform duration-500 group-hover:scale-110">
-            <Compass className="h-24 w-24 text-blue-600" />
-          </div>
-          <div className="relative z-10">
-            <h3 className="mb-2 text-lg font-black text-blue-900">Contribute a Route</h3>
-            <p className="mb-5 text-sm font-medium leading-relaxed text-blue-800/70">
-              Help the cycling community by crowdsourcing safe, traffic-free segments.
-            </p>
+        <div className="flex flex-col gap-3 border-b border-neutral-100 p-5">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-neutral-600">Contribute</h2>
+          <p className="text-sm leading-relaxed text-neutral-600">
+            Know a quiet, uninterrupted road for intervals? Share it with the community.
+          </p>
+          {!auth.loading && !auth.isLoggedIn ? (
+            <>
+              <StravaConnectButton onClick={actions.onLogin} className="self-start" />
+              <p className="text-xs text-neutral-600">Connect with Strava to submit or rate segments.</p>
+            </>
+          ) : (
             <button
               type="button"
               onClick={actions.onSubmitSegment}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-xl active:translate-y-0"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-neutral-300 bg-white py-3 text-sm font-bold text-neutral-900 transition-colors hover:bg-neutral-50"
             >
-              <Plus className="h-5 w-5" />
-              Submit Segment
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Submit a segment
             </button>
-          </div>
+          )}
         </div>
 
-        <div className="bg-white/70 px-5 py-3">
-          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[11px] text-neutral-500">
-            <Link href="/privacy-policy" className="font-medium text-neutral-500 hover:text-neutral-800">
+        <div className="mt-auto px-5 py-4">
+          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-neutral-600">
+            <Link href="/privacy-policy" className="font-medium text-neutral-600 hover:text-neutral-900">
               Privacy
             </Link>
             <span className="text-neutral-300" aria-hidden="true">
               •
             </span>
-            <Link href="/terms" className="font-medium text-neutral-500 hover:text-neutral-800">
+            <Link href="/terms" className="font-medium text-neutral-600 hover:text-neutral-900">
               Terms
             </Link>
             <span className="text-neutral-300" aria-hidden="true">
               •
             </span>
-            <Link href="/support" className="font-medium text-neutral-500 hover:text-neutral-800">
+            <Link href="/support" className="font-medium text-neutral-600 hover:text-neutral-900">
               Support
             </Link>
-            <span>Where2Watt uses the Strava API and is not endorsed by Strava</span>
-            <span className="hidden text-neutral-300 sm:inline" aria-hidden="true">
-              {" "}
-            </span>
           </div>
+          <p className="mt-1.5 text-center text-[11px] text-neutral-600">
+            Where2Watt uses the Strava API and is not endorsed by Strava.
+          </p>
         </div>
       </div>
     </aside>

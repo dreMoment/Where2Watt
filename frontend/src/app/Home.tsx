@@ -7,6 +7,7 @@ import HomeMapPanel from "@/components/home/HomeMapPanel";
 import HomeOverlays from "@/components/home/HomeOverlays";
 import HomeShell from "@/components/home/HomeShell";
 import HomeSidebar from "@/components/home/HomeSidebar";
+import FilterStatusChip from "@/components/home/FilterStatusChip";
 import { useDismissibleMenu } from "@/hooks/useDismissibleMenu";
 import { useHomePreferences } from "@/hooks/useHomePreferences";
 import { useHomeSegments } from "@/hooks/useHomeSegments";
@@ -49,6 +50,9 @@ export default function Home() {
   const [showSubmissionContent, setShowSubmissionContent] = useState(false);
   const [focusSegmentId, setFocusSegmentId] = useState<string | null>(null);
   const [focusSegmentNonce, setFocusSegmentNonce] = useState(0);
+  const [fitMatchesNonce, setFitMatchesNonce] = useState(0);
+  const [segmentPanelOpen, setSegmentPanelOpen] = useState(false);
+  const [filterError, setFilterError] = useState<string | null>(null);
 
   // Filter state
   const [isFiltered, setIsFiltered] = useState(false);
@@ -116,9 +120,100 @@ export default function Home() {
       sidebarOpen={sidebarOpen}
       isMobileViewport={isMobileViewport}
       onToggleSidebar={() => setSidebarOpen((previous) => !previous)}
+      filterActive={isFiltered}
       onOpenInfoScreen={openInfoScreen}
     >
-      <section className="absolute inset-0 bg-neutral-100/50">
+      <HomeSidebar
+        auth={{
+          loading: authLoading,
+          isLoggedIn,
+          actorIdLabel,
+          isDisconnecting,
+          isProfileMenuOpen,
+          userPresent: Boolean(user),
+        }}
+        filter={{
+          isFiltered,
+          matchingSegmentsCount: filteredSegments.length,
+          error: filterError,
+          totalSegmentsCount: segments.length,
+          preferencesReady,
+          weightStr,
+          bikeWeightStr,
+          filterPowerStr,
+          filterTimeStr,
+        }}
+        actions={{
+          onApplyFilter: () => {
+            if (!(Number(filterPowerStr) > 0) || !(Number(filterTimeStr) > 0)) {
+              setFilterError("Enter a power and a minimum time above 0.");
+              return;
+            }
+            setFilterError(null);
+            setIsFiltered(true);
+            setFitMatchesNonce((previous) => previous + 1);
+            // On mobile, show the map, unless nothing matches: then keep the explanation in view.
+            const matches = filterSegmentsByInterval(segments, {
+              isFiltered: true,
+              filterPower: filterPowerStr,
+              filterTimeMinutes: filterTimeStr,
+              riderWeight: weightStr,
+              bikeWeight: bikeWeightStr,
+            });
+            if (isMobileViewport && matches.length > 0) setSidebarOpen(false);
+          },
+          onBikeWeightChange: handleBikeWeightChange,
+          onDisconnect: () => {
+            closeProfileMenu();
+            void handleDisconnect();
+          },
+          onFilterPowerChange: (value: string) => {
+            setFilterError(null);
+            handleFilterPowerChange(value);
+          },
+          onFilterTimeChange: (value: string) => {
+            setFilterError(null);
+            handleFilterTimeChange(value);
+          },
+          onLogin: login,
+          onLogout: () => {
+            closeProfileMenu();
+            logout();
+          },
+          onResetFilter: () => {
+            setIsFiltered(false);
+            setFilterError(null);
+          },
+          onSubmitSegment: () => setShowSubmissionContent(true),
+          onToggleProfileMenu: toggleProfileMenu,
+          onWeightChange: handleWeightChange,
+        }}
+        profileMenuRef={profileMenuRef}
+        sidebarOpen={sidebarOpen}
+      />
+
+      <section className="absolute inset-0 bg-neutral-100/50" inert={isMobileViewport && sidebarOpen}>
+        {isFiltered && !(isMobileViewport && sidebarOpen) && (
+          <div
+            className={`pointer-events-none absolute inset-x-0 top-[4.25rem] z-30 flex justify-center px-3 ${
+              sidebarOpen ? "md:left-[380px]" : ""
+            } ${segmentPanelOpen ? "md:right-[400px]" : ""}`}
+          >
+            <div className="pointer-events-auto">
+              <FilterStatusChip
+                matchingCount={filteredSegments.length}
+                totalCount={segments.length}
+                power={filterPowerStr}
+                minutes={filterTimeStr}
+                onReset={() => {
+                  setIsFiltered(false);
+                  setFilterError(null);
+                }}
+              />
+            </div>
+          </div>
+        )}
+
         <HomeMapPanel
           error={error}
           loading={loading}
@@ -134,12 +229,14 @@ export default function Home() {
           onSegmentRated={handleSegmentRated}
           focusSegmentId={focusSegmentId}
           focusSegmentNonce={focusSegmentNonce}
+          sidebarOpen={sidebarOpen}
+          fitMatchesNonce={fitMatchesNonce}
+          onSegmentPanelChange={setSegmentPanelOpen}
         />
 
         <HomeOverlays
           showSubmissionContent={showSubmissionContent}
           showInfoScreen={showInfoScreen}
-          isMobileViewport={isMobileViewport}
           hideInfoScreenNextTime={hideInfoScreenNextTime}
           onCloseSubmission={() => setShowSubmissionContent(false)}
           onExistingSegmentRated={handleExistingSegmentRated}
@@ -148,45 +245,6 @@ export default function Home() {
         />
       </section>
 
-      <HomeSidebar
-        auth={{
-          loading: authLoading,
-          isLoggedIn,
-          actorIdLabel,
-          isDisconnecting,
-          isProfileMenuOpen,
-          userPresent: Boolean(user),
-        }}
-        filter={{
-          isFiltered,
-          preferencesReady,
-          weightStr,
-          bikeWeightStr,
-          filterPowerStr,
-          filterTimeStr,
-        }}
-        actions={{
-          onApplyFilter: () => setIsFiltered(true),
-          onBikeWeightChange: handleBikeWeightChange,
-          onDisconnect: () => {
-            closeProfileMenu();
-            void handleDisconnect();
-          },
-          onFilterPowerChange: handleFilterPowerChange,
-          onFilterTimeChange: handleFilterTimeChange,
-          onLogin: login,
-          onLogout: () => {
-            closeProfileMenu();
-            logout();
-          },
-          onResetFilter: () => setIsFiltered(false),
-          onSubmitSegment: () => setShowSubmissionContent(true),
-          onToggleProfileMenu: toggleProfileMenu,
-          onWeightChange: handleWeightChange,
-        }}
-        profileMenuRef={profileMenuRef}
-        sidebarOpen={sidebarOpen}
-      />
     </HomeShell>
   );
 }

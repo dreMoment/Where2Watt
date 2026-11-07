@@ -136,6 +136,6 @@ describe('InteractiveMap', () => {
         });
 
         await waitFor(() => expect(mapMock.__nativeMap.queryTerrainElevation).toHaveBeenCalledTimes(2));
-        expect(screen.getByText(/↗ 10 m · Expand/)).toBeInTheDocument();
+        expect(screen.getByText(/↗ 10 m/)).toBeInTheDocument();
     });
 });
