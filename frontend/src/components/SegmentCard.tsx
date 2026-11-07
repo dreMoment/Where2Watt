@@ -27,6 +27,7 @@ interface Props {
     onClose?: () => void;
     /** Keep the title row visible while the surrounding panel scrolls. */
     stickyHeader?: boolean;
+    compact?: boolean;
 }
 
 const REPORT_NOTE_MAX_LENGTH = 500;
@@ -87,6 +88,7 @@ export default function SegmentCard({
     showReportAction = true,
     onClose,
     stickyHeader = false,
+    compact = false,
 }: Props) {
     const { isLoggedIn, token } = useAuth();
     const { showToast } = useUiFeedback();
@@ -170,8 +172,8 @@ export default function SegmentCard({
     };
 
     return (
-        <div className="flex flex-col gap-4 min-w-[280px]">
-            <div className={`flex items-start justify-between gap-2 border-b border-neutral-100 pb-3 ${stickyHeader ? "sticky top-0 z-10 bg-white pt-1 shadow-[0_0_0_1.25rem_#fff] [clip-path:inset(-1.25rem_-1.25rem_0_-1.25rem)]" : ""}`}>
+        <div className={`flex min-w-[280px] flex-col ${compact ? "gap-2.5" : "gap-4"}`}>
+            <div className={`flex items-start justify-between gap-2 border-b border-neutral-100 ${compact ? "pb-2" : "pb-3"} ${stickyHeader ? "sticky top-0 z-10 bg-white pt-1 shadow-[0_0_0_1.25rem_#fff] [clip-path:inset(-1.25rem_-1.25rem_0_-1.25rem)]" : ""}`}>
                 <div className="min-w-0 pr-2">
                     <h3 className="font-bold text-lg text-neutral-800 leading-tight">
                         {segment.name}

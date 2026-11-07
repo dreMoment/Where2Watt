@@ -678,12 +678,12 @@ export default function InteractiveMap({
           maxzoom={14}
         />
 
-        {/* Keep the controls beside the desktop panel and clear of the mobile sheet. */}
+        {/* Keep the controls in the corner and clear of the mobile sheet. */}
         {!(isMobileViewport && showSegmentPanel) && (
           <NavigationControl
             position="bottom-right"
             visualizePitch={true}
-            style={{ marginRight: showSegmentPanel ? "calc(380px + 1.5rem)" : 10 }}
+            style={{ marginRight: 10 }}
           />
         )}
 
@@ -864,7 +864,7 @@ export default function InteractiveMap({
           className={`pointer-events-auto absolute z-40 overflow-y-auto overscroll-contain bg-white ${
             isMobileViewport
               ? "inset-x-0 bottom-0 max-h-[62dvh] rounded-t-2xl border-t border-neutral-200 px-4 pt-4 pb-[max(2rem,calc(env(safe-area-inset-bottom)+1.25rem))] shadow-[0_-12px_32px_-12px_rgba(0,0,0,0.25)]"
-              : "right-3 top-[4.25rem] max-h-[calc(100%-7rem)] w-[380px] rounded-2xl border border-neutral-200 p-5 shadow-xl"
+              : "right-3 top-[4.25rem] max-h-[calc(100%-13.75rem)] w-[380px] rounded-2xl border border-neutral-200 p-5 shadow-xl"
           }${selectedSegment.blocked ? " ring-2 ring-red-600" : ""}`}
         >
           <SegmentCard
@@ -880,9 +880,10 @@ export default function InteractiveMap({
             onSegmentBlocked={handleSelectedSegmentBlocked}
             onClose={closeSelectedSegment}
             stickyHeader
+            compact={!isMobileViewport}
           />
           {showCommunityRatings && (
-            <div className="mt-4 border-t border-neutral-100 pt-4">
+            <div className={`border-t border-neutral-100 ${isMobileViewport ? "mt-4 pt-4" : "mt-2 pt-2"}`}>
               <CommunityRatingsPanel
                 segment={selectedSegment}
                 embedded
