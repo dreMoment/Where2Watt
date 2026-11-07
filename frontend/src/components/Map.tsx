@@ -523,8 +523,15 @@ export default function InteractiveMap({
       if (!profile) {
         // Terrain tiles under part of the route may still be arriving: try once more when the map settles.
         await new Promise<void>((resolve) => {
-          map.once("idle", () => resolve());
-          window.setTimeout(resolve, 3000);
+          const onIdle = () => {
+            window.clearTimeout(timeoutId);
+            resolve();
+          };
+          const timeoutId = window.setTimeout(() => {
+            map.off("idle", onIdle);
+            resolve();
+          }, 3000);
+          map.once("idle", onIdle);
         });
         if (abortController.signal.aborted) return;
         profile = sampleProfile();

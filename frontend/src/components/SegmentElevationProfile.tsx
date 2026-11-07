@@ -247,7 +247,12 @@ export default function SegmentElevationProfile({ points, isLoading = false, sho
   if (validPoints.length < 2) {
     return (
       <div className="rounded-xl border border-neutral-200 bg-neutral-50/80 px-3 py-2.5 text-xs text-neutral-600">
-        {showHeader ? <span className="mr-2 font-bold uppercase tracking-widest">Elevation profile</span> : null}
+        {showHeader ? (
+          <>
+            <span className="font-bold uppercase tracking-widest">Elevation profile</span>
+            <span aria-hidden="true"> · </span>
+          </>
+        ) : null}
         Not available for this segment right now.
       </div>
     );
