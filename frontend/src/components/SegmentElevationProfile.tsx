@@ -13,6 +13,8 @@ interface Props {
   showHeader?: boolean;
   /** Prefer authoritative segment metadata for displayed gain; DEM samples are only used for chart shape. */
   elevationGainM?: number | null;
+  /** Segment name shown in the expanded dialog title. */
+  title?: string;
 }
 
 type ChartSegment = {
@@ -99,9 +101,10 @@ function buildChart(points: ElevationProfilePoint[], width: number, height: numb
   const totalDistance = chartPoints[chartPoints.length - 1].distanceKm;
 
   const paddingX = width > 500 ? 64 : 40;
+  const paddingRight = width > 500 ? 24 : 16;
   const paddingTop = width > 500 ? 28 : 12;
   const paddingBottom = width > 500 ? 48 : 22;
-  const chartWidth = width - paddingX * 2;
+  const chartWidth = width - paddingX - paddingRight;
   const chartHeight = height - paddingTop - paddingBottom;
   const baselineY = height - paddingBottom;
   const elevationRange = Math.max(1, maxElevation - minElevation);
@@ -135,6 +138,7 @@ function buildChart(points: ElevationProfilePoint[], width: number, height: numb
     maxElevation,
     totalDistance,
     paddingX,
+    paddingRight,
     paddingTop,
     baselineY,
     segments,
@@ -163,13 +167,13 @@ function ElevationSvg({ points, large = false }: { points: ElevationProfilePoint
   const narrow = useIsNarrowScreen() && large;
   const width = large && !narrow ? 1100 : 320;
   const height = large ? (narrow ? 220 : 460) : 120;
-  const labelSize = large && !narrow ? 18 : 11;
+  const labelSize = large && !narrow ? 13 : 11;
   const chart = useMemo(() => buildChart(points, width, height), [points, width, height]);
   const areaPoints = [
     `${chart.paddingX},${chart.baselineY}`,
     ...chart.segments.map((segment) => `${segment.x1},${segment.y1}`),
     chart.segments.length > 0 ? `${chart.segments[chart.segments.length - 1].x2},${chart.segments[chart.segments.length - 1].y2}` : "",
-    `${width - chart.paddingX},${chart.baselineY}`,
+    `${width - chart.paddingRight},${chart.baselineY}`,
   ].filter(Boolean).join(" ");
 
   return (
@@ -186,7 +190,7 @@ function ElevationSvg({ points, large = false }: { points: ElevationProfilePoint
         </linearGradient>
       </defs>
 
-      <line x1={chart.paddingX} y1={chart.baselineY} x2={width - chart.paddingX} y2={chart.baselineY} stroke="#e7e5e4" strokeWidth="1" />
+      <line x1={chart.paddingX} y1={chart.baselineY} x2={width - chart.paddingRight} y2={chart.baselineY} stroke="#e7e5e4" strokeWidth="1" />
       <line x1={chart.paddingX} y1={chart.paddingTop} x2={chart.paddingX} y2={chart.baselineY} stroke="#e7e5e4" strokeWidth="1" />
       <polygon points={areaPoints} fill={`url(#soft-base-fill-${large ? "large" : "small"})`} />
 
@@ -200,7 +204,7 @@ function ElevationSvg({ points, large = false }: { points: ElevationProfilePoint
         <text x={chart.paddingX} y={chart.baselineY + labelSize + 6} textAnchor="start">
           0 km
         </text>
-        <text x={width - chart.paddingX} y={chart.baselineY + labelSize + 6} textAnchor="end">
+        <text x={width - chart.paddingRight} y={chart.baselineY + labelSize + 6} textAnchor="end">
           {formatDistanceKm(chart.totalDistance)}
         </text>
       </g>
@@ -223,7 +227,7 @@ function ElevationSvg({ points, large = false }: { points: ElevationProfilePoint
   );
 }
 
-export default function SegmentElevationProfile({ points, isLoading = false, showHeader = true, elevationGainM = null }: Props) {
+export default function SegmentElevationProfile({ points, isLoading = false, showHeader = true, elevationGainM = null, title }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
   const validPoints = points?.filter((point) => Number.isFinite(point.distanceKm) && Number.isFinite(point.elevationM)) ?? [];
 
@@ -256,17 +260,21 @@ export default function SegmentElevationProfile({ points, isLoading = false, sho
       className={`${DIALOG_PANEL_CLASS} flex max-h-[90dvh] max-w-6xl flex-col overflow-y-auto p-4 sm:p-6`}
     >
         <DialogCloseButton onClick={() => setIsExpanded(false)} />
-        <h2 id="elevation-dialog-title" className="mb-4 pr-12 text-xl font-bold text-neutral-900">Elevation profile</h2>
+        <h2 id="elevation-dialog-title" className="mb-4 pr-12 text-xl font-bold text-neutral-900">
+          Elevation profile{title ? <span className="font-semibold text-neutral-600"> · {title}</span> : null}
+        </h2>
         <div className="rounded-2xl border border-neutral-100 bg-white px-2 py-3 sm:px-4">
           <ElevationSvg points={validPoints} large />
         </div>
-        <div className="mt-4 flex flex-wrap gap-4 text-xs font-semibold text-neutral-600">
-          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-green-700" /> ≤ 1%</span>
+        <div className="mt-4 flex flex-col gap-2 text-xs font-semibold text-neutral-600 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
+          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-green-700" /> &lt; 1%</span>
           <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-yellow-600" /> 1–4%</span>
           <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-orange-600" /> 4–7%</span>
           <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-700" /> 7–10%</span>
           <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-900" /> ≥ 10%</span>
-          <span className="ml-auto">Gain: {formatElevation(elevationGain)}</span>
+          </div>
+          <span>Gain: {formatElevation(elevationGain)}</span>
         </div>
     </Dialog>
   ) : null;

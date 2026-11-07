@@ -65,7 +65,7 @@ function RatingStarsInput({ fieldKey, label, valueOutOf10, onChange }: RatingSta
                             type="button"
                             aria-label={`${label} star ${starNumber}`}
                             onClick={() => onChange(valueOutOf10 === fullValue ? halfValue : fullValue)}
-                            className="flex h-7 w-7 items-center justify-center rounded-sm transition-colors hover:bg-amber-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#fc4c02]"
+                            className="flex h-10 w-10 items-center justify-center rounded-md transition-colors hover:bg-amber-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#fc4c02]"
                         >
                             <span className="relative inline-block h-7 w-7 text-neutral-200" aria-hidden="true">
                                 <StarIcon className="h-7 w-7" />

@@ -33,6 +33,7 @@ interface HomeMapPanelProps {
   focusSegmentId?: string | null;
   focusSegmentNonce?: number;
   sidebarOpen: boolean;
+  fitMatchesNonce: number;
 }
 
 export default function HomeMapPanel({
@@ -51,6 +52,7 @@ export default function HomeMapPanel({
   focusSegmentId,
   focusSegmentNonce,
   sidebarOpen,
+  fitMatchesNonce,
 }: HomeMapPanelProps) {
   return (
     <>
@@ -83,6 +85,7 @@ export default function HomeMapPanel({
           focusSegmentId={focusSegmentId ?? undefined}
           focusSegmentNonce={focusSegmentNonce}
           sidebarOpen={sidebarOpen}
+          fitMatchesNonce={fitMatchesNonce}
         />
       </div>
     </>

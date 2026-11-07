@@ -179,12 +179,12 @@ export default function SegmentCard({
                     {ratingsCount > 0 && typeof overallQualityAverage === "number" ? (
                         <div className="mt-1 flex items-center gap-2 leading-none">
                             <StarPreview valueOutOf5={overallQualityAverage / 2} label="Overall Quality" />
-                            <span className="text-[11px] leading-none text-neutral-500 whitespace-nowrap">
+                            <span className="text-xs leading-none text-neutral-600 whitespace-nowrap">
                                 from {ratingsCount} {ratingsCount === 1 ? "rating" : "ratings"}
                             </span>
                         </div>
                     ) : (
-                        <p className="mt-1 text-[11px] text-neutral-500">Overall quality: no ratings yet</p>
+                        <p className="mt-1 text-xs text-neutral-600">Overall quality: no ratings yet</p>
                     )}
                 </div>
                 <div className="-mr-1 -mt-1 flex shrink-0 items-center gap-1">
@@ -318,6 +318,7 @@ export default function SegmentCard({
                     points={elevationProfile}
                     isLoading={isElevationProfileLoading}
                     elevationGainM={Math.max(0, (segment.distance_km ?? 0) * (segment.gradient_pct ?? 0) * 10)}
+                    title={segment.name}
                 />
             ) : null}
 
@@ -372,7 +373,7 @@ export default function SegmentCard({
                 href={segment.strava_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group relative overflow-hidden flex items-center justify-center gap-2 w-full bg-[#d03d00] hover:bg-[#b93600] text-white py-3 rounded-xl font-semibold text-sm transition-all shadow-sm hover:shadow-md active:scale-[0.98]"
+                className="group relative overflow-hidden flex items-center justify-center gap-2 w-full border border-[#d03d00] bg-white text-[#b93600] hover:bg-orange-50 py-3 rounded-xl font-semibold text-sm transition-colors active:scale-[0.98]"
             >
                 <span className="relative z-10 flex items-center gap-2">
                     View on Strava

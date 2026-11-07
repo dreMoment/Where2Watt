@@ -38,6 +38,8 @@ interface MapProps {
   exploreCandidates?: ExploreCandidate[];
   /** Whether the home sidebar currently covers the left of the map (desktop). */
   sidebarOpen?: boolean;
+  /** Bumped when the user applies a filter; frames the matching segments. */
+  fitMatchesNonce?: number;
 }
 
 const MAP_VIEWPORT_STORAGE_KEY = "where2watt:lastMapViewport";
@@ -277,6 +279,7 @@ export default function InteractiveMap({
   showSegmentReportAction = true,
   exploreCandidates = [],
   sidebarOpen = false,
+  fitMatchesNonce = 0,
 }: MapProps) {
   const initialFocusedSegment =
     autoSelectFocusedSegment && focusSegmentId
@@ -382,10 +385,27 @@ export default function InteractiveMap({
     if (!bounds || !map) return;
     const container = map.getContainer();
     const padding = isMobileViewport
-      ? { top: 72, bottom: Math.round(container.clientHeight * 0.68) + 24, left: 32, right: 32 }
+      ? { top: 88, bottom: Math.round(container.clientHeight * 0.68) + 24, left: 32, right: 32 }
       : { top: 96, bottom: 64, left: sidebarOpen ? 380 + 48 : 96, right: 420 };
     map.fitBounds(bounds, { padding, maxZoom: 14, duration: 600 });
   };
+
+  // After "Apply Filter", frame the matching segments in the area the sidebar leaves visible.
+  const lastFitMatchesNonceRef = useRef(fitMatchesNonce);
+  useEffect(() => {
+    if (fitMatchesNonce === lastFitMatchesNonceRef.current || !isMapLoaded || !mapRef.current) return;
+    lastFitMatchesNonceRef.current = fitMatchesNonce;
+    const bounds = getSegmentsBounds(filteredSegments);
+    if (!bounds) return;
+    const panelOpen = Boolean(selectedSegment) && !segmentDetailsAsTopLeftOverlay;
+    const mapHeight = mapRef.current.getContainer().clientHeight;
+    const padding = isMobileViewport
+      ? { top: 88, bottom: panelOpen ? Math.round(mapHeight * 0.68) + 24 : 48, left: 56, right: 56 }
+      : { top: 96, bottom: 64, left: sidebarOpen ? 380 + 64 : 96, right: panelOpen ? 420 : 96 };
+    mapRef.current.fitBounds(bounds, { padding, maxZoom: 13, duration: 600 });
+    // Only re-run when the user applies a filter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fitMatchesNonce, isMapLoaded]);
 
   // Re-frame the selected route when the desktop sidebar opens or closes over it.
   const previousSidebarOpenRef = useRef(sidebarOpen);
@@ -610,7 +630,8 @@ export default function InteractiveMap({
           maxzoom={14}
         />
 
-        <NavigationControl position="bottom-right" visualizePitch={true} />
+        {/* The mobile segment sheet covers the controls, so drop them while it is open. */}
+        {!(isMobileViewport && showSegmentPanel) && <NavigationControl position="bottom-right" visualizePitch={true} />}
 
         {exploreCandidates.map((candidate) => {
           const data = { type: "Feature" as const, properties: { id: candidate.id }, geometry: { type: "LineString" as const, coordinates: candidate.coordinates } };
@@ -778,7 +799,7 @@ export default function InteractiveMap({
           className={`pointer-events-auto absolute z-40 overflow-y-auto overscroll-contain bg-white ${
             isMobileViewport
               ? "inset-x-0 bottom-0 max-h-[68dvh] rounded-t-2xl border-t border-neutral-200 px-4 pt-4 pb-[max(2rem,calc(env(safe-area-inset-bottom)+1.25rem))] shadow-[0_-12px_32px_-12px_rgba(0,0,0,0.25)]"
-              : "right-3 top-[4.25rem] max-h-[calc(100%-13rem)] w-[380px] rounded-2xl border border-neutral-200 p-5 shadow-xl"
+              : "right-3 top-[4.25rem] max-h-[calc(100%-13.75rem)] w-[380px] rounded-2xl border border-neutral-200 p-5 shadow-xl"
           }${selectedSegment.blocked ? " ring-2 ring-red-600" : ""}`}
         >
           <SegmentCard

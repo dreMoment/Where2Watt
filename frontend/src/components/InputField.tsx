@@ -16,7 +16,7 @@ export default function InputField({ id, label, className = "", ...props }: Inpu
             </label>
             <input
                 id={id}
-                className="w-full text-sm font-semibold text-neutral-800 p-2.5 bg-white border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/10 transition-all shadow-sm"
+                className="w-full text-base sm:text-sm font-semibold text-neutral-800 p-2.5 bg-white border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/10 transition-all shadow-sm"
                 {...props}
             />
         </div>

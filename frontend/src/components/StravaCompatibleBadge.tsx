@@ -15,7 +15,7 @@ export default function StravaCompatibleBadge({
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Compatible with Strava"
-      className={`inline-flex items-center justify-center ${className}`}
+      className={`inline-flex items-center justify-center transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 ${className}`}
     >
       <Image
         src="/api_logo_cptblWith_strava_horiz_orange.png"

@@ -152,7 +152,7 @@ export default function HomeSidebar({
               <button
                 type="button"
                 onClick={actions.onApplyFilter}
-                className="flex-1 rounded-xl bg-neutral-900 py-3 text-sm font-bold text-white shadow-md shadow-neutral-900/10 transition-all hover:bg-neutral-800 active:scale-[0.98]"
+                className="flex-1 rounded-xl border border-transparent bg-neutral-900 py-3 text-sm font-bold text-white shadow-md shadow-neutral-900/10 transition-all hover:bg-neutral-800 active:scale-[0.98]"
               >
                 Apply Filter
               </button>
@@ -167,16 +167,31 @@ export default function HomeSidebar({
               )}
             </div>
             {filter.isFiltered && (
-              <p role="status" className="text-sm text-neutral-700">
-                <span className="font-semibold">{filter.matchingSegmentsCount}</span> of {filter.totalSegmentsCount} segments
-                match this interval.
-              </p>
+              <div role="status" className="flex flex-col gap-2 text-sm text-neutral-700">
+                <p>
+                  <span className="font-semibold">{filter.matchingSegmentsCount}</span> of {filter.totalSegmentsCount} segments
+                  match this interval.
+                  {filter.matchingSegmentsCount === 0 && " Try a lower power or a shorter time."}
+                </p>
+                {filter.matchingSegmentsCount > 0 && (
+                  <div className="flex flex-col gap-1">
+                    <span
+                      className="h-2 w-full rounded-full bg-[linear-gradient(90deg,hsl(0,65%,45%),hsl(65,65%,45%),hsl(130,65%,45%))]"
+                      aria-hidden="true"
+                    />
+                    <div className="flex justify-between text-xs text-neutral-600">
+                      <span>Only just long enough</span>
+                      <span>Plenty of room</span>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </SectionCard>
 
         <div className="flex flex-col gap-3 border-b border-neutral-100 p-5">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-neutral-600">Contribute</h3>
+          <h2 className="text-xs font-bold uppercase tracking-widest text-neutral-600">Contribute</h2>
           <p className="text-sm leading-relaxed text-neutral-600">
             Know a quiet, uninterrupted road for intervals? Share it with the community.
           </p>

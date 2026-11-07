@@ -49,6 +49,7 @@ export default function Home() {
   const [showSubmissionContent, setShowSubmissionContent] = useState(false);
   const [focusSegmentId, setFocusSegmentId] = useState<string | null>(null);
   const [focusSegmentNonce, setFocusSegmentNonce] = useState(0);
+  const [fitMatchesNonce, setFitMatchesNonce] = useState(0);
 
   // Filter state
   const [isFiltered, setIsFiltered] = useState(false);
@@ -135,6 +136,7 @@ export default function Home() {
           focusSegmentId={focusSegmentId}
           focusSegmentNonce={focusSegmentNonce}
           sidebarOpen={sidebarOpen}
+          fitMatchesNonce={fitMatchesNonce}
         />
 
         <HomeOverlays
@@ -168,7 +170,11 @@ export default function Home() {
           filterTimeStr,
         }}
         actions={{
-          onApplyFilter: () => setIsFiltered(true),
+          onApplyFilter: () => {
+            setIsFiltered(true);
+            setFitMatchesNonce((previous) => previous + 1);
+            if (isMobileViewport) setSidebarOpen(false);
+          },
           onBikeWeightChange: handleBikeWeightChange,
           onDisconnect: () => {
             closeProfileMenu();
