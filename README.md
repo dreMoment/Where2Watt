@@ -61,3 +61,7 @@ npm run dev                 # http://localhost:3000
 cd backend && docker compose -f docker-compose.test.yml up --build --abort-on-container-exit
 cd frontend && npm test
 ```
+
+## License
+
+[MIT](LICENSE)
