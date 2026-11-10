@@ -22,18 +22,16 @@ def _build_request(headers: dict[str, str] | None = None, client_host: str = "12
 
 
 @pytest.mark.unit
-def test_rate_limit_key_uses_anonymous_actor_when_auth_header_missing():
-    request = _build_request(client_host="203.0.113.10")
+@pytest.mark.parametrize(
+    "headers",
+    [
+        pytest.param(None, id="missing-header"),
+        pytest.param({"authorization": "Bearer invalid.token"}, id="invalid-token"),
+    ],
+)
+def test_rate_limit_key_uses_anonymous_actor_without_valid_token(headers):
+    request = _build_request(headers=headers, client_host="203.0.113.10")
     assert rate_limit_key(request) == "actor:anonymous|ip:203.0.113.10"
-
-
-@pytest.mark.unit
-def test_rate_limit_key_uses_anonymous_actor_when_token_invalid():
-    request = _build_request(
-        headers={"authorization": "Bearer invalid.token"},
-        client_host="198.51.100.23",
-    )
-    assert rate_limit_key(request) == "actor:anonymous|ip:198.51.100.23"
 
 
 @pytest.mark.unit

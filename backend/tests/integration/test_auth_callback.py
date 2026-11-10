@@ -6,33 +6,24 @@ import pytest
 
 from config import JWT_ALGORITHM, JWT_SECRET
 from dependencies import actor_id_from_strava_id
+from tests.helpers import MockAsyncClientContext
 
 
-class MockAsyncClientContext:
-    def __init__(self, client):
-        self.client = client
-
-    async def __aenter__(self):
-        return self.client
-
-    async def __aexit__(self, exc_type, exc, tb):
-        return False
-
-
-@pytest.fixture(autouse=True)
-def disable_rate_limiter():
-    from main import app
-
-    app.state.limiter.enabled = False
-    yield
-    app.state.limiter.enabled = True
+pytestmark = pytest.mark.usefixtures("disable_rate_limiter")
 
 
 @pytest.mark.integration
-def test_strava_callback_rejects_failed_oauth(monkeypatch, app_client):
+@pytest.mark.parametrize(
+    ("oauth_status", "oauth_body", "detail"),
+    [
+        pytest.param(500, {}, "Failed to authenticate with Strava", id="failed-oauth"),
+        pytest.param(200, {"athlete": {}}, "No athlete data received from Strava", id="missing-athlete-id"),
+    ],
+)
+def test_strava_callback_rejects_bad_oauth_response(monkeypatch, app_client, oauth_status, oauth_body, detail):
     import routers.auth as auth_router
 
-    mock_client = SimpleNamespace(post=AsyncMock(return_value=SimpleNamespace(status_code=500, json=lambda: {})))
+    mock_client = SimpleNamespace(post=AsyncMock(return_value=SimpleNamespace(status_code=oauth_status, json=lambda: oauth_body)))
     monkeypatch.setattr(auth_router.httpx, "AsyncClient", lambda: MockAsyncClientContext(mock_client))
     mock_db = SimpleNamespace(strava_auth=SimpleNamespace(update_one=AsyncMock()), revoked_actors=SimpleNamespace(delete_many=AsyncMock()))
     monkeypatch.setattr(auth_router, "get_db", lambda: mock_db)
@@ -40,22 +31,7 @@ def test_strava_callback_rejects_failed_oauth(monkeypatch, app_client):
     res = app_client.post("/api/auth/strava/callback", json={"code": "code-1", "redirect_uri": "http://localhost/cb"})
 
     assert res.status_code == 400
-    assert res.json()["detail"] == "Failed to authenticate with Strava"
-
-
-@pytest.mark.integration
-def test_strava_callback_rejects_missing_athlete_id(monkeypatch, app_client):
-    import routers.auth as auth_router
-
-    mock_client = SimpleNamespace(post=AsyncMock(return_value=SimpleNamespace(status_code=200, json=lambda: {"athlete": {}})))
-    monkeypatch.setattr(auth_router.httpx, "AsyncClient", lambda: MockAsyncClientContext(mock_client))
-    mock_db = SimpleNamespace(strava_auth=SimpleNamespace(update_one=AsyncMock()), revoked_actors=SimpleNamespace(delete_many=AsyncMock()))
-    monkeypatch.setattr(auth_router, "get_db", lambda: mock_db)
-
-    res = app_client.post("/api/auth/strava/callback", json={"code": "code-1", "redirect_uri": "http://localhost/cb"})
-
-    assert res.status_code == 400
-    assert res.json()["detail"] == "No athlete data received from Strava"
+    assert res.json()["detail"] == detail
 
 
 @pytest.mark.integration

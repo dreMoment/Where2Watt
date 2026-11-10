@@ -7,26 +7,10 @@ from unittest.mock import ANY, AsyncMock
 import pytest
 
 from dependencies import actor_id_from_strava_id, create_jwt
+from tests.helpers import MockAsyncClientContext
 
 
-class MockAsyncClientContext:
-    def __init__(self, client):
-        self.client = client
-
-    async def __aenter__(self):
-        return self.client
-
-    async def __aexit__(self, exc_type, exc, tb):
-        return False
-
-
-@pytest.fixture(autouse=True)
-def disable_rate_limiter():
-    from main import app
-
-    app.state.limiter.enabled = False
-    yield
-    app.state.limiter.enabled = True
+pytestmark = pytest.mark.usefixtures("disable_rate_limiter")
 
 
 @pytest.mark.integration
@@ -137,3 +121,32 @@ def test_webhook_deauthorization_event_purges_actor_data(monkeypatch, app_client
     assert response.status_code == 200
     assert response.json() == {"status": "received", "processed": True}
     purge_mock.assert_awaited_once_with(ANY, actor_id_from_strava_id(athlete_id))
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    ("signature", "detail"),
+    [
+        pytest.param(None, "Missing webhook signature", id="missing-signature"),
+        pytest.param("0" * 64, "Invalid webhook signature", id="invalid-signature"),
+    ],
+)
+def test_webhook_rejects_unsigned_or_forged_events_without_purging(monkeypatch, app_client, signature, detail):
+    import routers.strava_webhook as strava_webhook_router
+
+    purge_mock = AsyncMock()
+    monkeypatch.setattr(strava_webhook_router, "purge_actor_data", purge_mock)
+    monkeypatch.setattr(strava_webhook_router, "get_db", lambda: SimpleNamespace())
+
+    body = json.dumps(
+        {"object_type": "athlete", "object_id": 12345, "aspect_type": "update", "updates": {"authorized": "false"}}
+    ).encode("utf-8")
+    headers = {"Content-Type": "application/json"}
+    if signature is not None:
+        headers["X-Strava-Signature"] = signature
+
+    response = app_client.post("/api/strava/webhook", content=body, headers=headers)
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == detail
+    purge_mock.assert_not_awaited()

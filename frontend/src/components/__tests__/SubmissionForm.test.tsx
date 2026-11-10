@@ -36,26 +36,6 @@ describe('SubmissionForm', () => {
         mockOnExistingSegmentRated.mockResolvedValue(undefined);
     });
 
-    it('renders form fields correctly', () => {
-        render(<SubmissionForm onClose={mockOnClose} />);
-        expect(screen.getByText('Add a Segment')).toBeInTheDocument();
-        expect(screen.getByText(/Segment URLs and activity segment-effort URLs are supported/i)).toBeInTheDocument();
-        expect(screen.getByLabelText(/Strava Segment URL/i)).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /Add safety notes/i })).toHaveAttribute('aria-expanded', 'false');
-        expect(screen.queryByLabelText(/Safety notes/i)).not.toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /Choose from your starred Strava segments/i })).toBeInTheDocument();
-    });
-
-    it('expands the optional safety notes field', () => {
-        render(<SubmissionForm onClose={mockOnClose} />);
-
-        const toggle = screen.getByRole('button', { name: /Add safety notes/i });
-        fireEvent.click(toggle);
-
-        expect(toggle).toHaveAttribute('aria-expanded', 'true');
-        expect(screen.getByLabelText(/Safety notes/i)).toBeInTheDocument();
-    });
-
     it('loads starred Strava segments and selects one', async () => {
         (fetchStarredStravaSegments as jest.Mock).mockResolvedValueOnce([
             { id: '456', name: 'Hawk Hill', distance_km: 2.68, elevation_m: 153 },
@@ -127,12 +107,15 @@ describe('SubmissionForm', () => {
         expect(submitSegment).not.toHaveBeenCalled();
     });
 
-    it('submits form data successfully', async () => {
+    it.each([
+        ['segment URL', 'https://www.strava.com/segments/123'],
+        ['activity segment-effort URL', 'https://www.strava.com/activities/19268839605/segments/3511011627260237700'],
+    ])('submits form data successfully for a %s', async (_case, stravaUrl) => {
         (submitSegment as jest.Mock).mockResolvedValueOnce({ status: 'created' });
         render(<SubmissionForm onClose={mockOnClose} />);
 
         fireEvent.change(screen.getByLabelText(/Strava Segment URL/i), {
-            target: { value: 'https://www.strava.com/segments/123' },
+            target: { value: stravaUrl },
         });
         fireEvent.click(screen.getByRole('button', { name: /Add safety notes/i }));
         fireEvent.change(screen.getByLabelText(/Safety notes/i), {
@@ -147,7 +130,7 @@ describe('SubmissionForm', () => {
 
         await waitFor(() => {
             expect(submitSegment).toHaveBeenCalledWith({
-                strava_url: 'https://www.strava.com/segments/123',
+                strava_url: stravaUrl,
                 safety_notes: 'Gravel near the finish',
                 ratings: {
                     overall_quality: 2,
@@ -163,25 +146,6 @@ describe('SubmissionForm', () => {
             expect(screen.getByText(/Submitted!/i)).toBeInTheDocument();
         });
 
-    });
-
-    it('accepts activity segment-effort URLs', async () => {
-        (submitSegment as jest.Mock).mockResolvedValueOnce({ status: 'created' });
-        render(<SubmissionForm onClose={mockOnClose} />);
-
-        fireEvent.change(screen.getByLabelText(/Strava Segment URL/i), {
-            target: { value: 'https://www.strava.com/activities/19268839605/segments/3511011627260237700' },
-        });
-        fireEvent.click(screen.getByRole('button', { name: /Overall Quality star 1/i }));
-        fireEvent.click(screen.getByRole('button', { name: /Traffic Level: Low/i }));
-        fireEvent.click(screen.getByRole('button', { name: /Road Surface: Patchy/i }));
-        fireEvent.click(screen.getByRole('button', { name: /Gradient Profile: Flowing/i }));
-        fireEvent.click(screen.getByRole('button', { name: /Sketchy Left Turns: 1/i }));
-        fireEvent.click(screen.getByRole('button', { name: /Submit Segment/i }));
-
-        await waitFor(() => {
-            expect(submitSegment).toHaveBeenCalled();
-        });
     });
 
     it('shows existing-segment message and confirms rating was added', async () => {

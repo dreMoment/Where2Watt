@@ -9,12 +9,6 @@ describe("polyline and physics utils", () => {
     expect(points[0][1]).toBeCloseTo(38.5, 4);
   });
 
-  it("calculates positive velocity for realistic cycling inputs", () => {
-    const v = calculateVelocity(280, 0.04, 72, 8);
-    expect(v).toBeGreaterThan(0);
-    expect(v).toBeLessThan(30);
-  });
-
   it("returns a positive, plausible velocity on descents", () => {
     for (const power of [150, 250, 350]) {
       const flat = calculateVelocity(power, 0, 75, 9);

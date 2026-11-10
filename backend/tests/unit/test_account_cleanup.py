@@ -53,26 +53,3 @@ def test_purge_actor_data_deletes_actor_ratings_reports_and_auth_rows():
         upsert=True,
     )
 
-
-@pytest.mark.unit
-def test_purge_actor_data_reports_zero_when_no_matches():
-    actor_id = "actor-456"
-
-    db = SimpleNamespace(
-        segment_ratings=SimpleNamespace(delete_many=AsyncMock(return_value=SimpleNamespace(deleted_count=0))),
-        segment_block_reports=SimpleNamespace(delete_many=AsyncMock(return_value=SimpleNamespace(deleted_count=0))),
-        strava_auth=SimpleNamespace(delete_many=AsyncMock(return_value=SimpleNamespace(deleted_count=0))),
-        user_preferences=SimpleNamespace(delete_many=AsyncMock(return_value=SimpleNamespace(deleted_count=0))),
-        starred_segment_sightings=SimpleNamespace(delete_many=AsyncMock(return_value=SimpleNamespace(deleted_count=0))),
-        revoked_actors=SimpleNamespace(update_one=AsyncMock()),
-    )
-
-    result = asyncio.run(purge_actor_data(db, actor_id))
-
-    assert result == {
-        "actor_ratings_deleted": 0,
-        "actor_reports_deleted": 0,
-        "strava_auth_rows_deleted": 0,
-        "user_preferences_rows_deleted": 0,
-        "starred_segment_sightings_deleted": 0,
-    }

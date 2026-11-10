@@ -1,4 +1,4 @@
-import { matchesAdminFilters } from "@/hooks/adminFilters";
+import { matchesAdminFilters, type AdminFilters } from "@/hooks/adminFilters";
 import type { Segment } from "@/types";
 
 const baseSegment: Segment = {
@@ -20,118 +20,44 @@ const baseSegment: Segment = {
   reported_by_users: [],
 };
 
+const blockedSegment: Segment = { ...baseSegment, blocked: true };
+const reportedSegment: Segment = {
+  ...baseSegment,
+  reported_by_actor_ids: ["actor-1"],
+  reported_by_users: [{ actor_id: "actor-1" }],
+};
+
+const filters = (overrides: Partial<AdminFilters> = {}): AdminFilters => ({
+  approval: "all",
+  block: "all",
+  report: "all",
+  query: "",
+  ...overrides,
+});
+
 describe("matchesAdminFilters", () => {
-  it("matches segment with all filters and empty query", () => {
-    expect(
-      matchesAdminFilters(baseSegment, {
-        approval: "all",
-        block: "all",
-        report: "all",
-        query: "",
-      })
-    ).toBe(true);
+  it.each([
+    ["all filters, empty query", baseSegment, {}, true],
+    ["approval=approved on approved segment", baseSegment, { approval: "approved" }, true],
+    ["approval=pending on approved segment", baseSegment, { approval: "pending" }, false],
+    ["block=blocked on blocked segment", blockedSegment, { block: "blocked" }, true],
+    ["block=unblocked on blocked segment", blockedSegment, { block: "unblocked" }, false],
+    ["report=reported on reported segment", reportedSegment, { report: "reported" }, true],
+    ["report=not_reported on reported segment", reportedSegment, { report: "not_reported" }, false],
+  ] as const)("%s -> %s", (_case, segment, overrides, expected) => {
+    expect(matchesAdminFilters(segment, filters(overrides))).toBe(expected);
   });
 
-  it("filters by approval state", () => {
-    expect(
-      matchesAdminFilters(baseSegment, {
-        approval: "approved",
-        block: "all",
-        report: "all",
-        query: "",
-      })
-    ).toBe(true);
-
-    expect(
-      matchesAdminFilters(baseSegment, {
-        approval: "pending",
-        block: "all",
-        report: "all",
-        query: "",
-      })
-    ).toBe(false);
-  });
-
-  it("filters by block state", () => {
-    const blockedSegment: Segment = { ...baseSegment, blocked: true };
-
-    expect(
-      matchesAdminFilters(blockedSegment, {
-        approval: "all",
-        block: "blocked",
-        report: "all",
-        query: "",
-      })
-    ).toBe(true);
-
-    expect(
-      matchesAdminFilters(blockedSegment, {
-        approval: "all",
-        block: "unblocked",
-        report: "all",
-        query: "",
-      })
-    ).toBe(false);
-  });
-
-  it("filters by report state", () => {
-    const reportedSegment: Segment = {
-      ...baseSegment,
-      reported_by_actor_ids: ["actor-1"],
-      reported_by_users: [{ actor_id: "actor-1" }],
-    };
-
-    expect(
-      matchesAdminFilters(reportedSegment, {
-        approval: "all",
-        block: "all",
-        report: "reported",
-        query: "",
-      })
-    ).toBe(true);
-
-    expect(
-      matchesAdminFilters(reportedSegment, {
-        approval: "all",
-        block: "all",
-        report: "not_reported",
-        query: "",
-      })
-    ).toBe(false);
-  });
-
-  it("matches case-insensitive search corpus", () => {
+  // The hook lowercases the query (useAdminSegments.ts), so this function expects a lowercase query.
+  it("matches a lowercase query against mixed-case fields", () => {
     const segmentWithReporter: Segment = {
       ...baseSegment,
       reported_by_actor_ids: ["abc123"],
       reported_by_users: [{ actor_id: "reporter-99" }],
     };
 
-    expect(
-      matchesAdminFilters(segmentWithReporter, {
-        approval: "all",
-        block: "all",
-        report: "all",
-        query: "reporter-99",
-      })
-    ).toBe(true);
-
-    expect(
-      matchesAdminFilters(segmentWithReporter, {
-        approval: "all",
-        block: "all",
-        report: "all",
-        query: "ALPINE".toLowerCase(),
-      })
-    ).toBe(true);
-
-    expect(
-      matchesAdminFilters(segmentWithReporter, {
-        approval: "all",
-        block: "all",
-        report: "all",
-        query: "non-existent",
-      })
-    ).toBe(false);
+    expect(matchesAdminFilters(segmentWithReporter, filters({ query: "reporter-99" }))).toBe(true);
+    expect(matchesAdminFilters(segmentWithReporter, filters({ query: "alpine" }))).toBe(true);
+    expect(matchesAdminFilters(segmentWithReporter, filters({ query: "non-existent" }))).toBe(false);
   });
 });

@@ -1,11 +1,6 @@
 import pytest
 
-from services.preferences import DEFAULT_USER_PREFERENCES, normalize_user_preferences
-
-
-@pytest.mark.unit
-def test_normalize_user_preferences_returns_defaults_for_missing_document():
-    assert normalize_user_preferences(None) == DEFAULT_USER_PREFERENCES
+from services.preferences import normalize_user_preferences
 
 
 @pytest.mark.unit

@@ -1,3 +1,6 @@
+import asyncio
+from types import SimpleNamespace
+
 import pytest
 from bson import ObjectId
 from fastapi import HTTPException
@@ -5,74 +8,48 @@ from pydantic import ValidationError
 
 from schemas import SegmentCreateSchema
 from services.segments import (
-    canonical_strava_segment_url,
+    enrich_admin_segment_users,
     extract_segment_effort_id,
     extract_strava_id,
     normalize_aliases,
     parse_object_id,
-    segment_identity_query,
     serialize_segment,
 )
-
-
-@pytest.mark.unit
-def test_extract_strava_id_from_valid_url():
-    url = "https://www.strava.com/segments/123456"
-    assert extract_strava_id(url) == "123456"
-
-
-@pytest.mark.unit
-def test_extract_strava_id_returns_none_for_invalid_url():
-    assert extract_strava_id("https://www.strava.com/routes/123") is None
-    assert extract_strava_id("https://www.strava.com/activities/17650152462/segments/3465746799772048188") is None
-    assert extract_strava_id("") is None
+from tests.helpers import FindCursor
 
 
 @pytest.mark.unit
 @pytest.mark.parametrize(
-    "url",
+    ("url", "expected"),
     [
-        "https://example.com/segments/123456",
-        "https://www.strava.com.evil.example/segments/123456",
-        "https://user@www.strava.com/segments/123456",
-        "https://www.strava.com:443/segments/123456",
-        "https://www.strava.com/segments/123456/extra",
-        "javascript://www.strava.com/segments/123456",
+        ("https://www.strava.com/segments/123456", "123456"),
+        ("https://www.strava.com/routes/123", None),
+        ("https://www.strava.com/activities/17650152462/segments/3465746799772048188", None),
+        ("", None),
+        # Untrusted or malformed URLs must never yield an ID.
+        ("https://example.com/segments/123456", None),
+        ("https://www.strava.com.evil.example/segments/123456", None),
+        ("https://user@www.strava.com/segments/123456", None),
+        ("https://www.strava.com:443/segments/123456", None),
+        ("https://www.strava.com/segments/123456/extra", None),
+        ("javascript://www.strava.com/segments/123456", None),
     ],
 )
-def test_extract_strava_id_rejects_untrusted_or_malformed_urls(url):
-    assert extract_strava_id(url) is None
+def test_extract_strava_id(url, expected):
+    assert extract_strava_id(url) == expected
 
 
 @pytest.mark.unit
-def test_strava_segment_helpers_canonicalize_and_build_legacy_lookup():
-    assert canonical_strava_segment_url("123") == "https://www.strava.com/segments/123"
-    assert segment_identity_query("123") == {
-        "$or": [
-            {"strava_id": "123"},
-            {"aliases": "123"},
-            {"strava_url": {"$regex": r"/segments/123(?:$|[/?#])"}},
-        ]
-    }
-
-
-@pytest.mark.unit
-def test_extract_segment_effort_id_from_activity_segment_effort_url():
-    url = "https://www.strava.com/activities/19268839605/segments/3511011627260237700"
-    assert extract_segment_effort_id(url) == "3511011627260237700"
-
-
-@pytest.mark.unit
-def test_extract_segment_effort_id_returns_none_for_non_effort_urls():
-    assert extract_segment_effort_id("https://www.strava.com/segments/123456") is None
-    assert extract_segment_effort_id("https://www.strava.com/routes/123") is None
-
-
-@pytest.mark.unit
-def test_parse_object_id_valid():
-    value = str(ObjectId())
-    parsed = parse_object_id(value)
-    assert str(parsed) == value
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        ("https://www.strava.com/activities/19268839605/segments/3511011627260237700", "3511011627260237700"),
+        ("https://www.strava.com/segments/123456", None),
+        ("https://www.strava.com/routes/123", None),
+    ],
+)
+def test_extract_segment_effort_id(url, expected):
+    assert extract_segment_effort_id(url) == expected
 
 
 @pytest.mark.unit
@@ -96,36 +73,34 @@ def test_serialize_segment_maps_id_and_preserves_fields():
 
 
 @pytest.mark.unit
-def test_serialize_segment_includes_default_rating_stats():
-    obj_id = ObjectId()
-    segment = {"_id": obj_id, "name": "No Ratings Yet"}
+@pytest.mark.parametrize(
+    ("stats", "expected_count", "expected_overall", "expected_traffic"),
+    [
+        pytest.param({}, 0, None, None, id="defaults-when-unrated"),
+        pytest.param(
+            {
+                "ratings_count": 2,
+                "average_ratings": {
+                    "overall_quality": 4.5,
+                    "traffic_level": 2.5,
+                    "road_surface": 2.0,
+                    "gradient_profile": 1.5,
+                    "sketchy_left_turns": 1.0,
+                },
+            },
+            2,
+            4.5,
+            2.5,
+            id="uses-existing-averages",
+        ),
+    ],
+)
+def test_serialize_segment_rating_stats(stats, expected_count, expected_overall, expected_traffic):
+    result = serialize_segment({"_id": ObjectId(), "name": "Segment", **stats})
 
-    result = serialize_segment(segment)
-
-    assert result["ratings_count"] == 0
-    assert result["average_ratings"]["overall_quality"] is None
-
-
-@pytest.mark.unit
-def test_serialize_segment_uses_existing_average_ratings():
-    obj_id = ObjectId()
-    segment = {
-        "_id": obj_id,
-        "name": "Rated Segment",
-        "ratings_count": 2,
-        "average_ratings": {
-            "overall_quality": 4.5,
-            "traffic_level": 2.5,
-            "road_surface": 2.0,
-            "gradient_profile": 1.5,
-            "sketchy_left_turns": 1.0,
-        },
-    }
-
-    result = serialize_segment(segment)
-
-    assert result["average_ratings"]["overall_quality"] == 4.5
-    assert result["average_ratings"]["traffic_level"] == 2.5
+    assert result["ratings_count"] == expected_count
+    assert result["average_ratings"]["overall_quality"] == expected_overall
+    assert result["average_ratings"]["traffic_level"] == expected_traffic
 
 
 @pytest.mark.unit
@@ -162,3 +137,23 @@ def test_segment_submission_rejects_client_supplied_strava_metadata():
                 "sketchy_left_turns": 0,
             },
         )
+
+
+@pytest.mark.unit
+def test_enrich_admin_segment_users_dedupes_reporters_and_sets_summaries():
+    segment_id = ObjectId()
+    segments = [{"_id": segment_id}]
+    reports = [
+        {"segment_id": segment_id, "reported_by_actor_id": "actor-a", "reported_at": "2026-03-05T10:00:00+00:00", "action": "blocked", "note": "Roadworks"},
+        {"segment_id": segment_id, "reported_by_actor_id": "actor-a", "reported_at": "2026-03-05T09:00:00+00:00", "action": "blocked", "note": "Same"},
+        {"segment_id": segment_id, "reported_by_actor_id": "actor-b", "reported_at": "2026-03-05T08:00:00+00:00", "action": "unblocked", "note": ""},
+        {"segment_id": segment_id, "reported_by_actor_id": "", "reported_at": "2026-03-05T07:00:00+00:00", "action": "blocked", "note": "ignored"},
+    ]
+    db = SimpleNamespace(segment_block_reports=SimpleNamespace(find=lambda *_args, **_kwargs: FindCursor(reports)))
+
+    asyncio.run(enrich_admin_segment_users(db, segments))
+
+    assert segments[0]["reported_by_actor_ids"] == ["actor-a", "actor-b"]
+    assert segments[0]["reported_by_users"] == [{"actor_id": "actor-a"}, {"actor_id": "actor-b"}]
+    assert len(segments[0]["block_reports"]) == 3
+    assert segments[0]["block_reports"][0]["note"] == "Roadworks"

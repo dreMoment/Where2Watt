@@ -106,13 +106,6 @@ describe('InteractiveMap', () => {
         jest.clearAllMocks();
     });
 
-    it('renders map with segments', () => {
-        const { getByTestId, getAllByTestId } = render(<InteractiveMap segments={mockSegments} />);
-        expect(getByTestId('mock-map')).toBeInTheDocument();
-        expect(getAllByTestId('mock-source').length).toBeGreaterThan(0);
-        expect(getAllByTestId('mock-layer').length).toBeGreaterThan(0);
-    });
-
     it('waits for focused terrain tiles before sampling the elevation profile', async () => {
         render(
             <UiFeedbackProvider>

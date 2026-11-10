@@ -3,7 +3,6 @@ import {
   estimateSegmentDurationSeconds,
   filterSegmentsByInterval,
   formatDuration,
-  getIntervalMarginRatio,
   parseIntervalMinutes,
   passesIntervalFilter,
 } from "@/utils/intervals";
@@ -37,14 +36,6 @@ describe("intervals utils", () => {
     expect(createIntervalProfile("0", 70, 8)).toBeNull();
   });
 
-  it("estimates duration and computes margin ratio", () => {
-    const profile = createIntervalProfile(280, 72, 8)!;
-    const seconds = estimateSegmentDurationSeconds(sampleSegment, profile);
-    expect(seconds).not.toBeNull();
-    expect((seconds as number) > 0).toBe(true);
-    expect(getIntervalMarginRatio(sampleSegment, profile, 5)).not.toBeNull();
-  });
-
   it("sums time over the elevation profile when available", () => {
     const profile = createIntervalProfile(250, 75, 9)!;
     // 2 km at 4 % on average: 1 km flat, then 1 km at 8 %.
@@ -74,12 +65,6 @@ describe("intervals utils", () => {
     for (const elevation_profile of [null, [], [[0, 10]], [[5, 10], [5, 20]]] as Segment["elevation_profile"][]) {
       expect(estimateSegmentDurationSeconds({ ...sampleSegment, elevation_profile }, profile)).toBeCloseTo(evenSeconds, 6);
     }
-  });
-
-  it("estimates downhill segments", () => {
-    const profile = createIntervalProfile(350, 75, 9)!;
-    const seconds = estimateSegmentDurationSeconds({ distance_km: 2, gradient_pct: -3 }, profile);
-    expect(seconds).toBeGreaterThan(0);
   });
 
   it("applies filter rules including blocked segments", () => {

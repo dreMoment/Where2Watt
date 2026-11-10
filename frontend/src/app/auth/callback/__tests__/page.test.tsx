@@ -18,10 +18,16 @@ describe("AuthCallbackPage", () => {
     jest.useRealTimers();
   });
 
-  it("shows missing-code error when callback query has no code", async () => {
+  it.each([
+    ["no code in the query", "/auth/callback", "Missing authorization code."],
+    ["the backend request fails", "/auth/callback?code=abc", "Failed to complete authentication. Please try again."],
+  ])("shows an error when %s", async (_case, url, message) => {
+    window.history.replaceState({}, "", url);
+    (stravaLoginCallback as jest.Mock).mockRejectedValue(new Error("boom"));
+
     render(<AuthCallbackPage />);
     await waitFor(() => expect(screen.getByText("Login Failed")).toBeInTheDocument());
-    expect(screen.getByText("Missing authorization code.")).toBeInTheDocument();
+    expect(screen.getByText(message)).toBeInTheDocument();
   });
 
   it("stores auth data and redirects on successful callback", async () => {
@@ -35,14 +41,5 @@ describe("AuthCallbackPage", () => {
     await waitFor(() => expect(screen.getByText("You're In!")).toBeInTheDocument());
     expect(localStorage.getItem("auth_token")).toBe("token-1");
     expect(localStorage.getItem("auth_user")).toContain("actor-1");
-  });
-
-  it("shows backend-auth failure message when callback request fails", async () => {
-    window.history.replaceState({}, "", "/auth/callback?code=abc");
-    (stravaLoginCallback as jest.Mock).mockRejectedValue(new Error("boom"));
-
-    render(<AuthCallbackPage />);
-    await waitFor(() => expect(screen.getByText("Login Failed")).toBeInTheDocument());
-    expect(screen.getByText("Failed to complete authentication. Please try again.")).toBeInTheDocument();
   });
 });

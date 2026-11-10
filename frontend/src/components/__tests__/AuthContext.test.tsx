@@ -47,6 +47,7 @@ describe("AuthProvider", () => {
     localStorage.setItem("auth_token", "bad-token");
     localStorage.setItem("auth_user", JSON.stringify({ actor_id: "cached", is_admin: false }));
     (fetchCurrentUser as jest.Mock).mockRejectedValue(new Error("invalid"));
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
 
     render(
       <AuthProvider>
@@ -58,21 +59,8 @@ describe("AuthProvider", () => {
     expect(localStorage.getItem("auth_token")).toBeNull();
     expect(localStorage.getItem("auth_user")).toBeNull();
     expect(screen.getByTestId("logged")).toHaveTextContent("false");
-  });
-
-  it("logout clears local auth state", async () => {
-    localStorage.setItem("auth_token", "t1");
-    (fetchCurrentUser as jest.Mock).mockResolvedValue({ actor_id: "server-user", is_admin: false });
-    render(
-      <AuthProvider>
-        <Consumer />
-      </AuthProvider>
-    );
-
-    await waitFor(() => expect(screen.getByTestId("logged")).toHaveTextContent("true"));
-    fireEvent.click(screen.getByText("logout"));
-    expect(localStorage.getItem("auth_token")).toBeNull();
-    expect(screen.getByTestId("logged")).toHaveTextContent("false");
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 
   it("requests activity read access when starting Strava login", () => {

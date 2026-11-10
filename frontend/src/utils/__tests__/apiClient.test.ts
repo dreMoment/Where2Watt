@@ -22,7 +22,7 @@ const makeResponse = (
       }
       return JSON.stringify(body);
     },
-  };
+  } as unknown as Response;
 };
 
 describe("apiClient", () => {
@@ -98,26 +98,12 @@ describe("apiClient", () => {
     });
   });
 
-  it("request returns undefined for 204 and for non-json responses", async () => {
-    global.fetch = jest
-      .fn()
-      .mockResolvedValueOnce(makeResponse(null, { status: 204 }))
-      .mockResolvedValueOnce(
-        makeResponse("ok", { status: 200, headers: { "Content-Type": "text/plain" } })
-      ) as jest.Mock;
-
-    await expect(request("/one")).resolves.toBeUndefined();
-    await expect(request("/two")).resolves.toBeUndefined();
-  });
-
-  it("request parses JSON payloads", async () => {
-    global.fetch = jest.fn().mockResolvedValue(
-      makeResponse({ a: 1 }, {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      })
-    ) as jest.Mock;
-
-    await expect(request<{ a: number }>("/ok")).resolves.toEqual({ a: 1 });
+  it.each([
+    ["undefined for 204", makeResponse(null, { status: 204 }), undefined],
+    ["undefined for non-JSON", makeResponse("ok", { status: 200, headers: { "Content-Type": "text/plain" } }), undefined],
+    ["parsed JSON payloads", makeResponse({ a: 1 }, { status: 200, headers: { "Content-Type": "application/json" } }), { a: 1 }],
+  ])("request returns %s", async (_case, response, expected) => {
+    global.fetch = jest.fn().mockResolvedValue(response) as jest.Mock;
+    await expect(request("/path")).resolves.toEqual(expected);
   });
 });

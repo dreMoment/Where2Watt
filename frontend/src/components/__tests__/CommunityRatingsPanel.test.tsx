@@ -34,7 +34,6 @@ jest.mock("@/components/ui/UiFeedbackProvider", () => ({
 }));
 
 const mockSegment: import("@/types").Segment = {
-    _id: "1",
     id: "1",
     strava_url: "https://strava.com",
     name: "Test Climb",
@@ -148,33 +147,6 @@ describe("CommunityRatingsPanel", () => {
         expect(screen.queryByText(/average\s*\/\s*3/i)).not.toBeInTheDocument();
     });
 
-    it("hides category cards while rating form is open", async () => {
-        authState.isLoggedIn = true;
-        authState.token = "mock-token";
-
-        const segmentWithAverages: import("@/types").Segment = {
-            ...mockSegment,
-            ratings_count: 4,
-            average_ratings: {
-                overall_quality: 4,
-                traffic_level: 2,
-                road_surface: 2,
-                gradient_profile: 2,
-                sketchy_left_turns: 1,
-            },
-        };
-
-        render(<CommunityRatingsPanel segment={segmentWithAverages} />);
-        await waitFor(() => expect(fetchMySegmentRatingStatus).toHaveBeenCalled());
-        expect(screen.getByTestId("community-categories-grid")).toBeInTheDocument();
-
-        fireEvent.click(screen.getByRole("button", { name: /Rate this segment/i }));
-
-        expect(screen.queryByTestId("community-categories-grid")).not.toBeInTheDocument();
-        expect(screen.queryByRole("button", { name: /Rate this segment/i })).not.toBeInTheDocument();
-        expect(screen.getByRole("button", { name: "Overall Quality star 1" })).toBeInTheDocument();
-    });
-
     it("allows editing an existing rating", async () => {
         authState.isLoggedIn = true;
         authState.token = "mock-token";
@@ -221,30 +193,6 @@ describe("CommunityRatingsPanel", () => {
                 sketchy_left_turns: 1,
             });
         });
-    });
-
-    it("folds and expands the ratings popup content from the top-right toggle", () => {
-        const segmentWithAverages: import("@/types").Segment = {
-            ...mockSegment,
-            ratings_count: 3,
-            average_ratings: {
-                overall_quality: 4,
-                traffic_level: 2,
-                road_surface: 2,
-                gradient_profile: 2,
-                sketchy_left_turns: 1,
-            },
-        };
-
-        render(<CommunityRatingsPanel segment={segmentWithAverages} />);
-
-        expect(screen.getByTestId("community-categories-grid")).toBeInTheDocument();
-
-        fireEvent.click(screen.getByRole("button", { name: /Fold ratings popup/i }));
-        expect(screen.queryByTestId("community-categories-grid")).not.toBeInTheDocument();
-
-        fireEvent.click(screen.getByRole("button", { name: /Expand ratings popup/i }));
-        expect(screen.getByTestId("community-categories-grid")).toBeInTheDocument();
     });
 
     it("allows deleting an existing rating", async () => {

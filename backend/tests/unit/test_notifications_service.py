@@ -5,17 +5,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 import services.notifications as notifications_service
-
-
-class MockAsyncClientContext:
-    def __init__(self, client):
-        self.client = client
-
-    async def __aenter__(self):
-        return self.client
-
-    async def __aexit__(self, exc_type, exc, tb):
-        return False
+from tests.helpers import MockAsyncClientContext
 
 
 @pytest.mark.unit

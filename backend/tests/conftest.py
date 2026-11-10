@@ -14,6 +14,16 @@ os.environ["STRAVA_REFRESH_TOKEN"] = "test-refresh-token"
 os.environ["STRAVA_WEBHOOK_VERIFY_TOKEN"] = "test-webhook-verify-token"
 os.environ["STRAVA_WEBHOOK_SECRET"] = "test-webhook-secret"
 
+import warnings
+
+# Starlette 0.37 imports the legacy `multipart` module, which newer python-multipart releases
+# deprecate at import time. pytest.ini turns warnings into errors, so ignore this third-party one.
+warnings.filterwarnings(
+    "ignore",
+    message="Please use `import python_multipart` instead.",
+    category=PendingDeprecationWarning,
+)
+
 import pytest
 from fastapi.testclient import TestClient
 from pymongo import MongoClient
@@ -37,6 +47,15 @@ def mongo_client():
 @pytest.fixture(scope="session")
 def test_db_name():
     return os.environ["MONGODB_DB_NAME"]
+
+
+@pytest.fixture
+def disable_rate_limiter():
+    from main import app
+
+    app.state.limiter.enabled = False
+    yield
+    app.state.limiter.enabled = True
 
 
 @pytest.fixture(autouse=True)

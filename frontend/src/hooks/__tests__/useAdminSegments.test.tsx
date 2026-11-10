@@ -127,10 +127,11 @@ describe("useAdminSegments", () => {
     expect(result.current.quickAddMessage?.type).toBe("success");
   });
 
-  it("handles approve and block/unblock mutations", async () => {
+  it("forwards mutations to the API and drops approved segments from the pending list", async () => {
     (approveSegment as jest.Mock).mockResolvedValue(undefined);
     (blockSegment as jest.Mock).mockResolvedValue(undefined);
     (unblockSegment as jest.Mock).mockResolvedValue(undefined);
+    confirmMock.mockResolvedValue(true);
     const { result } = renderHook(() => useAdminSegments({ token: "token-1", onLogout: jest.fn() }));
     await waitFor(() => expect(result.current.currentLoading).toBe(false));
 
@@ -138,32 +139,30 @@ describe("useAdminSegments", () => {
       await result.current.handleApprove("s1");
     });
     expect(approveSegment).toHaveBeenCalledWith("s1", "token-1");
+    expect(result.current.pendingSegments).toHaveLength(0);
 
     await act(async () => {
       await result.current.handleBlock("s1");
+      await result.current.handleUnblock("s1");
+      await result.current.handleMerge("s1", "s2");
+      await result.current.handleSplit("s1", 2);
     });
     expect(blockSegment).toHaveBeenCalledWith("s1", "token-1", "Temporary closure");
-
-    await act(async () => {
-      await result.current.handleUnblock("s1");
-    });
     expect(unblockSegment).toHaveBeenCalledWith("s1", "token-1");
+    expect(mergeSegment).toHaveBeenCalledWith("s1", "s2", "token-1");
+    expect(splitSegment).toHaveBeenCalledWith("s1", "token-1");
   });
 
-  it("handles merge and split mutations", async () => {
-    confirmMock.mockResolvedValue(true);
+  it("filters segments case-insensitively by search query", async () => {
+    (fetchUnapprovedSegments as jest.Mock).mockResolvedValue([
+      { ...sampleSegment, id: "s1", name: "Alpine Climb" },
+      { ...sampleSegment, id: "s2", name: "Lakeside Sprint" },
+    ]);
     const { result } = renderHook(() => useAdminSegments({ token: "token-1", onLogout: jest.fn() }));
     await waitFor(() => expect(result.current.currentLoading).toBe(false));
 
-    await act(async () => {
-      await result.current.handleMerge("s1", "s2");
-    });
-    expect(mergeSegment).toHaveBeenCalledWith("s1", "s2", "token-1");
-
-    await act(async () => {
-      await result.current.handleSplit("s1", 2);
-    });
-    expect(splitSegment).toHaveBeenCalledWith("s1", "token-1");
+    act(() => result.current.setSearchQuery("ALPINE"));
+    expect(result.current.filteredSegments.map((segment) => segment.id)).toEqual(["s1"]);
   });
 
   it("loads and deletes ratings from moderation panel", async () => {
