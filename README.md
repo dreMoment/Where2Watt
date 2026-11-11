@@ -62,6 +62,12 @@ cannot access the Docker socket directly. If neither works, add your account to
 the Docker group and sign in again, or pass an appropriate command with the
 `DOCKER` override.
 
+The frontend calls the API on its own origin (`/api/...`) and Next.js forwards
+those requests to the backend, so the backend needs no CORS settings. In
+development the target defaults to `http://localhost:8080`; set
+`API_PROXY_TARGET` in `frontend/.env.local` (and in the Vercel project for
+deployments) to point somewhere else.
+
 ### Strava authentication
 
 The app and health endpoint work without real Strava credentials, but login and

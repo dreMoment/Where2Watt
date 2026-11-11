@@ -26,7 +26,6 @@ services:
       - MONGODB_DB_NAME=where2watt_test
       - JWT_SECRET=test-jwt-secret-with-at-least-32-bytes
       - ADMIN_STRAVA_IDS=987654
-      - CORS_ORIGIN=http://localhost:3000
       - STRAVA_CLIENT_ID=test-client-id
       - STRAVA_CLIENT_SECRET=test-client-secret
       - STRAVA_REFRESH_TOKEN=test-refresh-token

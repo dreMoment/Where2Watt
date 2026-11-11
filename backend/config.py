@@ -36,9 +36,3 @@ if not ADMIN_STRAVA_IDS:
 
 # Notifications
 ADMIN_DISCORD_WEBHOOK_URL = os.getenv("ADMIN_DISCORD_WEBHOOK_URL")
-
-# CORS Config
-CORS_ORIGIN = os.getenv("CORS_ORIGIN")
-if not CORS_ORIGIN:
-    raise RuntimeError("CORS_ORIGIN environment variable must be set")
-CORS_ORIGINS = [origin.strip() for origin in CORS_ORIGIN.split(",")]

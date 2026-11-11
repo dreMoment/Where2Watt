@@ -74,7 +74,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         reason: "auth-bootstrap-validation-failed",
                         error: errorMessage,
                         origin: window.location.origin,
-                        apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? null,
                         timestamp: new Date().toISOString(),
                     };
                     sessionStorage.setItem("auth_debug_last_failure", JSON.stringify(debugPayload));

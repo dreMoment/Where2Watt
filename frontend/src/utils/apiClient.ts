@@ -1,9 +1,5 @@
-function normalizeApiBaseUrl(value: string | undefined): string {
-    const normalized = value?.trim().replace(/\/+$/, "");
-    return normalized || "/api";
-}
-
-export const API_BASE_URL = normalizeApiBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL);
+// Same-origin path; next.config.ts rewrites it to the backend (API_PROXY_TARGET).
+export const API_BASE_URL = "/api";
 
 type MaybeJsonError = {
     detail?: string | Array<{ loc?: Array<string | number>; msg?: string; type?: string }>;

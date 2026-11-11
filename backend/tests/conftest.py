@@ -4,7 +4,6 @@ import uuid
 # Ensure required settings are available before importing app modules.
 os.environ["JWT_SECRET"] = "test-jwt-secret-with-at-least-32-bytes"
 os.environ["ADMIN_STRAVA_IDS"] = "987654"
-os.environ["CORS_ORIGIN"] = "http://localhost:3000"
 # Keep the configured Mongo server, but never allow tests to select the development database.
 os.environ.setdefault("MONGODB_URI", "mongodb://user:password@localhost:27017/?authSource=admin")
 os.environ["MONGODB_DB_NAME"] = f"where2watt_test_{uuid.uuid4().hex}"

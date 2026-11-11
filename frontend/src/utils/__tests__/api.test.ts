@@ -7,7 +7,7 @@ import {
 import { request } from "@/utils/apiClient";
 
 jest.mock("@/utils/apiClient", () => ({
-  API_BASE_URL: "http://localhost:8000/api",
+  API_BASE_URL: "/api",
   withBearerAuth: jest.fn((_token: string, headers: HeadersInit = {}) => new Headers(headers)),
   request: jest.fn(),
 }));
