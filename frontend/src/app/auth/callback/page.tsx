@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import Link from "next/link";
 import { stravaLoginCallback } from "@/utils/api";
 import { Activity, Loader2, AlertCircle } from "lucide-react";
 
@@ -18,8 +19,10 @@ export default function AuthCallbackPage() {
         const error = params.get("error");
 
         if (error || !code) {
-            setStatus("error");
-            setErrorMsg(error === "access_denied" ? "You denied access to Strava." : "Missing authorization code.");
+            queueMicrotask(() => {
+                setStatus("error");
+                setErrorMsg(error === "access_denied" ? "You denied access to Strava." : "Missing authorization code.");
+            });
             return;
         }
 
@@ -72,12 +75,12 @@ export default function AuthCallbackPage() {
                         </div>
                         <h2 className="text-2xl font-black text-neutral-900 mb-2 tracking-tight">Login Failed</h2>
                         <p className="text-neutral-500 font-medium mb-6">{errorMsg}</p>
-                        <a
+                        <Link
                             href="/"
                             className="inline-block bg-neutral-900 hover:bg-neutral-800 text-white py-3 px-8 rounded-xl font-bold text-sm transition-all shadow-lg"
                         >
                             Back to Home
-                        </a>
+                        </Link>
                     </>
                 )}
             </div>

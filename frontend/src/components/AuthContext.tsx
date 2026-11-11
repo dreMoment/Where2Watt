@@ -51,8 +51,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const savedUser = localStorage.getItem("auth_user");
 
         if (savedToken) {
+            // The cached identity is intentionally restored in the same effect pass
+            // so returning users do not see a logged-out flash.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setToken(savedToken);
-            // Try to restore user from localStorage first for instant UI
             if (savedUser) {
                 try {
                     setUser(JSON.parse(savedUser));
@@ -60,7 +62,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     // ignore
                 }
             }
-            // Validate token with the server
             fetchCurrentUser(savedToken)
                 .then((u) => {
                     setUser(u);
@@ -76,10 +77,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? null,
                         timestamp: new Date().toISOString(),
                     };
-                    // Keep a small local breadcrumb to inspect after redirects/reloads.
                     sessionStorage.setItem("auth_debug_last_failure", JSON.stringify(debugPayload));
                     console.warn("[auth] Clearing local auth after /auth/me validation failure", debugPayload);
-                    // Token is invalid, clear everything
                     localStorage.removeItem("auth_token");
                     localStorage.removeItem("auth_user");
                     setToken(null);

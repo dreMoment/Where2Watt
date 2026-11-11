@@ -1,9 +1,14 @@
+name: where2watt-test
+
 services:
   mongodb-test:
-    image: mongo:latest
+    # Keep tests runnable on ARMv8 hosts without the ARMv8.2 instruction set.
+    image: mongo:4.4.18
     container_name: where2watt-mongodb-test
+    logging:
+      driver: "none"
     healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand({ ping: 1 })"]
+      test: ["CMD", "mongo", "--quiet", "--eval", "db.adminCommand({ ping: 1 })"]
       interval: 5s
       timeout: 3s
       retries: 20

@@ -193,7 +193,7 @@ export default function CommunityRatingsPanel({ segment, initiallyFolded = false
             showToast(isUpdatingExistingRating ? "Your rating was updated." : "Thanks! Your rating was submitted.", {
                 type: "info",
             });
-        } catch (err) {
+        } catch {
             showToast("Failed to submit rating. Please try again.", { type: "error" });
         } finally {
             setIsRating(false);

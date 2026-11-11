@@ -8,16 +8,26 @@ import { verifyAdminAccess } from "@/utils/api";
 
 export default function AdminPage() {
     const { isLoading, isLoggedIn, login, logout, token } = useAuth();
-    const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+    const [adminCheck, setAdminCheck] = useState<{ token: string; isAdmin: boolean } | null>(null);
 
     useEffect(() => {
-        if (!token) {
-            setIsAdmin(null);
-            return;
-        }
+        if (!token) return;
 
-        verifyAdminAccess(token).then(setIsAdmin).catch(() => setIsAdmin(false));
+        let cancelled = false;
+        verifyAdminAccess(token)
+            .then((isAdmin) => {
+                if (!cancelled) setAdminCheck({ token, isAdmin });
+            })
+            .catch(() => {
+                if (!cancelled) setAdminCheck({ token, isAdmin: false });
+            });
+
+        return () => {
+            cancelled = true;
+        };
     }, [token]);
+
+    const isAdmin = adminCheck?.token === token ? adminCheck.isAdmin : null;
 
     if (isLoading) return null;
 
