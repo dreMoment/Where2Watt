@@ -16,8 +16,10 @@ if (!apiProxyTarget) {
 }
 
 const nextConfig: NextConfig = {
-  // Keep tracing scoped to this app when a parent directory also has a lockfile.
-  outputFileTracingRoot: process.cwd(),
+  // Locally, keep tracing scoped to this app when a parent directory also has a
+  // lockfile. Not on Vercel: it builds from frontend/ and expects the tracing
+  // root to be the repo root, or it can't find .next/ after the build.
+  ...(process.env.VERCEL ? {} : { outputFileTracingRoot: process.cwd() }),
   async rewrites() {
     return [{ source: "/api/:path*", destination: `${apiProxyTarget}/api/:path*` }];
   },
