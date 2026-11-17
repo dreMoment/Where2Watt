@@ -1,5 +1,7 @@
 # Where2Watt
 
+![Where2Watt map with the Zugerberg climb selected, showing distance, gradient, elevation profile and estimated time](docs/screenshot.png)
+
 A map of road segments that are good for cycling intervals: long, safe, and without traffic lights or awkward junctions.
 
 Live at **[where2watt.cc](https://where2watt.cc)**.
